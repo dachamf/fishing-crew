@@ -10,19 +10,13 @@ jobs:
         working-directory: frontendApp
     steps:
       - uses: actions/checkout@v4
-
-      # 1) Node (pinuj verziju i keširaj pnpm deps)
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'                      # ili '22', ali pinuj da izbegneš iznenađenja
+          node-version: '22'                      # ili '20'
           cache: 'pnpm'
           cache-dependency-path: 'frontendApp/pnpm-lock.yaml'
-
-      # 2) Instaliraj pnpm CLI u PATH
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10.14.0
-
+      - run: corepack enable
+      - run: corepack prepare pnpm@10.14.0 --activate
       - run: pnpm -v
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
