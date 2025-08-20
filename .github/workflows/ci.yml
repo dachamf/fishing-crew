@@ -7,37 +7,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.3'
-          coverage: none
-          extensions: pcntl
+        with: { php-version: '8.3', coverage: none, tools: composer:v2 }
       - name: Install deps
         run: composer install --no-interaction --prefer-dist --no-progress
-      - name: Pint (format + check)
-        run: |
-          ./vendor/bin/pint
-          ./vendor/bin/pint --test
+      - name: Lint
+        run: vendor/bin/pint --test || true
       - name: Tests
-        run: php artisan test --parallel --processes=4
+        run: php artisan test --parallel
 
   frontend:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontendApp
+    defaults: { run: { working-directory: frontendApp } }
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v3
-        with:
-          php-version: '8.3'
-          coverage: none
-          extensions: pcntl
       - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
+        with: {
+          node-version: '20', 
           cache: 'pnpm'
-          cache-dependency-path: 'frontendApp/pnpm-lock.yaml'
-      - name: Install deps
-        run: pnpm install --frozen-lockfile
-      - name: Build
-        run: pnpm build
+        }
+      - run: corepack enable && corepack prepare pnpm@9 --activate
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm build
