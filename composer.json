@@ -61,7 +61,14 @@
         ],
         "test": [
             "@php artisan config:clear --ansi",
-            "@php artisan test"
+            "php artisan test --parallel"
+        ],
+        "pint": "@php vendor/bin/pint -v",
+        "pint:test": "@php vendor/bin/pint --test",
+        "qa": [
+            "@pint",
+            "@pint:test",
+            "@test"
         ]
     },
     "extra": {

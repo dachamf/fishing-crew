@@ -1,5 +1,6 @@
 name: CI
 on: [push, pull_request]
+
 jobs:
   backend:
     runs-on: ubuntu-latest
@@ -8,26 +9,35 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
+          coverage: none
+          # Ako ti bude trebalo paralelno testiranje sa pcntl:
+          # extensions: pcntl
       - name: Install deps
+        run: composer install --no-interaction --prefer-dist --no-progress
+      # Format + check (više neće padati zbog stilskih razlika)
+      - name: Pint (format + check)
         run: |
-          composer install --no-interaction --prefer-dist
-      - name: Lint
-        run: ./vendor/bin/pint --test
+          ./vendor/bin/pint
+          ./vendor/bin/pint --test
       - name: Tests
-        run:  php artisan test --parallel
+        run: php artisan test --parallel
+
   frontend:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontendApp
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v3
         with:
           version: 9
-          run_install: false
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'pnpm'
+          cache-dependency-path: 'frontendApp/pnpm-lock.yaml'
       - name: Install deps
-        run: cd frontendApp && pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile
       - name: Build
-        run: cd frontendApp && pnpm build
+        run: pnpm build

@@ -1,0 +1,16 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Backend: auto-fix i restage
+composer pint
+git add -A
+
+# (Opciono) Frontend format/lint ako postoje skripte u frontendApp/package.json
+if [ -f frontendApp/package.json ]; then
+  if pnpm -C frontendApp run | grep -qE "(^| )format( |$)"; then pnpm -C frontendApp -s format; fi
+  if pnpm -C frontendApp run | grep -qE "(^| )lint( |$)"; then pnpm -C frontendApp -s lint; fi
+  git add -A
+fi
+
+# Brza verifikacija koda (ne pokrećemo duge testove na commit)
+composer pint:test
