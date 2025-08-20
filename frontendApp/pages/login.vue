@@ -12,6 +12,7 @@ const onSubmit = async () => {
     await login(email.value, password.value);
     return navigateTo((route.query.next as string) || '/');
   } catch (error) {
+    /* eslint-disable no-console */
     console.log(error);
   }
 }
@@ -22,18 +23,18 @@ const onSubmit = async () => {
       <h1 class="text-3xl font-semibold text-center text-gray-700">
         Fishermen Crew
       </h1>
-      <form class="space-y-4" @submit.prevent="onSubmit">
+      <form class="space-y-4" @submit.prevent=" onSubmit">
         <div>
           <label class="label">
             <span class="text-base label-text">Email</span>
           </label>
-          <input type="text" placeholder="Email Adresa" class="w-full input input-bordered" v-model="email"/>
+          <input v-model="email" type="text" placeholder="Email Adresa" class="w-full input input-bordered"/>
         </div>
         <div>
           <label class="label">
             <span class="text-base label-text">Lozinka</span>
           </label>
-          <input type="password" placeholder="Lozinka" class="w-full input input-bordered" v-model="password" />
+          <input v-model="password" type="password" placeholder="Lozinka" class="w-full input input-bordered" />
         </div>
         <div class="flex flex-row justify-between">
           <NuxtLink to="/register" class="text-xs text-gray-600 hover:underline hover:text-blue-600">Nemaš nalog?</NuxtLink>
@@ -49,7 +50,8 @@ const onSubmit = async () => {
         <hr class="w-full" />
       </div>
       <div class="my-6 space-y-2">
-        <button aria-label="Login with Google" type="button"
+        <button
+          aria-label="Login with Google" type="button"
                 class="flex items-center justify-center w-full p-2 space-x-4 border rounded-md focus:ring-2 focus:ring-offset-1 focus:ring-gray-400">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" class="w-5 h-5 fill-current">
             <path

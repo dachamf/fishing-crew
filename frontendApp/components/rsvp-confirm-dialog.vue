@@ -5,7 +5,7 @@ const emit = defineEmits<{ (e:'confirm'): void }>()
 </script>
 <template>
   <TransitionRoot :show="open">
-    <Dialog @close="open=false" class="relative z-50">
+    <Dialog class="relative z-50" @close="open=false">
       <TransitionChild enter="ease-out duration-200" enter-from="opacity-0" enter-to="opacity-100" leave="ease-in duration-150" leave-from="opacity-100" leave-to="opacity-0">
         <div class="fixed inset-0 bg-black/50" />
       </TransitionChild>

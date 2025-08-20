@@ -35,25 +35,25 @@ async function onSubmit() {
           <label class="label">
             <span class="label-text">Ime</span>
           </label>
-          <input type="text" placeholder="Ime" class="w-full input input-bordered" v-model="name" />
+          <input v-model="name" type="text" placeholder="Ime" class="w-full input input-bordered" />
         </div>
         <div>
           <label class="label">
             <span class="label-text">Email</span>
           </label>
-          <input type="text" placeholder="Email Adresa" class="w-full input input-bordered" v-model="email" />
+          <input v-model="email" type="text" placeholder="Email Adresa" class="w-full input input-bordered" />
         </div>
         <div>
           <label class="label">
             <span class="label-text">Lozinka</span>
           </label>
-          <input type="password" placeholder="Lozinka" class="w-full input input-bordered" v-model="password" />
+          <input v-model="password" type="password" placeholder="Lozinka" class="w-full input input-bordered" />
         </div>
         <div>
           <label class="label">
             <span class="label-text">Potvrdi lozinku</span>
           </label>
-          <input type="password" placeholder="Potvrdi lozinku" class="w-full input input-bordered" v-model="password_confirmation" />
+          <input v-model="password_confirmation" type="password" placeholder="Potvrdi lozinku" class="w-full input input-bordered" />
         </div>
         <div>
           <button class="btn btn-block">{{ pending ? 'Kreiram...' : 'Registruj se' }}</button>
@@ -67,7 +67,8 @@ async function onSubmit() {
         <hr class="w-full" />
       </div>
       <div class="my-6 space-y-2">
-        <button aria-label="Login with Google" type="button"
+        <button
+aria-label="Login with Google" type="button"
                 class="flex items-center justify-center w-full p-2 space-x-4 border rounded-md focus:ring-2 focus:ring-offset-1 focus:ring-gray-400">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" class="w-5 h-5 fill-current">
             <path

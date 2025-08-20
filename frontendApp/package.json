@@ -32,6 +32,7 @@
     "vue-router": "^4.5.1"
   },
   "devDependencies": {
+    "@eslint/js": "^9.33.0",
     "@tailwindcss/postcss": "^4.1.12",
     "@vite-pwa/nuxt": "^1.0.4",
     "@vitest/ui": "^3.2.4",
@@ -40,12 +41,15 @@
     "autoprefixer": "^10.4.21",
     "daisyui": "^5.0.50",
     "eslint": "^9.33.0",
-    "eslint-plugin-vue": "^10.4.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-vue": "^9.33.0",
     "postcss": "^8.5.6",
     "prettier": "^3.6.2",
     "tailwindcss": "^4.1.12",
     "typescript": "^5.9.2",
+    "typescript-eslint": "^8.39.1",
     "vitest": "^3.2.4",
+    "vue-eslint-parser": "^10.2.0",
     "vue-tsc": "^3.0.5"
   },
   "packageManager": "pnpm@9.15.9+sha512.68046141893c66fad01c079231128e9afb89ef87e2691d69e4d40eee228988295fd4682181bae55b58418c3a253bde65a505ec7c5f9403ece5cc3cd37dcf2531"

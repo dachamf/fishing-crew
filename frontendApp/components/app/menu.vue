@@ -40,7 +40,7 @@ const auth = useAuth();
         <li><a>Item 3</a></li>
       </ul>
     </div>
-    <div class="dropdown navbar-end" v-if="auth.user.value">
+    <div v-if="auth.user.value" class="dropdown navbar-end">
       {{ auth.user.value.name }}
       <div tabindex="0" role="button" class="btn btn-ghost btn-circle avatar ml-4">
         <div class="w-10 rounded-full">
