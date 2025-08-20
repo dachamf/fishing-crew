@@ -1,6 +1,6 @@
 # .github/workflows/ci.yml
 name: CI
-on: [ push, pull_request ]
+on: [push, pull_request]
 
 jobs:
   frontend:
@@ -10,16 +10,24 @@ jobs:
         working-directory: frontendApp
     steps:
       - uses: actions/checkout@v4
-      - name: install pnpm
-        uses: pnpm/acction-setup@v4
+
+      # 1) Instaliraj pnpm PRE setup-node (standalone bin u $PATH)
+      - uses: pnpm/action-setup@v4
         with:
-          version: 10
-      - name: Use Node.js
-        uses: actions/setup-node@v4
+          version: 10.14.0
+          standalone: true
+
+      # 2) Tek sada setup-node sa cache: 'pnpm'
+      - uses: actions/setup-node@v4
         with:
-          node-version: 22.x
-      - run: pnpm install
-      - run: pnpm lint
+          node-version: '20'
+          cache: 'pnpm'
+          cache-dependency-path: 'frontendApp/pnpm-lock.yaml'
+
+      - run: pnpm -v
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm build
 
   backend:
     runs-on: ubuntu-latest
