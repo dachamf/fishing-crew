@@ -9,7 +9,8 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-    public function up(): void {
+    public function up(): void
+    {
         Schema::create('catches', function (Blueprint $table) {
             $table->id();
             $table->foreignId('group_id')->constrained()->cascadeOnDelete();
@@ -20,17 +21,17 @@ return new class extends Migration
             $table->decimal('total_weight_kg', 6, 3)->nullable();
             $table->decimal('biggest_single_kg', 6, 3)->nullable();
             $table->text('note')->nullable();
-            $table->enum('status', ['pending','approved','rejected'])->default('pending');
+            $table->enum('status', ['pending', 'approved', 'rejected'])->default('pending');
             $table->timestamps();
         });
         Schema::create('catch_confirmations', function (Blueprint $table) {
             $table->id();
             $table->foreignId('catch_id')->constrained('catches')->cascadeOnDelete();
             $table->foreignId('confirmed_by')->constrained('users')->cascadeOnDelete();
-            $table->enum('status', ['approved','rejected'])->default('approved');
+            $table->enum('status', ['approved', 'rejected'])->default('approved');
             $table->string('note')->nullable();
             $table->timestamps();
-            $table->unique(['catch_id','confirmed_by']);
+            $table->unique(['catch_id', 'confirmed_by']);
         });
         Schema::create('scores', function (Blueprint $table) {
             $table->id();
@@ -42,14 +43,15 @@ return new class extends Migration
             $table->unsignedInteger('total_points')->default(0);
             $table->decimal('biggest_single_kg', 6, 3)->nullable();
             $table->timestamps();
-            $table->unique(['group_id','user_id','season_year']);
+            $table->unique(['group_id', 'user_id', 'season_year']);
         });
     }
 
     /**
      * Reverse the migrations.
      */
-    public function down(): void {
+    public function down(): void
+    {
         Schema::dropIfExists('scores');
         Schema::dropIfExists('catch_confirmations');
         Schema::dropIfExists('catches');

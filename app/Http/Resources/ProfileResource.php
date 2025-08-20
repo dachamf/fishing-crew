@@ -21,7 +21,7 @@ class ProfileResource extends JsonResource
             'gear' => $this->gear,
             'bio' => $this->bio,
             'avatar_url' => $this->avatar_url, // iz accessor-a
-            'settings' => $this->settings ?? new \stdClass(),
+            'settings' => $this->settings ?? new \stdClass,
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),
         ];

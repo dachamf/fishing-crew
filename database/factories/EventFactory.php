@@ -11,7 +11,6 @@ use Illuminate\Database\Eloquent\Factories\Factory;
  */
 class EventFactory extends Factory
 {
-
     protected $model = Event::class;
 
     /**
@@ -21,7 +20,8 @@ class EventFactory extends Factory
      */
     public function definition(): array
     {
-        $status = $this->faker->randomElement(['draft','scheduled','postponed','done']);
+        $status = $this->faker->randomElement(['draft', 'scheduled', 'postponed', 'done']);
+
         return [
             'group_id' => Group::factory(),
             'title' => $this->faker->sentence(3),

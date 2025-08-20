@@ -12,10 +12,9 @@ use Illuminate\Support\Facades\DB;
 
 class CatchesController extends Controller
 {
-
     /**
      * POST /api/catches
-     * @param Request $req
+     *
      * @return JsonResponse
      */
     public function store(Request $req)
@@ -31,9 +30,9 @@ class CatchesController extends Controller
         ]);
 
         // Event (ako je prosleđen) mora pripadati istoj grupi
-        if (!empty($data['event_id'])) {
+        if (! empty($data['event_id'])) {
             $event = Event::find($data['event_id']);
-            if (!$event || $event->group_id !== (int)$data['group_id']) {
+            if (! $event || $event->group_id !== (int) $data['group_id']) {
                 return response()->json(['message' => 'Event does not belong to the given group'], 422);
             }
         }
@@ -55,11 +54,9 @@ class CatchesController extends Controller
         return response()->json($catch->fresh(), 201);
     }
 
-
     /**
      * POST /api/catches/{catch}/confirm
-     * @param Request $req
-     * @param FishingCatch $catch
+     *
      * @return JsonResponse
      */
     public function confirm(Request $req, FishingCatch $catch)
@@ -80,7 +77,7 @@ class CatchesController extends Controller
             'user_id' => $req->user()->id,
         ])->exists();
 
-        if (!$isMember) {
+        if (! $isMember) {
             return response()->json(['message' => 'Only group members can confirm a catch'], 403);
         }
 
@@ -104,11 +101,9 @@ class CatchesController extends Controller
         return response()->json($catch->load(['confirmations']), 200);
     }
 
-
     /**
      * GET /api/users/{user}/catches?status=approved|pending|rejected
-     * @param Request $req
-     * @param int $userId
+     *
      * @return mixed
      */
     public function listByUser(Request $req, int $userId)
@@ -124,8 +119,6 @@ class CatchesController extends Controller
 
     /**
      * GET /catches/all
-     * @param Request $req
-     * @return JsonResponse
      */
     public function listByAll(Request $req): JsonResponse
     {

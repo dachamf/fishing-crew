@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Group extends Model
 {
     use HasFactory;
+
     protected $fillable = ['name', 'season_year'];
 
     // Relacije
@@ -34,6 +35,7 @@ class Group extends Model
     public function roleOf(int $userId): ?string
     {
         $row = $this->users()->where('users.id', $userId)->first();
+
         return $row?->pivot?->role;
     }
 
@@ -49,8 +51,7 @@ class Group extends Model
     {
         return $this->users()
             ->where('users.id', $userId)
-            ->whereIn('group_user.role', ['owner','moderator'])
+            ->whereIn('group_user.role', ['owner', 'moderator'])
             ->exists();
     }
-
 }

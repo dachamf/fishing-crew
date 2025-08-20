@@ -9,7 +9,6 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-
 Route::prefix('auth')->group(function () {
     Route::post('/login', LoginController::class);
     Route::post('/register', RegisterController::class);

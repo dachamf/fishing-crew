@@ -14,7 +14,7 @@ class LoginController extends Controller
      */
     public function __invoke(LoginRequest $request)
     {
-        if (!Auth::attempt($request->only(['email', 'password']))) {
+        if (! Auth::attempt($request->only(['email', 'password']))) {
             throw ValidationException::withMessages([
                 'email' => __('auth.failed'),
             ]);

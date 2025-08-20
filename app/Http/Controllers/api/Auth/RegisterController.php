@@ -18,7 +18,7 @@ class RegisterController extends Controller
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
-            'password' => Hash::make($request->password)
+            'password' => Hash::make($request->password),
         ]);
 
         $token = $user->createToken('fishing_crew_api_token')->plainTextToken;

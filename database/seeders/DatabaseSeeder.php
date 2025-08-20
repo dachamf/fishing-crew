@@ -6,7 +6,6 @@ use App\Models\Event;
 use App\Models\Group;
 use App\Models\User;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Arr;
 
 class DatabaseSeeder extends Seeder
 {
@@ -61,7 +60,7 @@ class DatabaseSeeder extends Seeder
 
                 $pivotData = [];
                 foreach ($attendees as $userId) {
-                    $rsvp = collect(['yes','no','undecided'])->random();
+                    $rsvp = collect(['yes', 'no', 'undecided'])->random();
                     $checkedInAt = $rsvp === 'yes' ? now()->subMinutes(random_int(5, 120)) : null;
                     $rating = $checkedInAt ? random_int(1, 5) : null;
 

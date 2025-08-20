@@ -32,5 +32,4 @@ class Event extends Model
             ->withPivot(['rsvp', 'reason', 'checked_in_at', 'rating'])
             ->withTimestamps();
     }
-
 }

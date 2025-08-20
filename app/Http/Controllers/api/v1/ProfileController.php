@@ -15,19 +15,17 @@ use Illuminate\Support\Facades\Storage;
 
 class ProfileController extends Controller
 {
-
     /**
-     * @param Request $req
      * @return ProfileResource
      */
     public function me(Request $req)
     {
         $profile = Profile::firstOrCreate(['user_id' => $req->user()->id]);
+
         return new ProfileResource($profile);
     }
 
     /**
-     * @param ProfileUpdateRequest $req
      * @return ProfileResource
      */
     public function update(ProfileUpdateRequest $req)
@@ -39,9 +37,7 @@ class ProfileController extends Controller
         return new ProfileResource($profile->fresh());
     }
 
-
     /**
-     * @param AvatarUploadRequest $req
      * @return JsonResponse
      */
     public function uploadAvatar(AvatarUploadRequest $req)
@@ -67,7 +63,6 @@ class ProfileController extends Controller
     }
 
     /**
-     * @param Request $req
      * @return Response
      */
     public function deleteAvatar(Request $req)
@@ -87,13 +82,12 @@ class ProfileController extends Controller
     // GET /api/v1/users/{user}/profile  (javna ili polu-javna verzija)
 
     /**
-     * @param User $user
      * @return ProfileResource|JsonResponse
      */
     public function showPublic(User $user)
     {
         $profile = $user->profile;
-        if (!$profile) {
+        if (! $profile) {
             return response()->json(['message' => 'Profile not found'], 404);
         }
 

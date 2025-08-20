@@ -11,10 +11,9 @@ use Illuminate\Support\Facades\DB;
 
 class GroupsController extends Controller
 {
-
     /**
      * GET /api/groups  -> grupe čiji je user član
-     * @param Request $req
+     *
      * @return mixed
      */
     public function index(Request $req)
@@ -30,7 +29,7 @@ class GroupsController extends Controller
 
     /**
      * POST /api/groups
-     * @param GroupStoreRequest $req
+     *
      * @return \Illuminate\Http\JsonResponse
      */
     public function store(GroupStoreRequest $req)
@@ -44,11 +43,9 @@ class GroupsController extends Controller
         return response()->json($group->loadCount(['users as members_count', 'events']), 201);
     }
 
-
     /**
      * GET /api/groups/{group}
-     * @param Request $req
-     * @param Group $group
+     *
      * @return Group
      */
     public function show(Request $req, Group $group)
@@ -67,13 +64,13 @@ class GroupsController extends Controller
         abort_unless($group->isOwner($req->user()->id), 403, 'Only owner can update the group');
 
         $group->update($req->validated());
+
         return $group->fresh()->loadCount(['users as members_count', 'events']);
     }
 
     /**
      * DELETE /api/groups/{group}
-     * @param Request $req
-     * @param Group $group
+     *
      * @return \Illuminate\Http\Response
      */
     public function destroy(Request $req, Group $group)
@@ -90,8 +87,7 @@ class GroupsController extends Controller
 
     /**
      *GET /api/groups/{group}/members
-     * @param Request $req
-     * @param Group $group
+     *
      * @return \Illuminate\Http\JsonResponse
      */
     public function members(Request $req, Group $group)
@@ -110,8 +106,7 @@ class GroupsController extends Controller
 
     /**
      * POST /api/groups/{group}/invite   body: { user_id: n, role?: 'member'|'moderator' }
-     * @param Request $req
-     * @param Group $group
+     *
      * @return \Illuminate\Http\JsonResponse
      */
     public function invite(Request $req, Group $group)

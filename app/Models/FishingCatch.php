@@ -23,12 +23,34 @@ class FishingCatch extends Model
     ];
 
     // Relationships
-    public function group(): BelongsTo { return $this->belongsTo(Group::class); }
-    public function user(): BelongsTo { return $this->belongsTo(User::class); }
-    public function event(): BelongsTo { return $this->belongsTo(Event::class); }
-    public function confirmations(): HasMany { return $this->hasMany(CatchConfirmation::class, 'catch_id'); }
+    public function group(): BelongsTo
+    {
+        return $this->belongsTo(Group::class);
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function event(): BelongsTo
+    {
+        return $this->belongsTo(Event::class);
+    }
+
+    public function confirmations(): HasMany
+    {
+        return $this->hasMany(CatchConfirmation::class, 'catch_id');
+    }
 
     // Scopes
-    public function scopeApproved($q) { return $q->where('status', 'approved'); }
-    public function scopePending($q)  { return $q->where('status', 'pending'); }
+    public function scopeApproved($q)
+    {
+        return $q->where('status', 'approved');
+    }
+
+    public function scopePending($q)
+    {
+        return $q->where('status', 'pending');
+    }
 }

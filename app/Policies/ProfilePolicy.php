@@ -10,9 +10,7 @@ class ProfilePolicy
 {
     use HandlesAuthorization;
 
-    public function viewAny(User $user): bool
-    {
-    }
+    public function viewAny(User $user): bool {}
 
     public function view(User $user, Profile $profile): bool
     {
@@ -28,5 +26,4 @@ class ProfilePolicy
     {
         return $user->id === $profile->user_id;
     }
-
 }

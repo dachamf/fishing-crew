@@ -22,8 +22,8 @@ class GroupStoreRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name'        => ['required','string','max:255'],
-            'season_year' => ['nullable','integer','min:2000','max:2100'],
+            'name' => ['required', 'string', 'max:255'],
+            'season_year' => ['nullable', 'integer', 'min:2000', 'max:2100'],
         ];
     }
 }

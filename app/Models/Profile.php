@@ -37,13 +37,12 @@ class Profile extends Model
         ];
     }
 
-    /**
-     * @return Attribute
-     */
     protected function avatarUrl(): Attribute
     {
         return Attribute::get(function () {
-            if (!$this->avatar_path) return null;
+            if (! $this->avatar_path) {
+                return null;
+            }
             try {
                 return Storage::disk('s3')->temporaryUrl($this->avatar_path, now()->addMinute(60));
             } catch (\Throwable) {

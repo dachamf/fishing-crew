@@ -10,15 +10,13 @@ use App\Http\Controllers\api\v1\ProfileController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
-
 Route::prefix('auth')->group(function () {
     Route::post('/login', LoginController::class);
     Route::post('/register', RegisterController::class);
     Route::post('/logout', LogoutController::class)->middleware('auth:sanctum');
 });
 
-
-Route::middleware('auth:sanctum')->group(function() {
+Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('v1')->group(function () {
         Route::apiResource('groups', GroupsController::class);
         Route::get('groups/{group}/members', [GroupsController::class, 'members']);
@@ -38,9 +36,9 @@ Route::middleware('auth:sanctum')->group(function() {
         Route::post('catches/{catch}/confirm', [CatchesController::class, 'confirm']);
         Route::get('users/{user}/catches', [CatchesController::class, 'listByUser']);
 
-        Route::get('profile/me',        [ProfileController::class, 'me']);
-        Route::patch('profile',         [ProfileController::class, 'update']);
-        Route::post('profile/avatar',   [ProfileController::class, 'uploadAvatar']);
+        Route::get('profile/me', [ProfileController::class, 'me']);
+        Route::patch('profile', [ProfileController::class, 'update']);
+        Route::post('profile/avatar', [ProfileController::class, 'uploadAvatar']);
         Route::delete('profile/avatar', [ProfileController::class, 'deleteAvatar']);
 
         Route::get('users/{user}/profile', [ProfileController::class, 'showPublic']); // po želji public bez auth
