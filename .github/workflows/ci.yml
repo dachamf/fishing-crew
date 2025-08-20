@@ -1,3 +1,4 @@
+# .github/workflows/ci.yml
 name: CI
 on: [push, pull_request]
 
@@ -10,19 +11,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Node + keš za pnpm (obavezno navedi lockfile path jer je FE u podfolderu)
+      # 1) Node (pinuj verziju i keširaj pnpm deps)
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '20'                      # ili '22', ali pinuj da izbegneš iznenađenja
           cache: 'pnpm'
           cache-dependency-path: 'frontendApp/pnpm-lock.yaml'
 
-      # Aktiviraj pnpm (izbegava "pnpm not found")
-      - run: corepack enable
-      - run: corepack prepare pnpm@10.14.0 --activate
-      - run: pnpm -v
+      # 2) Instaliraj pnpm CLI u PATH
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.14.0
 
-      # Install + typecheck + build
+      - run: pnpm -v
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
       - run: pnpm build
@@ -31,22 +32,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
           coverage: none
           extensions: sqlite, sqlite3, pdo_sqlite
-
-      - name: Install Composer deps
-        run: composer install --no-interaction --prefer-dist --no-progress
-
+      - run: composer install --no-interaction --prefer-dist --no-progress
       - name: Create .env and APP_KEY
         run: |
           cp .env.example .env || true
           php artisan key:generate --force
-
-      # (opciono, ako ti testovi trebaju DB, koristi sqlite in-memory)
       - name: Run tests
         env:
           DB_CONNECTION: sqlite
