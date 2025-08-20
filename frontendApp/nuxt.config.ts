@@ -12,12 +12,8 @@ export default defineNuxtConfig({
   },
   vite: {
     server: {
-      host: '0.0.0.0',
       allowedHosts: true,
       hmr: {host: 'app.fishermen-crew.ddev.site', protocol: 'wss', clientPort: 443},
     }
   },
-  colorMode: {
-    dataValue: "theme",
-  },
-})
+});

@@ -8,7 +8,7 @@
     "preview": "nuxt preview --host 0.0.0.0 --port 3000",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "type-check": "vue-tsc --noEmit -p tsconfig.json"
+    "type-check": "nuxi typecheck"
   },
   "lint-staged": {
     "*.{ts,vue,js,css,md}": [
