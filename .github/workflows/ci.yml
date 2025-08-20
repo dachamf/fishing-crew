@@ -2,30 +2,56 @@ name: CI
 on: [push, pull_request]
 
 jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontendApp
+    steps:
+      - uses: actions/checkout@v4
+
+      # Node + keš za pnpm (obavezno navedi lockfile path jer je FE u podfolderu)
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+          cache-dependency-path: 'frontendApp/pnpm-lock.yaml'
+
+      # Aktiviraj pnpm (izbegava "pnpm not found")
+      - run: corepack enable
+      - run: corepack prepare pnpm@10.14.0 --activate
+      - run: pnpm -v
+
+      # Install + typecheck + build
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm build
+
   backend:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: shivammathur/setup-php@v2
-        with: { php-version: '8.3', coverage: none, tools: composer:v2 }
-      - name: Install deps
-        run: composer install --no-interaction --prefer-dist --no-progress
-      - name: Lint
-        run: vendor/bin/pint --test || true
-      - name: Tests
-        run: php artisan test --parallel
 
-  frontend:
-    runs-on: ubuntu-latest
-    defaults: { run: { working-directory: frontendApp } }
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: {
-          node-version: '20', 
-          cache: 'pnpm'
-        }
-      - run: corepack enable && corepack prepare pnpm@9 --activate
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm typecheck
-      - run: pnpm build
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+          extensions: sqlite, sqlite3, pdo_sqlite
+
+      - name: Install Composer deps
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Create .env and APP_KEY
+        run: |
+          cp .env.example .env || true
+          php artisan key:generate --force
+
+      # (opciono, ako ti testovi trebaju DB, koristi sqlite in-memory)
+      - name: Run tests
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ':memory:'
+          CACHE_DRIVER: array
+          SESSION_DRIVER: array
+          QUEUE_CONNECTION: sync
+        run: php artisan test --parallel
