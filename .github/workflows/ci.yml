@@ -15,9 +15,7 @@ jobs:
           node-version: '20'                      # ili '20'
           cache: 'pnpm'
           cache-dependency-path: 'frontendApp/pnpm-lock.yaml'
-      - run: npm install -g pnpm@10.14.0 
-      - run: corepack enable
-      - run: corepack prepare pnpm@10.14.0 --activate
+      - run: npm install -g pnpm@10.14.0
       - run: pnpm -v
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
