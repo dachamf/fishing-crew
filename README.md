@@ -1,61 +1,96 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Fishing Crew API & Frontend
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A Laravel-based backend with a companion frontend for managing fishing crews, profiles, and groups. This repository contains the API (Laravel) and a frontend app directory.
 
-## About Laravel
+Current date: 2025-08-20
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Features
+- User registration, login, logout (Laravel Sanctum)
+- Email verification flow with deep-link redirect to frontend
+- Profile management (v1 API)
+- Groups management (v1 API)
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Tech Stack
+- PHP 8.x, Laravel 11.x
+- MySQL or PostgreSQL
+- Node.js 18+ with Vite for frontend assets
+- Laravel Sanctum for SPA/API authentication
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Prerequisites
+- PHP 8.2+
+- Composer 2+
+- Node.js 18+ and PNPM or NPM
+- A running database (MySQL/PostgreSQL/SQLite)
 
-## Learning Laravel
+## Getting Started (Backend)
+1. Clone and install dependencies
+   - composer install
+2. Environment
+   - cp .env.example .env
+   - Set APP_URL (e.g., http://localhost:8000)
+   - Set FRONTEND_URL (e.g., http://localhost:3000)
+   - Configure DB_* and MAIL_* variables
+   - If using Sanctum with SPA, configure SANCTUM_STATEFUL_DOMAINS and SESSION_DOMAIN accordingly
+3. App key
+   - php artisan key:generate
+4. Database
+   - php artisan migrate
+   - Optionally: php artisan db:seed
+5. Serve the API
+   - php artisan serve
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+## Getting Started (Frontend)
+There is a frontendApp directory in the repo. If you are using it:
+1. cd frontendApp
+2. pnpm install (or npm install)
+3. pnpm run dev (or npm run dev)
+4. Ensure the dev server URL matches FRONTEND_URL in the backend .env
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+The repository also contains a root-level package.json and node_modules, which may be used for asset building if the frontend is colocated. Prefer frontendApp for SPA if present.
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+## Important Environment Variables
+- FRONTEND_URL: Used for redirect after email verification
+  - Defaults: config/app.php sets frontend_url to FRONTEND_URL or http://localhost:3000
+- APP_URL: Backend base URL
+- MAIL_*: Configure mail transport so verification emails can be sent
+- SANCTUM_STATEFUL_DOMAINS and SESSION_DOMAIN: Required for SPA auth with Sanctum
 
-## Laravel Sponsors
+## Email Verification Flow
+- Verification link endpoint: GET /api/auth/verify-email/{id}/{hash}
+  - Controller: app/Http/Controllers/api/Auth/EmailVerificationController.php
+  - On success, redirects to: FRONTEND_URL/verify?status=success
+  - If already verified: FRONTEND_URL/verify?status=already-verified
+  - Invalid link returns a 403 JSON response
+- Resend verification notification: POST /api/auth/email/verification-notification (auth:sanctum)
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+## Authentication
+- Uses Laravel Sanctum
+- Ensure SPA hosts are configured in sanctum.php and your .env
+- Typical flow:
+  - CSRF cookie (if using session-based SPA): GET /sanctum/csrf-cookie
+  - Login: POST /login (or the configured route in routes/api.php or routes/web.php)
+  - Authenticated API calls include session or token as configured
 
-### Premium Partners
+## Useful Commands
+- Run tests: php artisan test
+- Lint/format (if configured): vendor/bin/pint
+- Clear caches: php artisan optimize:clear
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+## Project Structure Highlights
+- app/Http/Controllers/api/Auth/*: Auth controllers (Register, Login, Logout, Email Verification)
+- app/Http/Controllers/api/v1/*: Domain APIs (Profile, Groups)
+- routes/api.php: API routes
+- config/app.php: frontend_url configuration
+- frontendApp/: Frontend SPA (if used)
+
+## Tasks and Roadmap
+See TASKS.md for a prioritized, actionable task list across backend, auth/security, domain features, testing/QA, DX, and docs.
 
 ## Contributing
-
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
-
-## Code of Conduct
-
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+PRs are welcome. Please:
+- Follow PSR-12 coding standards
+- Add tests when possible
+- Update documentation as needed
 
 ## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+This project is open-sourced software licensed under the MIT license.

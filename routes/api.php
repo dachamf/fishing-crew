@@ -4,6 +4,7 @@ use App\Http\Controllers\api\Auth\EmailVerificationController;
 use App\Http\Controllers\api\Auth\LoginController;
 use App\Http\Controllers\api\Auth\LogoutController;
 use App\Http\Controllers\api\Auth\RegisterController;
+use App\Http\Controllers\api\v1\AccountController;
 use App\Http\Controllers\api\v1\CatchesController;
 use App\Http\Controllers\api\v1\EventsController;
 use App\Http\Controllers\api\v1\GroupsController;
@@ -25,7 +26,7 @@ Route::prefix('auth')->group(function () {
         ->name('verification.verify');
 
     Route::post('/email/verification-notification', [EmailVerificationController::class, 'send'])
-        ->middleware(['auth:sanctum','throttle:6,1']); // max 6 puta u 1 min
+        ->middleware(['auth:sanctum','throttle:6,1']);
 });
 
 Route::middleware(['auth:sanctum', 'verified'])->group(function () {
@@ -52,6 +53,9 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
         Route::patch('profile', [ProfileController::class, 'update']);
         Route::post('profile/avatar', [ProfileController::class, 'uploadAvatar']);
         Route::delete('profile/avatar', [ProfileController::class, 'deleteAvatar']);
+
+        Route::patch('profile/password', [AccountController::class, 'changePassword']);
+        Route::delete('account', [AccountController::class, 'destroy']);
 
         Route::get('users/{user}/profile', [ProfileController::class, 'showPublic']); // po želji public bez auth
 

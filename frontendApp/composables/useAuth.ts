@@ -36,6 +36,20 @@ async function logout() {
   }
   const isVerified = computed(() => !!user.value?.email_verified_at)
 
+  async function changePassword(current_password: string, password: string, password_confirmation: string) {
+    await $api.patch('/v1/profile/password', {
+      current_password,
+      password,
+      password_confirmation
+    });
+  }
+
+  async function deleteAccount(password: string) {
+    await $api.delete('/account', {
+      password,
+    });
+  }
+
   return {
     token,
     user,
@@ -43,6 +57,8 @@ async function logout() {
     register,
     login,
     me,
-    logout
+    logout,
+    changePassword,
+    deleteAccount,
   }
 }
