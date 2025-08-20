@@ -1,0 +1,11 @@
+#!/bin/bash
+
+## Description: Bootstrap Nuxt u /frontendApp (kreiraj ako fali) i instaliraj dependencije
+## Usage: fe:init
+
+ddev exec '
+  mkdir -p frontendApp && cd frontendApp &&
+  corepack enable && corepack prepare pnpm@9 --activate &&
+  ([ -f package.json ] || pnpm dlx nuxi@latest init . --packageManager pnpm --force) &&
+  pnpm install
+'

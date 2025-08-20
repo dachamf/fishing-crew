@@ -1,0 +1,212 @@
+#ddev-generated
+# If you remove the ddev-generated line above you
+# are responsible for maintaining this file. DDEV will not then
+# update it, for example if you add `additional_hostnames`, etc.
+
+http:
+  routers:
+    app.fishermen-crew-web-80-http:
+      entrypoints:
+        - http-80
+      rule: HostRegexp(`^app\.fishermen-crew\.ddev\.site$`)|| HostRegexp(`^api\.fishermen-crew\.ddev\.site$`)
+      
+      service: "app.fishermen-crew-web-80"
+      ruleSyntax: v3
+      tls: false
+      # middlewares:
+      #   - "app.fishermen-crew-redirectHttps"
+    app.fishermen-crew-web-8025-http:
+      entrypoints:
+        - http-8025
+      rule: HostRegexp(`^app\.fishermen-crew\.ddev\.site$`)|| HostRegexp(`^api\.fishermen-crew\.ddev\.site$`)
+      
+      service: "app.fishermen-crew-web-8025"
+      ruleSyntax: v3
+      tls: false
+      # middlewares:
+      #   - "app.fishermen-crew-redirectHttps"
+    app.fishermen-crew-xhgui-80-http:
+      entrypoints:
+        - http-8143
+      rule: HostRegexp(`^app\.fishermen-crew\.ddev\.site$`)|| HostRegexp(`^api\.fishermen-crew\.ddev\.site$`)
+      
+      service: "app.fishermen-crew-xhgui-80"
+      ruleSyntax: v3
+      tls: false
+      # middlewares:
+      #   - "app.fishermen-crew-redirectHttps"
+    app.fishermen-crew-adminer-8080-http:
+      entrypoints:
+        - http-9100
+      rule: HostRegexp(`^app\.fishermen-crew\.ddev\.site$`)|| HostRegexp(`^api\.fishermen-crew\.ddev\.site$`)
+      
+      service: "app.fishermen-crew-adminer-8080"
+      ruleSyntax: v3
+      tls: false
+      # middlewares:
+      #   - "app.fishermen-crew-redirectHttps"
+    app.fishermen-crew-minio-9090-http:
+      entrypoints:
+        - http-9089
+      rule: HostRegexp(`^app\.fishermen-crew\.ddev\.site$`)|| HostRegexp(`^api\.fishermen-crew\.ddev\.site$`)
+      
+      service: "app.fishermen-crew-minio-9090"
+      ruleSyntax: v3
+      tls: false
+      # middlewares:
+      #   - "app.fishermen-crew-redirectHttps"
+    app.fishermen-crew-minio-10101-http:
+      entrypoints:
+        - http-10100
+      rule: HostRegexp(`^app\.fishermen-crew\.ddev\.site$`)|| HostRegexp(`^api\.fishermen-crew\.ddev\.site$`)
+      
+      service: "app.fishermen-crew-minio-10101"
+      ruleSyntax: v3
+      tls: false
+      # middlewares:
+      #   - "app.fishermen-crew-redirectHttps"
+    app.fishermen-crew-phpmyadmin-80-http:
+      entrypoints:
+        - http-8036
+      rule: HostRegexp(`^app\.fishermen-crew\.ddev\.site$`)|| HostRegexp(`^api\.fishermen-crew\.ddev\.site$`)
+      
+      service: "app.fishermen-crew-phpmyadmin-80"
+      ruleSyntax: v3
+      tls: false
+      # middlewares:
+      #   - "app.fishermen-crew-redirectHttps"
+    
+    
+    
+    app.fishermen-crew-web-80-https:
+      entrypoints:
+        - http-443
+      rule: HostRegexp(`^app\.fishermen-crew\.ddev\.site$`) || HostRegexp(`^api\.fishermen-crew\.ddev\.site$`)
+      
+      service: "app.fishermen-crew-web-80"
+      ruleSyntax: v3
+      
+      tls: true
+      
+    app.fishermen-crew-web-8025-https:
+      entrypoints:
+        - http-8026
+      rule: HostRegexp(`^app\.fishermen-crew\.ddev\.site$`) || HostRegexp(`^api\.fishermen-crew\.ddev\.site$`)
+      
+      service: "app.fishermen-crew-web-8025"
+      ruleSyntax: v3
+      
+      tls: true
+      
+    
+    app.fishermen-crew-xhgui-80-https:
+      entrypoints:
+        - http-8142
+      rule: HostRegexp(`^app\.fishermen-crew\.ddev\.site$`) || HostRegexp(`^api\.fishermen-crew\.ddev\.site$`)
+      
+      service: "app.fishermen-crew-xhgui-80"
+      ruleSyntax: v3
+      
+      tls: true
+      
+    
+    app.fishermen-crew-adminer-8080-https:
+      entrypoints:
+        - http-9101
+      rule: HostRegexp(`^app\.fishermen-crew\.ddev\.site$`) || HostRegexp(`^api\.fishermen-crew\.ddev\.site$`)
+      
+      service: "app.fishermen-crew-adminer-8080"
+      ruleSyntax: v3
+      
+      tls: true
+      
+    
+    
+    app.fishermen-crew-minio-9090-https:
+      entrypoints:
+        - http-9090
+      rule: HostRegexp(`^app\.fishermen-crew\.ddev\.site$`) || HostRegexp(`^api\.fishermen-crew\.ddev\.site$`)
+      
+      service: "app.fishermen-crew-minio-9090"
+      ruleSyntax: v3
+      
+      tls: true
+      
+    app.fishermen-crew-minio-10101-https:
+      entrypoints:
+        - http-10101
+      rule: HostRegexp(`^app\.fishermen-crew\.ddev\.site$`) || HostRegexp(`^api\.fishermen-crew\.ddev\.site$`)
+      
+      service: "app.fishermen-crew-minio-10101"
+      ruleSyntax: v3
+      
+      tls: true
+      
+    
+    app.fishermen-crew-phpmyadmin-80-https:
+      entrypoints:
+        - http-8037
+      rule: HostRegexp(`^app\.fishermen-crew\.ddev\.site$`) || HostRegexp(`^api\.fishermen-crew\.ddev\.site$`)
+      
+      service: "app.fishermen-crew-phpmyadmin-80"
+      ruleSyntax: v3
+      
+      tls: true
+      
+    
+
+  middlewares:
+    app.fishermen-crew-redirectHttps:
+      redirectScheme:
+        scheme: https
+        permanent: true
+
+  services:
+    app.fishermen-crew-web-80:
+      loadbalancer:
+        servers:
+          - url: http://ddev-app.fishermen-crew-web:80
+        
+    app.fishermen-crew-web-8025:
+      loadbalancer:
+        servers:
+          - url: http://ddev-app.fishermen-crew-web:8025
+        
+    
+    
+    app.fishermen-crew-xhgui-80:
+      loadbalancer:
+        servers:
+          - url: http://ddev-app.fishermen-crew-xhgui:80
+        
+    
+    app.fishermen-crew-adminer-8080:
+      loadbalancer:
+        servers:
+          - url: http://ddev-app.fishermen-crew-adminer:8080
+        
+    
+    app.fishermen-crew-minio-9090:
+      loadbalancer:
+        servers:
+          - url: http://ddev-app.fishermen-crew-minio:9090
+        
+    app.fishermen-crew-minio-10101:
+      loadbalancer:
+        servers:
+          - url: http://ddev-app.fishermen-crew-minio:10101
+        
+    
+    
+    app.fishermen-crew-phpmyadmin-80:
+      loadbalancer:
+        servers:
+          - url: http://ddev-app.fishermen-crew-phpmyadmin:80
+        
+    
+    
+
+tls:
+  certificates:
+    - certFile: /mnt/ddev-global-cache/traefik/certs/app.fishermen-crew.crt
+      keyFile: /mnt/ddev-global-cache/traefik/certs/app.fishermen-crew.key

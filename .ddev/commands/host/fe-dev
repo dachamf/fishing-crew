@@ -1,0 +1,7 @@
+#!/bin/bash
+
+## Description: Pokreni Nuxt dev server (0.0.0.0:3000 → https://app.fishermen-crew.ddev.site)
+## Usage: fe:dev [--open]
+## Example: "ddev fe:dev"
+
+ddev exec 'cd frontendApp && pnpm ddev'
