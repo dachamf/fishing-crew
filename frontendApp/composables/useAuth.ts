@@ -1,5 +1,5 @@
 export function useAuth() {
-  type User = any
+  type User = { id:number; name:string; email:string; email_verified_at?: string | null }
   const token = useCookie<string|undefined>('token', { sameSite: 'lax' })
   const user  = useState<User|null>('user', () => null)
   const { $api } = useNuxtApp() as any
@@ -34,6 +34,15 @@ async function logout() {
 
     navigateTo('/login');
   }
+  const isVerified = computed(() => !!user.value?.email_verified_at)
 
-  return { token, user, register, login, me, logout }
+  return {
+    token,
+    user,
+    isVerified,
+    register,
+    login,
+    me,
+    logout
+  }
 }

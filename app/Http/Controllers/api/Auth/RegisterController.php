@@ -21,6 +21,7 @@ class RegisterController extends Controller
             'password' => Hash::make($request->password),
         ]);
 
+        $user->sendEmailVerificationNotification();
         $token = $user->createToken('fishing_crew_api_token')->plainTextToken;
 
         return response()->json([

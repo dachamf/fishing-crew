@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\api\Auth\EmailVerificationController;
 use App\Http\Controllers\api\Auth\LoginController;
 use App\Http\Controllers\api\Auth\LogoutController;
 use App\Http\Controllers\api\Auth\RegisterController;
@@ -14,9 +15,20 @@ Route::prefix('auth')->group(function () {
     Route::post('/login', LoginController::class);
     Route::post('/register', RegisterController::class);
     Route::post('/logout', LogoutController::class)->middleware('auth:sanctum');
+
+    // Info o ulogovanom (za FE)
+    Route::middleware('auth:sanctum')->get('/me', fn (Request $r) => $r->user()->load('profile'));
+
+    // Email verification
+    Route::get('/verify-email/{id}/{hash}', [EmailVerificationController::class, 'verify'])
+        ->middleware('signed') // potpisan URL
+        ->name('verification.verify');
+
+    Route::post('/email/verification-notification', [EmailVerificationController::class, 'send'])
+        ->middleware(['auth:sanctum','throttle:6,1']); // max 6 puta u 1 min
 });
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::prefix('v1')->group(function () {
         Route::apiResource('groups', GroupsController::class);
         Route::get('groups/{group}/members', [GroupsController::class, 'members']);
