@@ -86,10 +86,12 @@ watch(() => route.fullPath, () => (open.value = false))
     <div class="navbar-start">
       <!-- Mobile menu -->
       <div class="dropdown">
-        <button class="btn btn-ghost lg:hidden" @click="open = !open" aria-label="Open main menu">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
+        <button class="btn btn-ghost lg:hidden" aria-label="Open main menu" @click="open = !open">
+          <svg
+xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
                viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            <path
+stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                   d="M4 6h16M4 12h16M4 18h16"/>
           </svg>
         </button>
@@ -111,7 +113,8 @@ watch(() => route.fullPath, () => (open.value = false))
           </li>
 
           <li v-if="auth.user.value && !isVerified" class="mt-2">
-            <button class="btn btn-warning btn-sm w-full"
+            <button
+class="btn btn-warning btn-sm w-full"
                     :disabled="sendingVerify"
                     @click="resendVerification">
               {{ sendingVerify ? 'Slanje...' : 'Ponovo pošalji verifikaciju' }}
@@ -185,7 +188,8 @@ watch(() => route.fullPath, () => (open.value = false))
               {{ profile?.display_name || auth.user.value?.name }}
             </div>
             <div v-if="!isVerified" class="mt-2">
-              <button class="btn btn-warning btn-xs w-full"
+              <button
+class="btn btn-warning btn-xs w-full"
                       :disabled="sendingVerify"
                       @click="resendVerification">
                 {{ sendingVerify ? 'Slanje…' : 'Verifikuj email' }}

@@ -4,10 +4,11 @@ const swapActive = computed(() => theme.value === 'dark')
 </script>
 
 <template>
-  <button class="btn btn-ghost btn-circle swap swap-rotate"
+  <button
+class="btn btn-ghost btn-circle swap swap-rotate"
           :class="{ 'swap-active': swapActive }"
-          @click="toggle"
-          aria-label="Toggle theme">
+          aria-label="Toggle theme"
+          @click="toggle">
     <!-- sun (light) -->
     <svg class="swap-off w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
       <circle cx="12" cy="12" r="4" stroke-width="2"/>

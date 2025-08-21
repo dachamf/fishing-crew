@@ -129,7 +129,7 @@ async function choose(t:'light'|'dark') {
         <div class="flex gap-2">
           <input ref="fileInput" type="file" accept="image/*" class="hidden" @change="onPickAvatar" />
           <button class="btn btn-primary" :disabled="avatarBusy" @click="fileInput?.click()">Upload</button>
-          <button class="btn" :disabled="avatarBusy" @click="deleteAvatar">Remove</button>
+          <button class="btn" :disabled="avatarBusy" @click="onDeleteAvatar">Remove</button>
         </div>
       </div>
     </section>
@@ -138,12 +138,18 @@ async function choose(t:'light'|'dark') {
     <section class="card bg-base-100 shadow p-4">
       <h2 class="font-medium mb-3 text-info">Tema</h2>
       <div class="flex items-center gap-3">
-        <button class="btn" :class="theme==='light' ? 'btn-primary' : 'btn-ghost'"
-                :disabled="busy" @click="choose('light')">
+        <button
+            class="btn"
+            :class="theme==='light' ? 'btn-primary' : 'btn-ghost'"
+            :disabled="busy" @click="choose('light')"
+        >
           Light
         </button>
-        <button class="btn" :class="theme==='dark' ? 'btn-primary' : 'btn-ghost'"
-                :disabled="busy" @click="choose('dark')">
+        <button
+          class="btn"
+          :class="theme==='dark' ? 'btn-primary' : 'btn-ghost'"
+          :disabled="busy" @click="choose('dark')"
+        >
           Dark
         </button>
         <span class="opacity-70 text-sm ml-2">Trenutno: {{ theme }}</span>
