@@ -24,6 +24,7 @@ class ProfileResource extends JsonResource
             'settings' => $this->settings ?? new \stdClass,
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),
+            'theme' => data_get($this->settings, 'theme'),
         ];
     }
 }

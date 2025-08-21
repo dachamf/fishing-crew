@@ -1,26 +1,21 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { SwitchRoot, SwitchThumb } from 'radix-vue'
-
-// koristi tvoj postojeći composable
-const { theme, setTheme } = useTheme()
-
-const isDark = computed({
-  get: () => theme.value === 'dark',
-  set: (v: boolean) => setTheme(v ? 'dark' : 'light'),
-})
+const { theme, toggle } = useTheme()
+const swapActive = computed(() => theme.value === 'dark')
 </script>
 
 <template>
-  <SwitchRoot
-    v-model:checked="isDark"
-    :aria-label="`Switch to ${isDark ? 'light' : 'dark'} theme`"
-    class="inline-flex h-6 w-11 items-center rounded-full transition-colors
-           bg-base-300 data-[state=checked]:bg-primary"
-  >
-    <SwitchThumb
-      class="block h-5 w-5 translate-x-0.5 rounded-full bg-base-100 transition-transform
-             data-[state=checked]:translate-x-5"
-    />
-  </SwitchRoot>
+  <button class="btn btn-ghost btn-circle swap swap-rotate"
+          :class="{ 'swap-active': swapActive }"
+          @click="toggle"
+          aria-label="Toggle theme">
+    <!-- sun (light) -->
+    <svg class="swap-off w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <circle cx="12" cy="12" r="4" stroke-width="2"/>
+      <path stroke-width="2" d="M12 2v2m0 16v2m10-10h-2M4 12H2m16.95 6.95-1.41-1.41M6.46 6.46 5.05 5.05m12.02-0 1.41 1.41M6.46 17.54 5.05 18.95"/>
+    </svg>
+    <!-- moon (dark) -->
+    <svg class="swap-on w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z"/>
+    </svg>
+  </button>
 </template>

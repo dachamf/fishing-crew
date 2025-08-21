@@ -1,2 +1,29 @@
 @import "tailwindcss";
 @plugin "daisyui";
+
+/* Nuxt top indicator */
+.nuxt-progress{
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  z-index: 9999;
+  transition: width .2s ease, opacity .2s ease;
+}
+
+/* Light tema → primary */
+:root[data-theme="light"] .nuxt-progress{
+  background: oklch(var(--p));
+  box-shadow: 0 0 10px oklch(var(--p));
+}
+
+/* Dark tema → secondary (možeš promeniti u --p ako želiš) */
+:root[data-theme="dark"] .nuxt-progress{
+  background: oklch(var(--s));
+  box-shadow: 0 0 10px oklch(var(--s));
+}
+
+.nuxt-progress{ position:fixed; top:0; left:0; right:0; height:3px; z-index:9999; }
+:root[data-theme="light"] .nuxt-progress{ background: oklch(var(--p)); box-shadow: 0 0 10px oklch(var(--p)); }
+:root[data-theme="dark"]  .nuxt-progress{ background: oklch(var(--s)); box-shadow: 0 0 10px oklch(var(--s)); }
+
+

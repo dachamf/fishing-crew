@@ -1,11 +1,12 @@
 <script setup lang="ts">
+import Toaster from "~/components/ui/Toaster.vue";
 </script>
 <template>
   <div>
     <AppMenu />
-    <div>
+    <main class="min-h-[calc(100vh-4rem)]">
       <slot />
-    </div>
+    </main>
+    <Toaster />
   </div>
 </template>
-

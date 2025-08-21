@@ -69,7 +69,7 @@ class User extends Authenticatable
         return $this->hasMany(FishingCatch::class, 'user_id')->where('status', 'approved');
     }
 
-    public function profle(): HasOne
+    public function profile(): HasOne
     {
         return $this->hasOne(Profile::class);
     }

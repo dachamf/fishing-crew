@@ -23,7 +23,10 @@ function onMapClick(e:any){
     <div class="card h-[420px]">
       <div class="card-body p-0">
         <MglMap style="height: 100%; width: 100%" :zoom="7" :center="[form.longitude, form.latitude]" @click="onMapClick">
-          <MglMarker :lng-lat="[form.longitude, form.latitude]"/>
+          <MglMarker
+            :coordinates="[form.longitude, form.latitude]"
+            draggable
+          />
           <MglNavigationControl position="top-right"/>
         </MglMap>
       </div>

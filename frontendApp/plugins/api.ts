@@ -1,4 +1,6 @@
 import axios from 'axios'
+import { useToast } from "#imports";
+import { toErrorMessage } from '~/utils/http'
 
 export default defineNuxtPlugin((nuxtApp) => {
   const config = useRuntimeConfig()
@@ -16,6 +18,10 @@ export default defineNuxtPlugin((nuxtApp) => {
   api.interceptors.response.use(
     (res) => res,
     async (err) => {
+      if(process.client) {
+        const { error } = useToast();
+        error(toErrorMessage(err));
+      }
       // ako BE nekad vrati 400 umesto 401, uhvati i to
       const status = err.response?.status
       if (status === 401 || status === 419) {

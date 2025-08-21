@@ -50,6 +50,10 @@ class Profile extends Model
             }
         });
     }
-
     protected $appends = ['avatar_url'];
+
+    public function getAvatarUrlAttribute(): ?string
+    {
+        return $this->avatar_path ? Storage::disk('s3')->url($this->avatar_path) : null;
+    }
 }
