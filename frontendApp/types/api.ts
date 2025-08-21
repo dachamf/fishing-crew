@@ -1,4 +1,4 @@
-export type ThemeMode = 'light' | 'dark'
+export type ThemeMode = 'light' | 'dark' | 'system'
 
 export interface Profile {
   id: number
@@ -11,7 +11,6 @@ export interface Profile {
   bio?: string | null
   avatar_url?: string | null
   settings?: { theme?: ThemeMode; [k: string]: any } | null
-  /** flatten iz API-ja ili iz settings.theme */
   theme?: ThemeMode | null
   created_at?: string
   updated_at?: string

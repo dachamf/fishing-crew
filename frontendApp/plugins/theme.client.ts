@@ -7,4 +7,4 @@ export default defineNuxtPlugin(() => {
     theme = prefersDark ? 'dark' : 'light'
   }
   document.documentElement.setAttribute('data-theme', theme)
-})
+});

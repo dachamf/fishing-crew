@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { toErrorMessage } from "~/utils/http";
 
-const { theme, setTheme } = useTheme();
+const { mode, setTheme, resolved } = useTheme();
 const {
   profile,
   updateProfile,
@@ -101,14 +101,9 @@ async function onChangePassword() {
   }
 }
 
-async function choose(t:'light'|'dark') {
+async function choose(t:'light'|'dark'|'system') {
   busy.value = true
-  try {
-    await setTheme(t)          // vizuelno + localStorage
-    await updateProfile({ theme: t }) // sigurnosni BE persist (ako želiš eksplicitno)
-  } finally {
-    busy.value = false
-  }
+  try { await setTheme(t) } finally { busy.value = false }
 }
 </script>
 
@@ -136,23 +131,12 @@ async function choose(t:'light'|'dark') {
 
     <!--    Tema (izmena tema) -->
     <section class="card bg-base-100 shadow p-4">
-      <h2 class="font-medium mb-3 text-info">Tema</h2>
+      <h2 class="font-medium mb-3">Tema</h2>
       <div class="flex items-center gap-3">
-        <button
-            class="btn"
-            :class="theme==='light' ? 'btn-primary' : 'btn-ghost'"
-            :disabled="busy" @click="choose('light')"
-        >
-          Light
-        </button>
-        <button
-          class="btn"
-          :class="theme==='dark' ? 'btn-primary' : 'btn-ghost'"
-          :disabled="busy" @click="choose('dark')"
-        >
-          Dark
-        </button>
-        <span class="opacity-70 text-sm ml-2">Trenutno: {{ theme }}</span>
+        <button class="btn" :class="mode==='light' ? 'btn-primary' : 'btn-ghost'" :disabled="busy" @click="choose('light')">Light</button>
+        <button class="btn" :class="mode==='dark'  ? 'btn-primary' : 'btn-ghost'" :disabled="busy" @click="choose('dark')">Dark</button>
+        <button class="btn" :class="mode==='system'? 'btn-primary' : 'btn-ghost'" :disabled="busy" @click="choose('system')">System</button>
+        <span class="opacity-70 text-sm ml-2">Trenutno: {{ mode }} ({{ mode==='system' ? '→ ' + (resolved) : 'fixed' }})</span>
       </div>
     </section>
 

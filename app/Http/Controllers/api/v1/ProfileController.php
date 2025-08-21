@@ -39,7 +39,7 @@ class ProfileController extends Controller
             'location'     => ['nullable','string','max:120'],
             'favorite_species' => ['nullable','string','max:120'],
             'gear'         => ['nullable','string','max:200'],
-            'theme'        => ['nullable','in:light,dark'],
+            'theme'        => ['nullable','in:light,dark,system'],
         ]);
 
         // klasična polja
