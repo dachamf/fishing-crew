@@ -30,5 +30,6 @@ const open = ref(false)
 </template>
 
 <style scoped>
-.active { @apply font-semibold text-primary; }
+@reference "tailwindcss";
+.active { color: oklch(var(--p)); }
 </style>

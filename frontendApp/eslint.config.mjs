@@ -6,8 +6,11 @@ import vueParser from 'vue-eslint-parser'
 import prettier from 'eslint-config-prettier'
 
 export default [
+
   // Ignorisanja
-  { ignores: ['.nuxt/**', '.output/**', 'dist/**', 'node_modules/**', '.eslintrc.*'] },
+  {
+    ignores: ['.nuxt/**', '.output/**', 'dist/**', 'node_modules/**', '.eslintrc.*']
+  },
 
   js.configs.recommended,
 

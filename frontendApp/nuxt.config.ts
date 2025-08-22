@@ -4,7 +4,10 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
   modules: ['@nuxt/icon', '@pinia/nuxt', '@vite-pwa/nuxt'],
-  css: ['~/assets/css/app.css'],
+  css: [
+    '~/assets/css/app.css',
+    'maplibre-gl/dist/maplibre-gl.css',
+  ],
   postcss: { plugins: { '@tailwindcss/postcss': {}, autoprefixer: {} } },
   typescript: { strict: true },
   app: {

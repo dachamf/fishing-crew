@@ -1,38 +1,59 @@
-// stores/event.ts
+// frontendApp/stores/event.ts
 import { defineStore } from 'pinia'
+import type { EventDTO } from '~/types/event'
 
-export type Event = {
-  id: number
-  group_id: number
-  title: string
-  start_at: string
-  location_name: string | null
-  latitude: number | null
-  longitude: number | null
-  description: string | null
-  status: string
-  created_at: string
-}
-
-export const useEventStore = defineStore('useEventStore', () => {
+export const useEventStore = defineStore('events', () => {
   const { $api } = useNuxtApp() as any
+  const list = ref<EventDTO[]>([])
+  const byId = ref<Record<number, EventDTO>>({})
+  const loading = ref(false)
 
-  const events  = ref<Event[]>([])
-  const pending = ref(false)
-  const error   = ref<any>(null)
-
-  async function fetchEvents(groupId: number) {
-    pending.value = true
-    error.value = null
+  async function fetchGroup(groupId: number) {
+    loading.value = true
     try {
-      const res = await $api.get(`/v1/groups/${groupId}/events`)
-      events.value = Array.isArray(res.data) ? res.data : res.data.data
-    } catch (e) {
-      error.value = e
+      const { data } = await $api.get(`/v1/groups/${groupId}/events`)
+      list.value = data.data ?? data // (resource collection ili plain)
+      for (const e of list.value) byId.value[e.id] = e
     } finally {
-      pending.value = false
+      loading.value = false
     }
   }
 
-  return { events, pending, error, fetchEvents }
-})
+  async function getOne(id: number) {
+    if (byId.value[id]) return byId.value[id]
+    const { data } = await $api.get(`/v1/events/${id}`)
+    byId.value[id] = data.data ?? data
+    return byId.value[id]
+  }
+
+  async function create(groupId: number, payload: Partial<EventDTO>) {
+    const { data } = await $api.post(`/v1/groups/${groupId}/events`, payload)
+    const ev = data.data ?? data
+    byId.value[ev.id] = ev
+    list.value.unshift(ev)
+    return ev as EventDTO
+  }
+
+  async function rsvp(eventId: number, choice: 'yes'|'no'|'undecided', reason?: string) {
+    await $api.post(`/v1/events/${eventId}/rsvp`, {
+      rsvp: choice,
+      reason
+    });
+    // po želji refetch/show toast
+  }
+
+  async function checkin(eventId: number) {
+    await $api.post(`/v1/events/${eventId}/checkin`)
+  }
+
+  return {
+    list,
+    byId,
+    loading,
+    fetchGroup,
+    getOne,
+    create,
+    rsvp,
+    checkin
+  }
+});

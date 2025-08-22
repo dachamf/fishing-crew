@@ -56,9 +56,11 @@ async function submit() {
             Dobrodošao nazad 👋
           </p>
 
-          <form class="mt-6 space-y-4" @submit.prevent="submit">
-
-            <h1 class="text-2xl font-bold mb-4">Prijava</h1>
+          <form
+            class="mt-6 space-y-4"
+            :aria-busy="busy"
+            @submit.prevent="submit"
+          >
 
             <p v-if="formErr" class="alert alert-error text-sm mb-3" role="alert" aria-live="assertive">
               {{ formErr }}

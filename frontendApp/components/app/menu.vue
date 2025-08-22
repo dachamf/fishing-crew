@@ -207,5 +207,6 @@ class="btn btn-warning btn-xs w-full"
 </template>
 
 <style scoped>
-.active { @apply text-primary; }
+@reference "tailwindcss";
+.active { color: oklch(var(--p)); }
 </style>

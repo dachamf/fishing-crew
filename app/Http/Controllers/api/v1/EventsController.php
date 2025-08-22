@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\api\v1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreEventRequest;
+use App\Http\Resources\EventResource;
 use App\Models\Event;
 use App\Models\Group;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class EventsController extends Controller
 {
@@ -17,11 +19,12 @@ class EventsController extends Controller
      * and paginate the results.
      *
      * @param  Group  $group  The group instance whose events are being retrieved.
-     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator Paginated list of the group's events.
+     * @return AnonymousResourceCollection Paginated list of the group's events.
      */
     public function index(Group $group)
     {
-        return $group->events()->latest('start_at')->paginate(20);
+        $events =  $group->events()->latest('start_at')->paginate(20);
+        return EventResource::collection($events);
     }
 
     /**
@@ -30,23 +33,15 @@ class EventsController extends Controller
      *
      * @param  Request  $req  The incoming HTTP request containing event data.
      * @param  Group  $group  The group associated with the event being created.
-     * @return JsonResponse The JSON response containing the created event.
+     * @return EventResource The JSON response containing the created event.
      */
-    public function store(Request $req, Group $group): JsonResponse
+    public function store(StoreEventRequest $req, Group $group): EventResource
     {
-        $data = $req->validate([
-            'title' => 'required|string',
-            'location_name' => 'nullable|string',
-            'location_geo' => 'nullable|array',
-            'latitude' => 'required|numeric|between:-90,90',
-            'longitude' => 'required|numeric|between:-180,180',
-            'start_at' => 'required|date',
-            'description' => 'nullable|string',
-        ]);
-        $event = $group->events()->create($data);
+        $this->authorize('createEvent', $group);
+        $event = $group->events()->create($req->validated());
 
         // TODO: dispatch notifications (FCM + mail)
-        return response()->json($event, 201);
+        return new EventResource($event);
     }
 
     /**
@@ -66,9 +61,9 @@ class EventsController extends Controller
      *
      * @param  Request  $req  The incoming HTTP request containing RSVP data.
      * @param  Event  $event  The event for which the RSVP is being recorded.
-     * @return \Symfony\Component\HttpFoundation\Response A response indicating no content.
+     * @return JsonResponse A response indicating no content.
      */
-    public function rsvp(Request $req, Event $event): \Symfony\Component\HttpFoundation\Response
+    public function rsvp(Request $req, Event $event)
     {
         $data = $req->validate([
             'rsvp' => 'required|in:yes,no,undecided',
@@ -80,7 +75,7 @@ class EventsController extends Controller
         );
 
         // Ako >50% "no" -> kreirati subject za glasanje
-        return response()->noContent();
+        return response()->json(['ok'=>true]);
     }
 
     /**
@@ -89,13 +84,13 @@ class EventsController extends Controller
      *
      * @param  Request  $req  The incoming HTTP request containing the authenticated user.
      * @param  Event  $event  The event for which the user is checking in.
-     * @return Response An empty HTTP response with no content.
+     * @return JsonResponse An empty HTTP response with no content.
      */
-    public function checkin(Request $req, Event $event): Response
+    public function checkin(Request $req, Event $event): JsonResponse
     {
         $event->attendees()->where('user_id', $req->user()->id)->update(['checked_in_at' => now()]);
 
-        return response()->noContent();
+        return response()->json(['ok'=>true]);
     }
 
     /**

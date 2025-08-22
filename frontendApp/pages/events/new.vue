@@ -1,35 +1,116 @@
 <script setup lang="ts">
-const form = reactive({ title:'', location_name:'', latitude: 44.816, longitude: 20.460, start_at: '', description:'' })
+useSeoMeta({ title: 'Novi događaj' })
+
 const { $api } = useNuxtApp() as any
-async function submit(){ await $api.post('/groups/1/events', form); return navigateTo('/') }
-function onMapClick(e:any){
-  form.latitude = +e.lngLat.lat.toFixed(7)
-  form.longitude = +e.lngLat.lng.toFixed(7)
+const router = useRouter()
+
+const form = reactive({
+  title: '',
+  description: '',
+  starts_at: '',
+  location_name: '',
+  lng: null as number | null,
+  lat: null as number | null,
+
+})
+
+const coords = ref<{ lng: number | null, lat: number | null }>({ lng: form.lng, lat: form.lat })
+
+watch(coords, (v) => { form.lng = v.lng; form.lat = v.lat }, { deep: true })
+
+const submitting = ref(false)
+async function onSubmit() {
+  // mala validacija
+  if (!form.title.trim()) return alert('Unesi naziv događaja')
+  if (!Number.isFinite(Number(form.lng)) || !Number.isFinite(Number(form.lat))) {
+    return alert('Odaberi lokaciju na mapi (dvoklik pa pomeri pin).')
+  }
+
+  try {
+    submitting.value = true
+    await $api.post('/v1/groups/1/events', {
+      title: form.title,
+      description: form.description || null,
+      start_at: form.starts_at || null,
+      location_name: form.location_name || null,
+      long: form.lng,
+      lat: form.lat,
+    })
+    router.push('/events')
+  } catch (e: any) {
+    // prilagodi svom toasteru
+    console.error(e?.message || e)
+    alert(e?.message || 'Greška pri kreiranju događaja.')
+  } finally {
+    submitting.value = false
+  }
 }
 </script>
+
 <template>
-  <div class="p-6 grid lg:grid-cols-2 gap-6">
-    <div class="space-y-3">
-      <input v-model="form.title" class="input" placeholder="Naziv"/>
-      <input v-model="form.location_name" class="input" placeholder="Lokacija (naziv)"/>
-      <div class="grid grid-cols-2 gap-3">
-        <input v-model.number="form.latitude" type="number" step="0.0000001" class="input" placeholder="Latitude"/>
-        <input v-model.number="form.longitude" type="number" step="0.0000001" class="input" placeholder="Longitude"/>
-      </div>
-      <input v-model="form.start_at" type="datetime-local" class="input"/>
-      <textarea v-model="form.description" class="textarea textarea-bordered w-full" placeholder="Opis"></textarea>
-      <button class="btn" @click="submit">Sačuvaj</button>
-    </div>
-    <div class="card h-[420px]">
-      <div class="card-body p-0">
-        <MglMap style="height: 100%; width: 100%" :zoom="7" :center="[form.longitude, form.latitude]" @click="onMapClick">
-          <MglMarker
-            :coordinates="[form.longitude, form.latitude]"
-            draggable
-          />
-          <MglNavigationControl position="top-right"/>
-        </MglMap>
-      </div>
-    </div>
+  <!-- Forma + Mapa -->
+  <div class="grid min-h-dvh gap-6 p-4 lg:grid-cols-2 lg:p-6">
+    <!-- Forma -->
+    <section class="max-w-2xl w-full mx-auto">
+      <h1 class="text-2xl font-semibold">Novi događaj</h1>
+      <p class="opacity-70 mb-4">Popuni detalje i izaberi lokaciju na mapi.</p>
+
+      <form class="space-y-4" @submit.prevent="onSubmit">
+        <div class="form-control">
+          <label class="label"><span class="label-text">Naziv</span></label>
+          <input v-model="form.title" type="text" required class="input input-bordered w-full" />
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="form-control">
+            <label class="label"><span class="label-text">Vreme početka</span></label>
+            <input v-model="form.starts_at" type="datetime-local" class="input input-bordered w-full" />
+          </div>
+
+          <div class="form-control">
+            <label class="label"><span class="label-text">Lokacija (opisno)</span></label>
+            <input v-model="form.location_name" type="text" class="input input-bordered w-full" placeholder="npr. Ada Ciganlija" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="form-control">
+            <label class="label"><span class="label-text">Longitude (lng)</span></label>
+            <input
+              v-model.number="form.lng"
+              type="number"
+              class="input input-bordered w-full"
+              placeholder="Klikni dvaput na mapi"
+              disabled
+            />
+          </div>
+          <div class="form-control">
+            <label class="label"><span class="label-text">Latitude (lat)</span></label>
+            <input
+              v-model.number="form.lat"
+              type="number"
+              class="input input-bordered w-full"
+              placeholder="Klikni dvaput na mapi"
+              disabled
+            />
+          </div>
+        </div>
+
+        <div class="form-control">
+          <label class="label"><span class="label-text">Opis</span></label>
+          <textarea v-model="form.description" rows="4" class="textarea textarea-bordered w-full" />
+        </div>
+
+        <button type="submit" class="btn btn-primary" :disabled="submitting">
+          {{ submitting ? 'Kreiranje…' : 'Kreiraj događaj' }}
+        </button>
+      </form>
+    </section>
+
+    <section class="min-h-[60svh] lg:sticky lg:top-16">
+      <MapCoordPicker
+        v-model:coords="coords"
+      />
+    </section>
   </div>
 </template>
