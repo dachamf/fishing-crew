@@ -6,9 +6,6 @@ const store = useEventStore()
 const toast = useToast()
 const event = ref<any>(null)
 
-const { mode } = useTheme()
-const style = mode.value ==='dark' ? "/styles/dark.json" : "https://tiles.openfreemap.org/styles/liberty";
-
 useHead({title: 'Događaj — Fishing Crew'})
 
 onMounted(async () => {

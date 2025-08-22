@@ -3,7 +3,13 @@
 // Ako koristiš @indoorequal/vue-maplibre-gl:
 import 'maplibre-gl/dist/maplibre-gl.css'
 import {CENTER_SERBIA} from "~/lib/constants";
-const emit = defineEmits<{ (e:'pick', lat:number, lng:number): void }>()
+import {useToast} from "~/composables/useToast";
+import {toErrorMessage} from "~/utils/http";
+
+const emit = defineEmits<{ (e: 'pick', lat: number, lng: number): void }>()
+
+const {error} = useToast();
+
 
 let map: any
 const el = ref<HTMLElement | null>(null)
@@ -16,13 +22,19 @@ onMounted(async () => {
     center: CENTER_SERBIA,
     zoom: 6
   })
-  map.on('click', (e:any) => {
-    const { lat, lng } = e.lngLat
+  map.on('click', (e: any) => {
+    const {lat, lng} = e.lngLat
     emit('pick', lat, lng)
   })
 })
 
-onBeforeUnmount(() => { try { map?.remove() } catch {} })
+onBeforeUnmount(() => {
+  try {
+    map?.remove()
+  } catch (e) {
+    error(toErrorMessage(e));
+  }
+})
 </script>
 
 <template>

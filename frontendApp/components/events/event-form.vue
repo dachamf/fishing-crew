@@ -58,7 +58,7 @@ async function submit() {
     if (apiErr?.errors) {
       // mapiraj Laravel errors
       for (const [k, arr] of Object.entries(apiErr.errors)) {
-        errors.value[k] = (arr as string[])[0]
+        errors.value[k] = toErrorMessage((arr as string[])[0])
       }
     }
     toast.error(apiErr?.message || 'Greška pri kreiranju događaja.')
@@ -75,7 +75,7 @@ function onPickFromMap(lat:number, lng:number) {
 </script>
 
 <template>
-  <form class="space-y-4" @submit.prevent="submit" :aria-busy="busy">
+  <form class="space-y-4" :aria-busy="busy" @submit.prevent="submit">
     <div>
       <label class="label"><span class="label-text">Naslov</span></label>
       <input v-model="form.title" class="input input-bordered w-full" required />

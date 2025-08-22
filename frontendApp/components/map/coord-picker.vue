@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type {LngLatLike} from "maplibre-gl";
-import type {MglEvent} from "@indoorequal/vue-maplibre-gl";
+import type { LngLatLike } from "maplibre-gl";
+import type { MglEvent } from "@indoorequal/vue-maplibre-gl";
 import {CENTER_SERBIA} from "~/lib/constants";
 
 
@@ -20,7 +20,7 @@ const emit = defineEmits<{
 
 // Početni centar (Beograd kao primer)
 const DEFAULT_CENTER: LngLatLike = CENTER_SERBIA
-const center = shallowRef<LngLatLike>(DEFAULT_CENTER)   // v-model:center
+const center = shallowRef<LngLatLike>(DEFAULT_CENTER)
 const zoom = ref(8)
 
 onMounted(() => {
@@ -29,12 +29,29 @@ onMounted(() => {
   }
 });
 
-// Marker drag i double-click upisuju coords nazad prema roditelju
+type LngLatTuple = [number, number]
+
+function toLngLatTuple(ll: LngLatLike): LngLatTuple {
+  if (Array.isArray(ll)) {
+    const [lng, lat] = ll as [number, number]
+    return [Number(lng), Number(lat)]
+  }
+  // maplibre-gl LngLat i plain objekti imaju .lng i .lat
+  const anyLl = ll as { lng: number; lat: number }
+  return [Number(anyLl.lng), Number(anyLl.lat)]
+}
+
 function setCoords(ll: LngLatLike) {
   // v-model:center
   center.value = ll
-  const [lng, lat] = Array.isArray(ll) ? ll : [ll.lng, ll.lat]
-  emit('update:coords', { lng, lat });
+
+  const [lng, lat] = toLngLatTuple(ll)
+  const valid = Number.isFinite(lng) && Number.isFinite(lat)
+
+  emit('update:coords', {
+    lng: valid ? lng : null,
+    lat: valid ? lat : null,
+  })
 }
 
 function onDblClick(mglEvent: MglEvent<"dblclick">) {

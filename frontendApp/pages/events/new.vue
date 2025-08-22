@@ -1,6 +1,10 @@
 <script setup lang="ts">
-useSeoMeta({ title: 'Novi događaj' })
+import {useToast} from "~/composables/useToast";
 
+useSeoMeta({ title: 'Novi događaj' })
+import {toErrorMessage} from "~/utils/http";
+
+const { error } = useToast()
 const { $api } = useNuxtApp() as any
 const router = useRouter()
 
@@ -38,8 +42,8 @@ async function onSubmit() {
     })
     router.push('/events')
   } catch (e: any) {
-    // prilagodi svom toasteru
-    console.error(e?.message || e)
+    error(toErrorMessage(e));
+
     alert(e?.message || 'Greška pri kreiranju događaja.')
   } finally {
     submitting.value = false
