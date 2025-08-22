@@ -92,10 +92,13 @@ class EventsController extends Controller
             'rsvp' => 'required|in:yes,no,undecided',
             'reason' => 'nullable|string',
         ]);
-        $event->attendees()->updateOrCreate(
-            ['user_id' => $req->user()->id],
-            $data
-        );
+
+        $userId = $req->user()->id;
+
+        // Upsert nad pivot tabelom event_attendees
+        $event->attendees()->syncWithoutDetaching([
+            $userId => $data,
+        ]);
 
         // Ako >50% "no" -> kreirati subject za glasanje
         return response()->json(['ok'=>true]);
@@ -111,9 +114,18 @@ class EventsController extends Controller
      */
     public function checkin(Request $req, Event $event): JsonResponse
     {
-        $event->attendees()->where('user_id', $req->user()->id)->update(['checked_in_at' => now()]);
+        $userId = $req->user()->id;
+
+        // Obezbedi da pivot zapis postoji
+        $event->attendees()->syncWithoutDetaching([$userId => []]);
+
+        // Update samo pivot kolone (bez targetiranja users tabele)
+        $event->attendees()->updateExistingPivot($userId, [
+            'checked_in_at' => now(),
+        ], true);
 
         return response()->json(['ok'=>true]);
+
     }
 
     /**

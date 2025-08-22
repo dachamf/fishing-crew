@@ -71,7 +71,17 @@ const dateText = computed(() => {
   }
 
   const {data: attendeesRes} = await useEventAttendees(Number(route.params.id), 'yes')
-  const attendees = computed(() => attendeesRes.data ?? [])
+  const attendees = computed(() => {
+    const list = attendeesRes?.data
+    if (!Array.isArray(list)) return []
+    return list.filter(a => (a?.rsvp?.choice ?? a?.pivot?.rsvp ?? a?.rsvp) === 'yes')
+  })
+
+  const declined = computed(() => {
+    const list = attendeesRes?.data
+    if (!Array.isArray(list)) return []
+    return list.filter(a => (a?.rsvp?.choice ?? a?.pivot?.rsvp ?? a?.rsvp) === 'no')
+  })
   const counts = computed(() => attendeesRes.counts ?? {yes: 0, undecided: 0, no: 0, total: 0})
 </script>
 
@@ -86,9 +96,9 @@ const dateText = computed(() => {
     </div>
     <div v-else-if="!ev" class="alert">Nema podataka o događaju.</div>
 
-    <div v-else class="grid gap-6 lg:grid-cols-3">
+    <div v-else class="grid gap-6 lg:grid-cols-4">
       <!-- LEVA KOLONA: glavna kartica (izgled kao pre) -->
-      <div class="lg:col-span-2 space-y-6">
+      <div class="lg:col-span-2 space-y-2">
         <!-- KARTICA: osnovne info -->
         <div class="card bg-base-100 shadow">
           <div class="card-body">
@@ -192,12 +202,32 @@ const dateText = computed(() => {
               </div>
               <div v-else class="opacity-70">Još uvek niko nije potvrdio.</div>
             </div>
+            <div class="divider"></div>
+            <div>
+              <h3 class="font-semibold mb-2">Ne dolaze:</h3>
+              <div v-if="declined.length" class="flex flex-wrap gap-3">
+                <div
+                  v-for="a in declined"
+                  :key="a.id"
+                  class="flex items-center gap-2"
+                >
+                  <div class="avatar">
+                    <div class="w-8 rounded-full ring ring-base-300 ring-offset-2 overflow-hidden">
+                      <img :src="a.avatar_url || '/icons/icon-64.png'" alt="" />
+                    </div>
+                  </div>
+                  <span class="text-sm">{{ a.display_name || a.name }}</span>
+                </div>
+              </div>
+              <div v-else class="opacity-70">Još uvek niko nije otkazao.</div>
+            </div>
+
           </div>
         </div>
       </div>
 
       <!-- DESNA KOLONA: mapa u kartici (read-only) -->
-      <div class="lg:col-span-1">
+      <div class="lg:col-span-2">
         <div class="card bg-base-100 shadow">
           <div class="card-body">
             <h2 class="card-title">Mapa</h2>
