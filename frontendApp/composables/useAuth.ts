@@ -1,6 +1,6 @@
 export function useAuth() {
   type User = { id:number; name:string; email:string; email_verified_at?: string | null }
-  const token = useCookie<string|undefined>('token', { sameSite: 'lax' })
+  const token = useCookie<string|undefined>('token');
   const user  = useState<User|null>('user', () => null)
   const { $api } = useNuxtApp() as any
 
@@ -12,10 +12,21 @@ export function useAuth() {
     await me(true)
   }
 
-  async function login(email: string, password: string) {
-    const { data } = await $api.post('/auth/login', { email, password })
-    token.value = data.token
+  function setToken(value: string | undefined, remember = false) {
+    // Kad SETujemo cookie, možemo proći kroz useCookie sa opcijama
+    const t = useCookie<string | undefined>('token', {
+      path: '/',
+      sameSite: 'lax',
+      secure: true,
+      // 30 dana ako je Remember me
+      maxAge: remember ? 60 * 60 * 24 * 30 : undefined
+    })
+    t.value = value
+  }
 
+  async function login(email: string, password: string, remember = false) {
+    const { data } = await $api.post('/auth/login', { email, password })
+    setToken(data.token, remember)
     // odmah pozovi me() sa eksplicitnim headerom kao fallback
     await me(true)
   }
@@ -29,8 +40,8 @@ export function useAuth() {
   }
 
 async function logout() {
-    token.value = undefined
-    user.value = null
+    setToken(undefined);
+    user.value = null;
 
     navigateTo('/login');
   }

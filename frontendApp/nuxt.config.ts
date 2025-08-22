@@ -7,8 +7,22 @@ export default defineNuxtConfig({
   css: ['~/assets/css/app.css'],
   postcss: { plugins: { '@tailwindcss/postcss': {}, autoprefixer: {} } },
   typescript: { strict: true },
+  app: {
+    head: {
+      title: 'HFC',
+      titleTemplate: '%s · HFC',
+      meta: [
+        {
+        name: 'description',
+        content: 'HFC — aplikacija i zajednica za ribolovce.'
+      }
+      ]
+    }
+  },
   runtimeConfig: {
-    public: { apiBase: process.env.NUXT_PUBLIC_API_BASE || 'https://api.fishermen-crew.ddev.site/api' }
+    public: {
+      apiBase: process.env.NUXT_PUBLIC_API_BASE || 'https://api.fishermen-crew.ddev.site/api'
+    }
   },
   vite: {
     server: {

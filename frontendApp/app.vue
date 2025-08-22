@@ -11,6 +11,9 @@ useHead({
 </script>
 
 <template>
+  <a href="#main" class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 bg-base-100 rounded px-3 py-2 shadow">
+    Preskoči na sadržaj
+  </a>
   <div>
     <NuxtLayout>
       <NuxtPage />

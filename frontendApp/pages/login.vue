@@ -1,65 +1,140 @@
 <script setup lang="ts">
-definePageMeta({ public: true, middleware: 'guest' })
+import { ref } from 'vue'
+import { useHead } from '#imports'
 
-const email = ref('');
-const password = ref('');
+useHead({
+  title: 'Prijava — Fishing Crew',
+  meta: [
+    { name: 'description', content: 'Prijavite se u Fishing Crew da planirate događaje i pratite ulove sa ekipom.' }
+  ]
+})
 
+const auth = useAuth()
+const router = useRouter()
 
-const route = useRoute();
-const { login } = useAuth();
-const onSubmit = async () => {
+const email = ref('')
+const password = ref('')
+const showPass = ref(false)
+const remember = ref(true)         // ✅ Remember me
+const busy = ref(false)            // ✅ busy-state
+const formErr = ref<string | null>(null)
+
+async function submit() {
+  if (busy.value) return
+  busy.value = true
+  formErr.value = null
   try {
-    await login(email.value, password.value);
-    return navigateTo((route.query.next as string) || '/');
-  } catch (error) {
-    /* eslint-disable no-console */
-    console.log(error);
+    await auth.login(email.value.trim(), password.value, remember.value)
+    await router.push('/')
+  } catch (e: any) {
+    formErr.value = e?.response?.data?.message || 'Greška pri prijavi.'
+  } finally {
+    busy.value = false
   }
 }
 </script>
+
 <template>
-  <div class="relative flex flex-col items-center justify-center h-screen overflow-hidden">
-    <div class="w-full p-6 bg-white border-t-4 border-gray-600 rounded-md shadow-md border-top lg:max-w-lg">
-      <h1 class="text-3xl font-semibold text-center text-gray-700">
-        Fishermen Crew
-      </h1>
-      <form class="space-y-4" @submit.prevent=" onSubmit">
-        <div>
-          <label class="label">
-            <span class="text-base label-text">Email</span>
-          </label>
-          <input v-model="email" type="text" placeholder="Email Adresa" class="w-full input input-bordered"/>
+  <div class="min-h-screen bg-base-200 relative overflow-hidden">
+    <!-- blagi gradient/mesh za bolji kontrast u dark temi -->
+    <div
+      class="pointer-events-none absolute inset-0 opacity-50"
+      aria-hidden="true"
+      style="background:
+        radial-gradient(60rem 60rem at 10% -10%, hsl(var(--p)/.12) 0%, transparent 60%),
+        radial-gradient(40rem 40rem at 110% 10%, hsl(var(--s)/.12) 0%, transparent 60%)"
+    />
+
+    <div class="container mx-auto px-4 py-10 flex items-center justify-center">
+      <div
+        class="w-full max-w-md card bg-base-100/70 supports-[backdrop-filter]:backdrop-blur
+               shadow-xl ring-1 ring-base-content/10"
+      >
+        <div class="card-body">
+          <h1 class="text-2xl font-bold text-base-content/90">Prijava</h1>
+          <p class="text-base-content/60 text-sm">
+            Dobrodošao nazad 👋
+          </p>
+
+          <form class="mt-6 space-y-4" @submit.prevent="submit">
+
+            <h1 class="text-2xl font-bold mb-4">Prijava</h1>
+
+            <p v-if="formErr" class="alert alert-error text-sm mb-3" role="alert" aria-live="assertive">
+              {{ formErr }}
+            </p>
+
+            <label class="form-control w-full">
+              <div class="label">
+                <span class="label-text text-base-content/80">Email</span>
+              </div>
+              <input
+                v-model="email"
+                type="email"
+                autocomplete="email"
+                placeholder="you@example.com"
+                class="input input-bordered w-full placeholder:text-base-content/60"
+                required
+                aria-label="Email adresa"
+              />
+            </label>
+
+            <label class="form-control w-full">
+              <div class="label">
+                <span class="label-text text-base-content/80">Lozinka</span>
+                <button
+                  type="button"
+                  class="link link-hover text-sm text-base-content/60"
+                  @click="showPass = !showPass"
+                >
+                  {{ showPass ? 'Sakrij' : 'Prikaži' }}
+                </button>
+              </div>
+              <input
+                v-model="password"
+                :type="showPass ? 'text' : 'password'"
+                autocomplete="current-password"
+                placeholder="••••••••"
+                class="input input-bordered w-full placeholder:text-base-content/60"
+                required
+                aria-label="Lozinka"
+                @keyup.enter="submit"
+              />
+            </label>
+
+            <!-- ✅ Remember me -->
+            <label class="label cursor-pointer mt-3 gap-3">
+              <input
+                v-model="remember"
+                type="checkbox"
+                class="checkbox checkbox-primary"
+                aria-label="Zapamti me na ovom uređaju"
+              />
+              <span class="label-text">Zapamti me</span>
+            </label>
+
+            <button
+              type="submit"
+              class="btn btn-primary w-full mt-2"
+              :class="{ 'btn-disabled loading': busy }"
+              :disabled="busy"
+              aria-label="Prijavi se"
+              :aria-busy="busy"
+            >
+              <span v-if="busy" class="loading loading-spinner loading-sm mr-2" aria-hidden="true" />
+              <span>Prijavi se</span>
+            </button>
+
+            <div class="flex items-center justify-between text-sm mt-2">
+              <NuxtLink to="/register" class="link link-primary">
+                Nemaš nalog? Registruj se
+              </NuxtLink>
+              <a class="link link-hover text-base-content/60" href="#">
+                Zaboravljena lozinka
+              </a>
+            </div>
+          </form>
         </div>
-        <div>
-          <label class="label">
-            <span class="text-base label-text">Lozinka</span>
-          </label>
-          <input v-model="password" type="password" placeholder="Lozinka" class="w-full input input-bordered" />
-        </div>
-        <div class="flex flex-row justify-between">
-          <NuxtLink to="/register" class="text-xs text-gray-600 hover:underline hover:text-blue-600">Nemaš nalog?</NuxtLink>
-          <NuxtLink to="/register" class="text-xs text-gray-600 hover:underline hover:text-blue-600 items-end">Zaboravio si lozinku?</NuxtLink>
-        </div>
-        <div>
-          <button class="btn btn-block btn-neutral">Uloguj se</button>
-        </div>
-      </form>
-      <div class="flex items-center w-full my-4">
-        <hr class="w-full" />
-        <p class="px-3 ">ILI</p>
-        <hr class="w-full" />
-      </div>
-      <div class="my-6 space-y-2">
-        <button
-          aria-label="Login with Google" type="button"
-                class="flex items-center justify-center w-full p-2 space-x-4 border rounded-md focus:ring-2 focus:ring-offset-1 focus:ring-gray-400">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" class="w-5 h-5 fill-current">
-            <path
-              d="M16.318 13.714v5.484h9.078c-0.37 2.354-2.745 6.901-9.078 6.901-5.458 0-9.917-4.521-9.917-10.099s4.458-10.099 9.917-10.099c3.109 0 5.193 1.318 6.38 2.464l4.339-4.182c-2.786-2.599-6.396-4.182-10.719-4.182-8.844 0-16 7.151-16 16s7.156 16 16 16c9.234 0 15.365-6.49 15.365-15.635 0-1.052-0.115-1.854-0.255-2.651z">
-            </path>
-          </svg>
-          <p>Uloguje se Googlom</p>
-        </button>
       </div>
     </div>
   </div>
