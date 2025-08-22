@@ -56,6 +56,29 @@ class EventsController extends Controller
     }
 
     /**
+     * @param Request $request
+     * @param Event $event
+     * @return JsonResponse
+     */
+    public function update(Request $request, Event $event)
+    {
+        $this->authorize('update', $event);
+
+        $data = $request->validate([
+            'title' => ['required','string','max:200'],
+            'description' => ['nullable','string','max:2000'],
+        ]);
+
+        $event->update($data);
+
+        return response()->json([
+            'message' => 'Updated.',
+            'event' => $event->only(['id','title','description']),
+        ]);
+    }
+
+
+    /**
      * Handles the RSVP for a specific event by validating the request and updating or creating the attendance record.
      * If more than 50% of attendees respond with "no," a subject for voting might be created.
      *

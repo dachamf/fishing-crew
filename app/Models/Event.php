@@ -17,6 +17,8 @@ class Event extends Model
     ];
 
     protected $casts = [
+        'latitude'  => 'float',
+        'longitude' => 'float',
         'start_at' => 'datetime',
     ];
 
@@ -28,8 +30,23 @@ class Event extends Model
     public function users(): BelongsToMany
     {
         // event_attendees pivot: rsvp, reason, checked_in_at, rating
-        return $this->belongsToMany(User::class, 'event_attendees')
+        return $this->belongsToMany(User::class, 'event_attendees', 'event_id', 'user_id')
             ->withPivot(['rsvp', 'reason', 'checked_in_at', 'rating'])
+            ->withTimestamps();
+    }
+
+    public function attendees(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'event_attendees', 'event_id', 'user_id')
+            ->withPivot(['rsvp','reason','checked_in_at','rating'])
+            ->withTimestamps();
+    }
+
+    public function goingAttendees(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'event_attendees', 'event_id', 'user_id')
+            ->wherePivot('rsvp', 'yes')
+            ->withPivot(['rsvp'])
             ->withTimestamps();
     }
 }

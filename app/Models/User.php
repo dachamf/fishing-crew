@@ -4,6 +4,7 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -72,5 +73,18 @@ class User extends Authenticatable
     public function profile(): HasOne
     {
         return $this->hasOne(Profile::class);
+    }
+
+    public function attendingEvents(): BelongsToMany
+    {
+        return $this->belongsToMany(Event::class, 'event_attendees', 'user_id', 'event_id')
+            ->withPivot(['rsvp'])
+            ->withTimestamps();
+    }
+
+    public function events() {
+        return $this->belongsToMany(Event::class, 'event_attendees', 'user_id', 'event_id')
+            ->withPivot(['rsvp','reason','checked_in_at','rating'])
+            ->withTimestamps();
     }
 }

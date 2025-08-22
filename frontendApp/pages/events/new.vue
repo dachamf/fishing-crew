@@ -13,20 +13,22 @@ const form = reactive({
   description: '',
   starts_at: '',
   location_name: '',
-  lng: null as number | null,
-  lat: null as number | null,
+  latitude: null as number | null,
+  longitude: null as number | null,
 
 })
 
-const coords = ref<{ lng: number | null, lat: number | null }>({ lng: form.lng, lat: form.lat })
-
-watch(coords, (v) => { form.lng = v.lng; form.lat = v.lat }, { deep: true })
+/** Sync iz map komponente u formu */
+function onCoords(v: { lng: number | null; lat: number | null }) {
+  form.longitude = v.lng
+  form.latitude  = v.lat
+}
 
 const submitting = ref(false)
 async function onSubmit() {
   // mala validacija
   if (!form.title.trim()) return alert('Unesi naziv događaja')
-  if (!Number.isFinite(Number(form.lng)) || !Number.isFinite(Number(form.lat))) {
+  if (!Number.isFinite(Number(form.longitude)) || !Number.isFinite(Number(form.latitude))) {
     return alert('Odaberi lokaciju na mapi (dvoklik pa pomeri pin).')
   }
 
@@ -37,10 +39,10 @@ async function onSubmit() {
       description: form.description || null,
       start_at: form.starts_at || null,
       location_name: form.location_name || null,
-      long: form.lng,
-      lat: form.lat,
+      longitude: form.longitude,
+      latitude: form.latitude,
     })
-    router.push('/events')
+    await router.push('/events')
   } catch (e: any) {
     error(toErrorMessage(e));
 
@@ -81,7 +83,7 @@ async function onSubmit() {
           <div class="form-control">
             <label class="label"><span class="label-text">Longitude (lng)</span></label>
             <input
-              v-model.number="form.lng"
+              v-model.number="form.longitude"
               type="number"
               class="input input-bordered w-full"
               placeholder="Klikni dvaput na mapi"
@@ -91,7 +93,7 @@ async function onSubmit() {
           <div class="form-control">
             <label class="label"><span class="label-text">Latitude (lat)</span></label>
             <input
-              v-model.number="form.lat"
+              v-model.number="form.latitude"
               type="number"
               class="input input-bordered w-full"
               placeholder="Klikni dvaput na mapi"
@@ -110,11 +112,15 @@ async function onSubmit() {
         </button>
       </form>
     </section>
-
     <section class="min-h-[60svh] lg:sticky lg:top-16">
+      <div
+        class="w-full h-full overflow-hidden rounded-2xl border border-base-300 relative">
       <MapCoordPicker
-        v-model:coords="coords"
+        :coords="{ lng: form.longitude, lat: form.latitude }"
+        :editable="true"
+        @update:coords="onCoords"
       />
+      </div>
     </section>
   </div>
 </template>

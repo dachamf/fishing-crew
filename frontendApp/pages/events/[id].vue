@@ -1,63 +1,228 @@
 <script setup lang="ts">
+defineOptions({name: 'EventDetailPage'})
 
+const {$api} = useNuxtApp() as any
+const auth = useAuth()
 const route = useRoute()
-const id = Number(route.params.id)
-const store = useEventStore()
-const toast = useToast()
-const event = ref<any>(null)
 
-useHead({title: 'Događaj — Fishing Crew'})
+const id = computed(() => Number(route.params.id))
 
-onMounted(async () => {
-  try {
-    event.value = await store.getOne(id)
-  } catch {
-    toast.error('Greška pri učitavanju.')
+// --- Učitavanje eventa (drži pending/error kako treba) ---
+const {data, pending, error, refresh} = await useAsyncData(
+  () => `event:${id.value}`,
+  async () => {
+    const res = await $api.get(`/v1/events/${id.value}`)
+    return res?.data?.data ?? res?.data ?? res
+  },
+  {watch: [id]}
+)
+
+const ev = computed(() => data.value ?? null)
+
+const dateText = computed(() => {
+  const iso = ev.value?.start_at
+  if (!iso) return ''
+  return new Intl.DateTimeFormat('sr-RS', {
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hour12: false,
+    timeZone: 'Europe/Belgrade', // ključno: fiksiramo TZ
+  }).format(new Date(iso))
+});
+
+// --- Koordinate za mapu (read-only) ---
+  const coords = computed(() => {
+    const lng = Number(ev.value?.longitude)
+    const lat = Number(ev.value?.latitude)
+    return {
+      lng: Number.isFinite(lng) ? lng : null,
+      lat: Number.isFinite(lat) ? lat : null,
+    }
+  })
+  const hasCoords = computed(() => coords?.value.lng !== null && coords?.value.lat !== null)
+
+// --- Dozvole: vlasnik može da menja samo Title/Description (primer) ---
+  const isOwner = computed(() => {
+    const me = auth.user.value?.id
+    return !!me && (ev.value?.user_id === me || ev.value?.owner_id === me)
+  })
+
+// --- RSVP (čekiranja): 'going' | 'maybe' | 'not_going' | null ---
+  type Rsvp = 'yes' | 'undecided' | 'no' | null
+  const rsvp = ref<Rsvp>(null)
+  const rsvpLoading = ref(false)
+
+// inicijalno stanje (ako backend vraća npr. ev.my_rsvp)
+  watchEffect(() => {
+    rsvp.value = (ev.value?.my_rsvp ?? null) as Rsvp
+  })
+
+  async function toggleRsvp(next: Exclude<Rsvp, null>) {
+    try {
+      rsvpLoading.value = true
+      // klik na već aktivno stanje -> skini RSVP (null)
+      const newVal: Rsvp = rsvp.value === next ? null : next
+      rsvp.value = newVal
+      await $api.post(`/v1/events/${id.value}/rsvp`, {rsvp: newVal}) // prilagodi endpoint
+      await refresh()
+    } finally {
+      rsvpLoading.value = false
+    }
   }
-})
 
-async function rsvp(choice: 'yes' | 'no' | 'undecided') {
-  try {
-    await store.rsvp(id, choice)
-    toast.success('Sačuvano.')
-  } catch {
-    toast.error('Greška pri RSVP.')
-  }
-}
-
-async function checkin() {
-  try {
-    await store.checkin(id)
-    toast.success('Check-in uspešan.')
-  } catch {
-    toast.error('Greška pri check-in.')
-  }
-}
+  const {data: attendeesRes} = await useEventAttendees(Number(route.params.id), 'yes')
+  const attendees = computed(() => attendeesRes.data ?? [])
+  const counts = computed(() => attendeesRes.counts ?? {yes: 0, undecided: 0, no: 0, total: 0})
 </script>
 
 <template>
-  <div class="flex flex-col min-h-screen"> <!-- umesto h-full -->
-    <div v-if="event" class="max-w-3xl mx-auto p-6">
-      <h1 class="text-2xl font-semibold">{{ event.title }}</h1>
-      <p class="opacity-70">
-        {{ event.location_name || '—' }} · {{ new Date(event.start_at).toLocaleString() }}
-      </p>
+  <div class="container mx-auto p-4">
+    <!-- STATUSI UČITAVANJA -->
+    <div v-if="pending" class="flex items-center gap-2">
+      <span class="loading loading-spinner"></span> Učitavanje…
+    </div>
+    <div v-else-if="error" class="alert alert-error">
+      Došlo je do greške pri učitavanju događaja.
+    </div>
+    <div v-else-if="!ev" class="alert">Nema podataka o događaju.</div>
 
-      <div class="mt-4 flex gap-2">
-        <button class="btn btn-primary" @click="rsvp('yes')">Dolazim</button>
-        <button class="btn" @click="rsvp('undecided')">Nisam siguran</button>
-        <button class="btn btn-ghost" @click="rsvp('no')">Ne mogu</button>
-        <button class="btn btn-accent ml-auto" @click="checkin()">Check-in</button>
+    <div v-else class="grid gap-6 lg:grid-cols-3">
+      <!-- LEVA KOLONA: glavna kartica (izgled kao pre) -->
+      <div class="lg:col-span-2 space-y-6">
+        <!-- KARTICA: osnovne info -->
+        <div class="card bg-base-100 shadow">
+          <div class="card-body">
+            <h1 class="card-title text-2xl">
+              {{ ev.title }}
+              <span class="badge badge-outline">{{ ev.status }}</span>
+            </h1>
+
+            <div class="flex flex-wrap items-center gap-2 opacity-80">
+              <span class="badge badge-neutral">
+                {{ dateText }}
+              </span>
+              <span v-if="ev.group?.name" class="badge badge-ghost">
+                {{ ev.group.name }}
+              </span>
+            </div>
+
+            <div class="divider my-2"></div>
+
+            <div class="flex items-center gap-2">
+              <Icon name="tabler:map-pin" />
+              <span class="font-medium">{{ ev.location_name || 'Lokacija nije uneta' }}</span>
+            </div>
+
+            <p class="mt-3 whitespace-pre-line">
+              {{ ev.description }}
+            </p>
+
+            <div v-if="isOwner" class="alert alert-info mt-3">
+              Ti si kreator događaja. Lokaciju više nije moguće menjati.
+              (Dozvoli izmenu naslova/opisa ako želiš – kroz odvojenu formu ili modal.)
+            </div>
+          </div>
+        </div>
+
+        <!-- KARTICA: RSVP čekiranja (izgled “kao nekad”) -->
+        <div class="card bg-base-100 shadow">
+          <div class="card-body">
+            <h2 class="card-title">Prisustvo</h2>
+            <p class="opacity-70">Označi svoj status dolaska:</p>
+
+            <div class="grid gap-3 md:grid-cols-3 mt-2">
+              <label class="form-control cursor-pointer">
+                <div class="label justify-start gap-3">
+                  <input
+                    type="checkbox"
+                    class="checkbox"
+                    :checked="rsvp === 'yes'"
+                    :disabled="rsvpLoading"
+                    @change="toggleRsvp('yes')"
+                  />
+                  <span class="label-text">Dolazim</span>
+                </div>
+              </label>
+
+              <label class="form-control cursor-pointer">
+                <div class="label justify-start gap-3">
+                  <input
+                    type="checkbox"
+                    class="checkbox"
+                    :checked="rsvp === 'undecided'"
+                    :disabled="rsvpLoading"
+                    @change="toggleRsvp('undecided')"
+                  />
+                  <span class="label-text">Možda</span>
+                </div>
+              </label>
+
+              <label class="form-control cursor-pointer">
+                <div class="label justify-start gap-3">
+                  <input
+                    type="checkbox"
+                    class="checkbox"
+                    :checked="rsvp === 'no'"
+                    :disabled="rsvpLoading"
+                    @change="toggleRsvp('no')"
+                  />
+                  <span class="label-text">Ne dolazim</span>
+                </div>
+              </label>
+            </div>
+
+            <div class="divider"></div>
+
+            <!-- Spisak potvrđenih (avatar + ime) -->
+            <div>
+              <h3 class="font-semibold mb-2">Potvrdili dolazak: {{ counts.yes }} / {{ counts.total }}</h3>
+              <div v-if="attendees.length" class="flex flex-wrap gap-3">
+                <div
+                  v-for="a in attendees"
+                  :key="a.id"
+                  class="flex items-center gap-2"
+                >
+                  <div class="avatar">
+                    <div class="w-8 rounded-full ring ring-base-300 ring-offset-2 overflow-hidden">
+                      <img :src="a.avatar_url || '/icons/icon-64.png'" alt="" />
+                    </div>
+                  </div>
+                  <span class="text-sm">{{ a.display_name || a.name }}</span>
+                </div>
+              </div>
+              <div v-else class="opacity-70">Još uvek niko nije potvrdio.</div>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div v-if="event.description" class="prose prose-sm mt-6 max-w-none">
-        <p>{{ event.description }}</p>
+      <!-- DESNA KOLONA: mapa u kartici (read-only) -->
+      <div class="lg:col-span-1">
+        <div class="card bg-base-100 shadow">
+          <div class="card-body">
+            <h2 class="card-title">Mapa</h2>
+            <div class="rounded-xl overflow-hidden border border-base-300">
+              <div
+                class="w-full h-full min-h-[50svh] overflow-hidden rounded-2xl border border-base-300 relative"
+                style="height: 420px;"
+              >
+              <MapCoordPicker
+                v-if="hasCoords"
+                :coords="coords"
+                :editable="false"
+              />
+
+              <div v-else class="p-4 text-sm opacity-70">
+                Lokacija za ovaj događaj nije postavljena.
+              </div>
+              </div>
+            </div>
+            <div v-if="hasCoords" class="mt-2 text-xs opacity-70">
+              {{ coords.lng?.toFixed(6) }}, {{ coords.lat?.toFixed(6) }}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
-
-    <!-- wrapper koji raste i dozvoljava shrink (min-h-0 je ključ!) -->
-    <section class="min-h-0 overflow-hidden">
-<!--Prostor za mapu -->
-    </section>
   </div>
 </template>

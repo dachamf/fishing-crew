@@ -6,6 +6,7 @@ use App\Http\Controllers\api\Auth\LogoutController;
 use App\Http\Controllers\api\Auth\RegisterController;
 use App\Http\Controllers\api\v1\AccountController;
 use App\Http\Controllers\api\v1\CatchesController;
+use App\Http\Controllers\api\v1\EventAttendeeController;
 use App\Http\Controllers\api\v1\EventsController;
 use App\Http\Controllers\api\v1\GroupsController;
 use App\Http\Controllers\api\v1\ProfileController;
@@ -39,10 +40,16 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
         Route::post('groups/{group}/events', [EventsController::class, 'store']);
 
         Route::get('events/{event}', [EventsController::class, 'show']);
+        Route::patch('events/{event}', [EventsController::class, 'update']);
         Route::post('events/{event}/rsvp', [EventsController::class, 'rsvp']);
         Route::post('events/{event}/checkin', [EventsController::class, 'checkin']);
         Route::post('events/{event}/postpone/propose', [EventsController::class, 'proposePostpone']);
         Route::post('events/{event}/postpone/vote', [EventsController::class, 'votePostpone']);
+
+        Route::get   ('/events/{event}/attendees', [EventAttendeeController::class, 'index']);
+        Route::post  ('/events/{event}/attendees', [EventAttendeeController::class, 'store']);
+        Route::patch ('/events/{event}/attendees', [EventAttendeeController::class, 'update']);
+        Route::delete('/events/{event}/attendees', [EventAttendeeController::class, 'destroy']);
 
         Route::post('catches', [CatchesController::class, 'store']);
         Route::get('catches/all', [CatchesController::class, 'listByAll']);
