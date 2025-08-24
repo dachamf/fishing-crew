@@ -13,13 +13,15 @@ class FishingCatch extends Model
     protected $fillable = [
         'group_id', 'user_id', 'event_id',
         'species', 'count', 'total_weight_kg', 'biggest_single_kg',
-        'note', 'status',
+        'note', 'status','caught_at','season_year',
     ];
 
     protected $casts = [
         'count' => 'integer',
         'total_weight_kg' => 'decimal:3',
         'biggest_single_kg' => 'decimal:3',
+        'caught_at' => 'datetime',
+        'season_year' => 'integer',
     ];
 
     // Relationships
@@ -52,5 +54,16 @@ class FishingCatch extends Model
     public function scopePending($q)
     {
         return $q->where('status', 'pending');
+    }
+
+    public function scopeSeason($q, ?int $year) {
+        if ($year) $q->where('season_year', $year);
+        return $q;
+    }
+
+    public function scopeBetween($q, ?string $from, ?string $to) {
+        if ($from) $q->where('caught_at', '>=', $from);
+        if ($to)   $q->where('caught_at', '<=', $to);
+        return $q;
     }
 }

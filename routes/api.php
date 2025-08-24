@@ -5,6 +5,7 @@ use App\Http\Controllers\api\Auth\LoginController;
 use App\Http\Controllers\api\Auth\LogoutController;
 use App\Http\Controllers\api\Auth\RegisterController;
 use App\Http\Controllers\api\v1\AccountController;
+use App\Http\Controllers\api\v1\CatchesConfirmationController;
 use App\Http\Controllers\api\v1\CatchesController;
 use App\Http\Controllers\api\v1\EventAttendeeController;
 use App\Http\Controllers\api\v1\EventsController;
@@ -51,10 +52,11 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
         Route::patch ('/events/{event}/attendees', [EventAttendeeController::class, 'update']);
         Route::delete('/events/{event}/attendees', [EventAttendeeController::class, 'destroy']);
 
-        Route::post('catches', [CatchesController::class, 'store']);
-        Route::get('catches/all', [CatchesController::class, 'listByAll']);
-        Route::post('catches/{catch}/confirm', [CatchesController::class, 'confirm']);
-        Route::get('users/{user}/catches', [CatchesController::class, 'listByUser']);
+        Route::get('/v1/catches/mine', [CatchesController::class, 'mine']);
+        Route::apiResource('/v1/catches', CatchesController::class)->only(['store','show','update','destroy']);
+        Route::get('/v1/events/{event}/catches', [CatchesController::class, 'byEvent']);
+
+        Route::post('/v1/catches/{catch}/confirm', [CatchesConfirmationController::class, 'store']);
 
         Route::get('profile/me', [ProfileController::class, 'me']);
         Route::patch('profile', [ProfileController::class, 'update']);

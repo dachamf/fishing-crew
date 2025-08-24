@@ -22,6 +22,7 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->string('role')->default('member'); // owner, moderator, member
             $table->primary(['group_id', 'user_id']);
+            $table->timestamps();
         });
     }
 

@@ -3,9 +3,13 @@
 namespace Database\Seeders;
 
 use App\Models\Event;
+use App\Models\FishingCatch;
 use App\Models\Group;
 use App\Models\User;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class DatabaseSeeder extends Seeder
 {
@@ -75,5 +79,83 @@ class DatabaseSeeder extends Seeder
                 $event->users()->syncWithoutDetaching($pivotData);
             }
         }
+        // --- SEED: Catches za ovu grupu (mešovito: sa i bez eventa, razni statusi) ---
+        $groupUserIds = $group->users()->pluck('users.id')->all();
+        $speciesPool  = ['Šaran','Amur','Som','Smudj','Babuška','Klen','Bandar','Deverika','Boleni'];
+
+// Ako u šemi postoji kolona "caught_at", popunićemo je; ako ne postoji – preskačemo
+        $hasCaughtAt = Schema::hasColumn('catches', 'caught_at');
+
+// napravi 12–30 ulova po grupi
+        $perGroupCount = random_int(12, 30);
+
+        for ($i = 0; $i < $perGroupCount; $i++) {
+            if (empty($groupUserIds)) break;
+
+            $userId         = Arr::random($groupUserIds);
+            $attachToEvent  = $events->isNotEmpty() && random_int(0, 100) < 70; // ~70% sa eventom
+            $eventId        = $attachToEvent ? $events->random()->id : null;
+
+            $count   = random_int(1, 4);
+            $biggest = round(mt_rand(250, 6500) / 1000, 3); // 0.25–6.5kg
+            // total >= biggest (ako je count=1 može biti ~= biggest)
+            $total   = $count === 1
+                ? max($biggest, round($biggest + mt_rand(-200, 500) / 1000, 3))   // malo variranje oko biggest
+                : round($biggest + mt_rand(300, 8000) / 1000, 3);                 // veća suma
+
+            $status  = Arr::random(['pending','approved','rejected']);
+
+            $row = [
+                'group_id'          => $group->id,
+                'user_id'           => $userId,
+                'event_id'          => $eventId,
+                'species'           => Arr::random($speciesPool),
+                'count'             => $count,
+                'total_weight_kg'   => max($total, $biggest),
+                'biggest_single_kg' => $biggest,
+                'note'              => fake()->optional()->sentence(),
+                'status'            => $status,
+                'created_at'        => fake()->dateTimeBetween('-90 days', 'now'),
+                'updated_at'        => now(),
+            ];
+
+            if ($hasCaughtAt) {
+                // ako postoji kolona caught_at – stavi realan datum lova (može oko datuma eventa ili random)
+                $row['caught_at'] = $eventId
+                    ? fake()->dateTimeBetween('-2 hours', '+6 hours')
+                    : fake()->dateTimeBetween('-120 days', 'now');
+            }
+
+            /** @var \App\Models\FishingCatch $catch */
+            $catch = FishingCatch::create($row);
+
+            // --- Potvrde (catch_confirmations) u zavisnosti od statusa ---
+            // biramo potvrđivače iz grupe (bez autora)
+            $eligibleConfirmers = array_values(array_diff($groupUserIds, [$userId]));
+            if (!empty($eligibleConfirmers)) {
+                $howMany = match ($status) {
+                    'approved'  => min(count($eligibleConfirmers), random_int(1, 2)), // 1–2 potvrde
+                    'rejected'  => min(count($eligibleConfirmers), random_int(1, 2)), // 1–2 odbijanja
+                    default     => random_int(0, 1),                                  // ponekad 1 pending potvrda
+                };
+
+                if ($howMany > 0) {
+                    $confirmers = (array) Arr::random($eligibleConfirmers, $howMany);
+                    foreach ($confirmers as $confUserId) {
+                        DB::table('catch_confirmations')->insert([
+                            'catch_id'     => $catch->id,
+                            'confirmed_by' => $confUserId,
+                            'status'       => $status === 'rejected'
+                                ? 'rejected'
+                                : ($status === 'approved' ? 'approved' : Arr::random(['approved','rejected'])),
+                            'note'         => fake()->optional()->sentence(),
+                            'created_at'   => now(),
+                            'updated_at'   => now(),
+                        ]);
+                    }
+                }
+            }
+        }
+
     }
 }

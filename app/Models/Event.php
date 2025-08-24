@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Event extends Model
 {
@@ -48,5 +49,10 @@ class Event extends Model
             ->wherePivot('rsvp', 'yes')
             ->withPivot(['rsvp'])
             ->withTimestamps();
+    }
+
+    public function catches(): HasMany
+    {
+        return $this->hasMany(FishingCatch::class, 'event_id'); // FK je event_id u tabeli catches
     }
 }
