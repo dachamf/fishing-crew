@@ -4,7 +4,9 @@ namespace Database\Seeders;
 
 use App\Models\Event;
 use App\Models\FishingCatch;
+use App\Models\FishingSession;
 use App\Models\Group;
+use App\Models\Species;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Arr;
@@ -18,6 +20,25 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        // Seed species first (needed for foreign key species_id in catches)
+        $speciesItems = [
+            ['slug'=>'som',     'name_sr'=>'Som',     'name_latin'=>'Silurus glanis'],
+            ['slug'=>'smudj',   'name_sr'=>'Smuđ',    'name_latin'=>'Sander lucioperca'],
+            ['slug'=>'stuka',   'name_sr'=>'Štuka',   'name_latin'=>'Esox lucius'],
+            ['slug'=>'saran',   'name_sr'=>'Šaran',   'name_latin'=>'Cyprinus carpio'],
+            ['slug'=>'babuskа', 'name_sr'=>'Babuška', 'name_latin'=>'Carassius gibelio'],
+            ['slug'=>'amur',    'name_sr'=>'Amur',    'name_latin'=>'Ctenopharyngodon idella'],
+            ['slug'=>'bucov',   'name_sr'=>'Bucov',   'name_latin'=>'Aspius aspius'],
+            ['slug'=>'mrena',   'name_sr'=>'Mrena',   'name_latin'=>'Barbus barbus'],
+            ['slug'=>'deverika','name_sr'=>'Deverika','name_latin'=>'Abramis brama'],
+            ['slug'=>'linjak',  'name_sr'=>'Linjak',  'name_latin'=>'Tinca tinca'],
+        ];
+        foreach ($speciesItems as $it) Species::firstOrCreate(['slug'=>$it['slug']], $it);
+        // Build a lookup from lowercase name_sr to id for convenience
+        $speciesNameToId = Species::all()->mapWithKeys(function($s){
+            return [mb_strtolower($s->name_sr) => $s->id];
+        });
+
         // Kreiraj korisnike
         $users = User::factory()->count(20)->create();
 
@@ -78,10 +99,58 @@ class DatabaseSeeder extends Seeder
 
                 $event->users()->syncWithoutDetaching($pivotData);
             }
+
+            foreach ($groups as $group) {
+                // ... postojeći kod za users/events/attendees ...
+
+                // Kreiraj 2-5 sesija za random članove grupe
+                $groupUserIds = $group->users()->pluck('users.id');
+                if ($groupUserIds->isEmpty()) continue;
+
+                $sessions = collect(range(1, random_int(2,5)))->map(function() use ($group, $groupUserIds) {
+                    $userId = $groupUserIds->random();
+                    return FishingSession::create([
+                        'group_id'    => $group->id,
+                        'user_id'     => $userId,
+                        'title'       => fake()->randomElement(['Jutarnje', 'Večernje', 'Noćno']) . ' pecanje',
+                        'latitude'    => fake()->randomFloat(6, 42.0, 46.0),
+                        'longitude'   => fake()->randomFloat(6, 18.0, 23.0),
+                        'started_at'  => now()->subDays(random_int(1, 30))->setTime(random_int(5,20), random_int(0,59)),
+                        'ended_at'    => now()->subDays(random_int(0, 30))->setTime(random_int(6,23), random_int(0,59)),
+                        'status'      => fake()->boolean(70) ? 'closed' : 'open',
+                        'season_year' => (int) now()->format('Y'),
+                    ]);
+                });
+
+                // Za svaku sesiju “stackuj” 2-4 vrste
+                foreach ($sessions as $s) {
+                    $species = collect(['štuka','smuđ','som','beli amur','klen','šaran'])->shuffle()->take(random_int(2,4));
+                    foreach ($species as $sp) {
+                        $count = random_int(1, 5);
+                        $weights = collect(range(1,$count))->map(fn() => fake()->randomFloat(3, 0.3, 6.5));
+                        FishingCatch::create([
+                            'group_id'          => $s->group_id,
+                            'user_id'           => $s->user_id,
+                            'event_id'          => $s->event_id,
+                            'session_id'        => $s->id,
+                            'species_id'        => $speciesNameToId->get(mb_strtolower($sp)),
+                            'count'             => $count,
+                            'total_weight_kg'   => round($weights->sum(), 3),
+                            'biggest_single_kg' => round($weights->max(), 3),
+                            'note'              => fake()->optional()->sentence(),
+                            'status'            => fake()->randomElement(['pending','approved']),
+                            'caught_at'         => $s->started_at->copy()->addMinutes(random_int(10,180)),
+                            'season_year'       => (int)$s->started_at->format('Y'),
+                        ]);
+                    }
+                }
+            }
+
         }
         // --- SEED: Catches za ovu grupu (mešovito: sa i bez eventa, razni statusi) ---
         $groupUserIds = $group->users()->pluck('users.id')->all();
-        $speciesPool  = ['Šaran','Amur','Som','Smudj','Babuška','Klen','Bandar','Deverika','Boleni'];
+        // Use species ids for FK
+        $speciesIds   = Species::pluck('id')->all();
 
 // Ako u šemi postoji kolona "caught_at", popunićemo je; ako ne postoji – preskačemo
         $hasCaughtAt = Schema::hasColumn('catches', 'caught_at');
@@ -109,7 +178,7 @@ class DatabaseSeeder extends Seeder
                 'group_id'          => $group->id,
                 'user_id'           => $userId,
                 'event_id'          => $eventId,
-                'species'           => Arr::random($speciesPool),
+                'species_id'        => !empty($speciesIds) ? Arr::random($speciesIds) : null,
                 'count'             => $count,
                 'total_weight_kg'   => max($total, $biggest),
                 'biggest_single_kg' => $biggest,
@@ -156,6 +225,5 @@ class DatabaseSeeder extends Seeder
                 }
             }
         }
-
     }
 }

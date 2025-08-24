@@ -194,7 +194,7 @@ const dateText = computed(() => {
                 >
                   <div class="avatar">
                     <div class="w-8 rounded-full ring ring-base-300 ring-offset-2 overflow-hidden">
-                      <img :src="a.avatar_url || '/icons/icon-64.png'" alt="" />
+                      <img :src="a.avatar || '/icons/icon-64.png'" alt="" />
                     </div>
                   </div>
                   <span class="text-sm">{{ a.display_name || a.name }}</span>
@@ -213,7 +213,7 @@ const dateText = computed(() => {
                 >
                   <div class="avatar">
                     <div class="w-8 rounded-full ring ring-base-300 ring-offset-2 overflow-hidden">
-                      <img :src="a.avatar_url || '/icons/icon-64.png'" alt="" />
+                      <img :src="a.avatar || '/icons/icon-64.png'" alt="" />
                     </div>
                   </div>
                   <span class="text-sm">{{ a.display_name || a.name }}</span>

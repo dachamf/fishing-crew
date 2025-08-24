@@ -15,6 +15,46 @@ use Illuminate\Support\Facades\DB;
 class CatchesController extends Controller
 {
     /**
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function index(Request $request)
+    {
+        $q = FishingCatch::query()
+            ->with([
+                'photos',
+                'confirmations',
+                'user:id,name',              // više ne tražimo display_name iz users
+                'user.profile:id,user_id,display_name,avatar_path', // da izbegnemo N+1
+                'event:id,title',
+
+            ]);
+
+        // po defaultu - samo moj ulov
+        $q->where('user_id', $request->user()->id);
+
+        // opcioni filteri:
+        if ($request->filled('status')) $q->where('status', $request->status);
+        if ($request->filled('from')) $q->where('caught_at', '>=', Carbon::parse($request->from));
+        if ($request->filled('to')) $q->where('caught_at', '<=', Carbon::parse($request->to));
+
+        $q->latest('caught_at')->latest('id');
+
+        return response()->json($q->paginate(20));
+    }
+
+    /**
+     * @param FishingCatch $catch
+     * @return JsonResponse
+     */
+    public function show(FishingCatch $catch, $id)
+    {
+        $catch = FishingCatch::with(['photos','confirmations','user:id,name','user.profile:id,user_id,avatar_path','event:id,title'])->findOrFail($id);
+        $this->authorize('view', $catch); // po potrebi
+        return response()->json($catch);
+    }
+
+    /**
      * Handles the creation of a new fishing catch resource.
      *
      * This method validates the incoming request, prepares the required data,
@@ -23,54 +63,21 @@ class CatchesController extends Controller
      * are determined based on the provided input or related entities such as
      * events or groups.
      *
-     * @param CatchStoreRequest $req The validated request containing the data for the fishing catch.
+     * @param Request $r
      * @return JsonResponse The JSON response containing the created fishing catch data.
-     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException If the provided `event_id` does not correspond to an existing event.
-     * @throws \Throwable If there is an issue during the database transaction.
      */
-    public function store(CatchStoreRequest $req)
-    {
-        $data = $req->validated();
-        $data['user_id'] = $req->user()->id;
 
-        // Ako postoji event → preuzmi group_id iz eventa (override)
-        $event = null;
-        if (!empty($data['event_id'])) {
-            $event = Event::findOrFail($data['event_id']);
-            $data['group_id'] = $event->group_id;
-        }
+    public function store(CatchStoreRequest $r) {
+        $v = $r->validated();
 
-        // caught_at: prosleđen || start_at eventa || sada
-        $caughtAt = $data['caught_at'] ?? ($event?->start_at?->toDateTimeString()) ?? now()->toDateTimeString();
-        $data['caught_at'] = $caughtAt;
+        $catch = new FishingCatch($v);
+        $catch->user_id = $r->user()->id;
+        $catch->status = 'pending';
+        $catch->caught_at   = $v['caught_at'] ?? now();
+        $catch->season_year = $v['season_year'] ?? (int)($catch->caught_at?->format('Y'));
+        $catch->save();
 
-        // season_year: prosleđen || group.season_year || YEAR(caught_at)
-        $groupSeason = optional(Group::find($data['group_id']))->season_year;
-        $data['season_year'] = $data['season_year']
-            ?? $groupSeason
-            ?? (int) \Carbon\Carbon::parse($caughtAt)->year;
-
-        $catch = DB::transaction(fn() => FishingCatch::create($data));
-
-        return response()->json(['data' => $catch], 201);
-    }
-
-    /**
-     * Retrieves and displays the specified fishing catch resource.
-     *
-     * This method ensures that the authenticated user has the permission to
-     * view the provided fishing catch resource. It also eagerly loads related
-     * entities, such as the user, group, event, and confirmations along with
-     * the confirmer details, to optimize data retrieval and reduce database queries.
-     *
-     * @param FishingCatch $catch The fishing catch instance to be displayed.
-     * @return JsonResponse The JSON response containing the fishing catch data along with its related entities.
-     * @throws AuthorizationException If the authenticated user is not authorized to view the resource.
-     */
-    public function show(FishingCatch $catch)
-    {
-        // policy: view
-        return response()->json(['data' => $catch->load('user','group','event','confirmations.confirmer')]);
+        return response()->json($catch->load(['photos','confirmations']), 201);
     }
 
     /**
@@ -82,24 +89,23 @@ class CatchesController extends Controller
      * provided, it recalculates `season_year` based on the related group's season
      * or the year derived from the new `caught_at` date.
      *
-     * @param CatchUpdateRequest $req The validated request containing the updated data for the fishing catch.
-     * @param FishingCatch $catch The fishing catch model instance to be updated.
+     * @param Request $r
+     * @param $id
      * @return JsonResponse The JSON response containing the updated fishing catch data.
-     * @throws \Throwable If there is an issue during the save process or the field calculations.
      */
-    public function update(CatchUpdateRequest $req, FishingCatch $catch)
-    {
-        $data = $req->validated();
 
-        // Ako korisnik menja caught_at, re-izračunaj season_year (osim ako ga eksplicitno pošalje)
-        if (array_key_exists('caught_at', $data) && !array_key_exists('season_year', $data)) {
-            $groupSeason = optional($catch->group)->season_year;
-            $data['season_year'] = $groupSeason ?? (int) Carbon::parse($data['caught_at'])->year;
-        }
+    public function update(CatchUpdateRequest $r, $id) {
+        $c = FishingCatch::with('confirmations')->findOrFail($id);
+        $this->authorize('update', $c);
 
-        $catch->fill($data)->save();
+        $v = $r->validated();
 
-        return response()->json(['data' => $catch->fresh()]);
+        $c->fill(array_filter($v, fn($x) => !is_null($x)))->save();
+
+        // svaka izmena resetuje SVE pending/approve u pending (po želji)
+        $c->confirmations()->update(['status'=>'pending','suggested_payload'=>null]);
+
+        return response()->json($c->fresh()->load(['photos','confirmations']));
     }
 
     /**
@@ -109,16 +115,16 @@ class CatchesController extends Controller
      * Authorization is enforced through a policy to ensure proper permissions
      * such as ownership or administrative rights.
      *
-     * @param Request $req The incoming request object.
-     * @param FishingCatch $catch The fishing catch instance to be deleted.
-     * @return Response An HTTP 204 no content response upon successful deletion.
-     * @throws AuthorizationException If the policy denies the action.
+     * @param Request $r
+     * @param $id
+     * @return JsonResponse An HTTP 204 no content response upon successful deletion.
      */
-    public function destroy(Request $req, FishingCatch $catch)
-    {
-        // policy: delete (vlasnik/admin)
-        $catch->delete();
-        return response()->noContent();
+
+    public function destroy(Request $r, $id) {
+        $c = FishingCatch::findOrFail($id);
+        $this->authorize('delete', $c);
+        $c->delete();
+        return response()->json(['message'=>'Deleted']);
     }
 
     /**
@@ -135,7 +141,7 @@ class CatchesController extends Controller
     {
         $year = $req->integer('season_year');
         $from = $req->query('from'); // ISO
-        $to   = $req->query('to');
+        $to = $req->query('to');
 
         $q = $event->catches()->with('user')
             ->season($year)
@@ -159,11 +165,12 @@ class CatchesController extends Controller
     public function mine(Request $req)
     {
         $year = $req->integer('season_year');
-        $from = $req->query('from'); $to = $req->query('to');
+        $from = $req->query('from');
+        $to = $req->query('to');
 
         $q = FishingCatch::query()
             ->where('user_id', $req->user()->id)
-            ->with('event','group')
+            ->with('event', 'group')
             ->season($year)
             ->between($from, $to)
             ->latest('caught_at');

@@ -12,6 +12,7 @@ export default defineNuxtPlugin((nuxtApp) => {
     // dodaj Bearer kad postoji
     if (token.value) cfg.headers.Authorization = `Bearer ${token.value}`
     cfg.headers.Accept = 'application/json'
+    cfg.headers['X-Requested-With'] = 'XMLHttpRequest'
     return cfg
   })
 

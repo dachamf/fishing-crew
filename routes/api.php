@@ -7,10 +7,15 @@ use App\Http\Controllers\api\Auth\RegisterController;
 use App\Http\Controllers\api\v1\AccountController;
 use App\Http\Controllers\api\v1\CatchesConfirmationController;
 use App\Http\Controllers\api\v1\CatchesController;
+use App\Http\Controllers\api\v1\CatchPhotoController;
+use App\Http\Controllers\api\v1\CatchReviewController;
 use App\Http\Controllers\api\v1\EventAttendeeController;
 use App\Http\Controllers\api\v1\EventsController;
+use App\Http\Controllers\api\v1\FishingSessionController;
 use App\Http\Controllers\api\v1\GroupsController;
 use App\Http\Controllers\api\v1\ProfileController;
+use App\Http\Controllers\api\v1\SessionCatchController;
+use App\Http\Controllers\api\v1\SpeciesController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -52,11 +57,31 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
         Route::patch ('/events/{event}/attendees', [EventAttendeeController::class, 'update']);
         Route::delete('/events/{event}/attendees', [EventAttendeeController::class, 'destroy']);
 
-        Route::get('/v1/catches/mine', [CatchesController::class, 'mine']);
-        Route::apiResource('/v1/catches', CatchesController::class)->only(['store','show','update','destroy']);
-        Route::get('/v1/events/{event}/catches', [CatchesController::class, 'byEvent']);
+        Route::get('/species', [SpeciesController::class, 'index']);
 
-        Route::post('/v1/catches/{catch}/confirm', [CatchesConfirmationController::class, 'store']);
+        Route::get('catches/to-review',            [CatchReviewController::class, 'assignedToMe']);
+        Route::get('catches',        [CatchesController::class, 'index']);   // samo moj ulov po defaultu
+        Route::get('catches/{id}',   [CatchesController::class, 'show']);
+        Route::post('catches',       [CatchesController::class, 'store']);
+        Route::patch('catches/{id}', [CatchesController::class, 'update']);
+        Route::delete('catches/{id}',[CatchesController::class, 'destroy']);
+
+        // nominacije & review flow
+
+        Route::post('catches/{id}/nominate',       [CatchReviewController::class, 'nominate']);
+        Route::post('catches/{id}/confirm',        [CatchReviewController::class, 'confirm']);        // approve/reject
+        Route::post('catches/{id}/request-change', [CatchReviewController::class, 'requestChange']);  // traži izmenu// ulovi koji čekaju mene
+
+        // fotke (max 3)
+        Route::post('catches/{id}/photos',                 [CatchPhotoController::class, 'store']);   // multipart
+        Route::delete('catches/{id}/photos/{photoId}',     [CatchPhotoController::class, 'destroy']);
+
+
+        Route::post('/catches/{catch}/confirm', [CatchesConfirmationController::class, 'store']);
+
+        Route::apiResource('sessions', FishingSessionController::class)->only(['index','show','store','update','destroy']);
+        Route::post('sessions/{session}/close', [FishingSessionController::class, 'close']);
+        Route::post('sessions/{session}/catches/stack', [SessionCatchController::class, 'upsert']);
 
         Route::get('profile/me', [ProfileController::class, 'me']);
         Route::patch('profile', [ProfileController::class, 'update']);

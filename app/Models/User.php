@@ -16,6 +16,8 @@ class User extends Authenticatable
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasApiTokens, HasFactory, Notifiable;
 
+    protected $appends = ['display_name', 'avatar_path'];
+
     /**
      * The attributes that are mass assignable.
      *
@@ -87,4 +89,15 @@ class User extends Authenticatable
             ->withPivot(['rsvp','reason','checked_in_at','rating'])
             ->withTimestamps();
     }
+
+    public function getDisplayNameAttribute(): string
+    {
+        return optional($this->profile)->display_name ?? $this->name;
+    }
+
+    public function getAvatarPathAttribute(): string
+    {
+        return optional($this->profile)->avatar_path ?? '';
+    }
+
 }

@@ -11,7 +11,7 @@ class EventPolicy
     public function createInGroup(User $user, Group $group): bool
     {
         // član grupe može kreirati dogadjaj u grupi
-        return $group->members()->where('users.id', $user->id)->exists();
+        return $group->isMember($user->id);
     }
 
     // Alias to match controller ability name

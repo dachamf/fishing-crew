@@ -1,6 +1,7 @@
 <?php
 namespace App\Http\Requests;
 
+use App\Models\Species;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -8,12 +9,30 @@ class CatchStoreRequest extends FormRequest
 {
     public function authorize(): bool { return true; } // pokrij policy kasnije
 
+    protected function prepareForValidation(): void
+    {
+        // Allow clients to send either species_id or a human-readable species string
+        $speciesId = $this->input('species_id');
+        $speciesStr = $this->input('species');
+        if (!$speciesId && $speciesStr) {
+            $q = trim(mb_strtolower($speciesStr));
+            $found = Species::query()
+                ->whereRaw('LOWER(slug) = ?', [$q])
+                ->orWhereRaw('LOWER(name_sr) = ?', [$q])
+                ->orWhereRaw('LOWER(name_latin) = ?', [$q])
+                ->value('id');
+            if ($found) {
+                $this->merge(['species_id' => $found]);
+            }
+        }
+    }
+
     public function rules(): array
     {
         return [
             'group_id' => ['required','exists:groups,id'],
             'event_id' => ['nullable','exists:events,id'],
-            'species'  => ['nullable','string','max:100'],
+            'species_id' => ['required','integer','exists:species,id'],
             'count'    => ['required','integer','min:1'],
             'total_weight_kg'   => ['nullable','numeric','min:0'],
             'biggest_single_kg' => ['nullable','numeric','min:0'],
