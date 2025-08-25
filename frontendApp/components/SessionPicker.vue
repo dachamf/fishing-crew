@@ -1,15 +1,20 @@
 <script setup lang="ts">
 import type { LngLatLike } from 'maplibre-gl'
-const props = defineProps<{ groupId: number }>()
-const emit = defineEmits<{(e:'picked', v:{ id:number|null }):void}>()
+const props = defineProps<{ groupId?: number }>()
+const emit = defineEmits<{ (e:'picked', payload:{ id:number }): void }>()
 
-const { open, recent, startNew, closeSession, loading } = useMySessions()
+const { open, openFirst, recent, startNew, closeSession, loading } = useMySessions()
 const picking = ref<'open'|'new'|'recent'|null>('open')
-const pickedId = computed(() => open.value?.id ?? null)
+const pickedId = computed<number | null>(() => openFirst.value?.id ?? null)
 
-function pickOpen() { if (open.value) emit('picked', { id: open.value.id }) }
-async function newSession() {
-  const s = await startNew(props.groupId, { start_at: new Date().toISOString() })
+function pickOpen() {
+  if (openFirst.value) emit('picked', { id: openFirst.value.id })
+}
+async function createAndPick() {
+  const s = await startNew({
+    group_id: props.groupId,
+    started_at: new Date().toISOString(),
+  })
   emit('picked', { id: s.id })
 }
 </script>
@@ -23,10 +28,10 @@ async function newSession() {
 
       <div v-else class="flex flex-col gap-2">
         <button v-if="open" class="btn btn-sm btn-primary" @click="pickOpen">
-          Nastavi otvorenu sesiju (ID: {{ open.id }})
+          Nastavi otvorenu sesiju (ID: {{ openFirst?.id }})
         </button>
 
-        <button class="btn btn-sm" @click="newSession">Započni novu sesiju</button>
+        <button class="btn btn-sm" @click="createAndPick">Započni novu sesiju</button>
 
         <details class="mt-2">
           <summary class="cursor-pointer opacity-70">Nedavno zatvorene</summary>

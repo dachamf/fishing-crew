@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
 class FishingSession extends Model
 {
@@ -26,6 +27,8 @@ class FishingSession extends Model
         'started_at' => 'datetime',
         'ended_at' => 'datetime',
     ];
+
+    protected $appends = ['photos'];
 
     public function user(): BelongsTo
     {
@@ -67,5 +70,28 @@ class FishingSession extends Model
     {
         if ($from) $q->where('started_at', '>=', $from);
         if ($to) $q->where('started_at', '<=', $to);
+    }
+
+    public function catchPhotos(): HasManyThrough
+    {
+        return $this->hasManyThrough(
+            CatchPhoto::class,   // target
+            FishingCatch::class, // through
+            'session_id',            // FK na FishingCatch ka sessions
+            'catch_id',                      // FK na CatchPhoto ka catches
+            'id',                            // lokalni ključ na sessions
+            'id'                             // lokalni ključ na catches
+        );
+    }
+
+    public function getPhotosAttribute(): array
+    {
+        // napomena: ovo pravi 1 upit po sesiji; OK za liste do ~20 sesija
+        return $this->catchPhotos()
+            ->latest('id')     // ili ->orderBy('ord')
+            ->take(3)
+            ->get()
+            ->map(fn($p) => ['id'=>$p->id, 'url'=>$p->url])
+            ->all();
     }
 }

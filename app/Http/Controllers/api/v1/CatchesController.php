@@ -20,18 +20,22 @@ class CatchesController extends Controller
      */
     public function index(Request $request)
     {
+        $memberGroupIds = $request->user()->groups()->pluck('groups.id');
         $q = FishingCatch::query()
             ->with([
-                'photos',
-                'confirmations',
-                'user:id,name',              // više ne tražimo display_name iz users
-                'user.profile:id,user_id,display_name,avatar_path', // da izbegnemo N+1
-                'event:id,title',
-
-            ]);
+                'user:id,name',
+                'user.profile:id,user_id,display_name,avatar_path',
+                'group:id,name',
+                'session:id,group_id,title,started_at,ended_at,location_name', // naziv tvog modela relacije
+                'session.photos', // do 3 fotke na FE ionako se režu
+            ])
+            ->whereIn('group_id', $memberGroupIds);
 
         // po defaultu - samo moj ulov
         $q->where('user_id', $request->user()->id);
+        if ($gid = $request->integer('group_id')) {
+            $q->where('group_id', $gid);
+        }
 
         // opcioni filteri:
         if ($request->filled('status')) $q->where('status', $request->status);
@@ -49,7 +53,7 @@ class CatchesController extends Controller
      */
     public function show(FishingCatch $catch, $id)
     {
-        $catch = FishingCatch::with(['photos','confirmations','user:id,name','user.profile:id,user_id,avatar_path','event:id,title'])->findOrFail($id);
+        $catch = FishingCatch::with(['photos', 'confirmations', 'user:id,name', 'user.profile:id,user_id,avatar_path', 'event:id,title'])->findOrFail($id);
         $this->authorize('view', $catch); // po potrebi
         return response()->json($catch);
     }
@@ -67,17 +71,18 @@ class CatchesController extends Controller
      * @return JsonResponse The JSON response containing the created fishing catch data.
      */
 
-    public function store(CatchStoreRequest $r) {
+    public function store(CatchStoreRequest $r)
+    {
         $v = $r->validated();
 
         $catch = new FishingCatch($v);
         $catch->user_id = $r->user()->id;
         $catch->status = 'pending';
-        $catch->caught_at   = $v['caught_at'] ?? now();
+        $catch->caught_at = $v['caught_at'] ?? now();
         $catch->season_year = $v['season_year'] ?? (int)($catch->caught_at?->format('Y'));
         $catch->save();
 
-        return response()->json($catch->load(['photos','confirmations']), 201);
+        return response()->json($catch->load(['photos', 'confirmations']), 201);
     }
 
     /**
@@ -94,7 +99,8 @@ class CatchesController extends Controller
      * @return JsonResponse The JSON response containing the updated fishing catch data.
      */
 
-    public function update(CatchUpdateRequest $r, $id) {
+    public function update(CatchUpdateRequest $r, $id)
+    {
         $c = FishingCatch::with('confirmations')->findOrFail($id);
         $this->authorize('update', $c);
 
@@ -103,9 +109,9 @@ class CatchesController extends Controller
         $c->fill(array_filter($v, fn($x) => !is_null($x)))->save();
 
         // svaka izmena resetuje SVE pending/approve u pending (po želji)
-        $c->confirmations()->update(['status'=>'pending','suggested_payload'=>null]);
+        $c->confirmations()->update(['status' => 'pending', 'suggested_payload' => null]);
 
-        return response()->json($c->fresh()->load(['photos','confirmations']));
+        return response()->json($c->fresh()->load(['photos', 'confirmations']));
     }
 
     /**
@@ -120,11 +126,12 @@ class CatchesController extends Controller
      * @return JsonResponse An HTTP 204 no content response upon successful deletion.
      */
 
-    public function destroy(Request $r, $id) {
+    public function destroy(Request $r, $id)
+    {
         $c = FishingCatch::findOrFail($id);
         $this->authorize('delete', $c);
         $c->delete();
-        return response()->json(['message'=>'Deleted']);
+        return response()->json(['message' => 'Deleted']);
     }
 
     /**

@@ -49,7 +49,11 @@ onMounted(async () => {
     try {
       const ses = await $api.get('/v1/sessions', { params: { mine: 1, status: 'open' } })
       openSessions.value = ses.data?.data ?? ses.data ?? []
-      if (openSessions.value.length) form.session_id = openSessions.value[0].id
+      const first = openSessions.value[0]
+      if (first) {
+        form.session_id = first.id
+      }
+
     } catch {
       canUseSessions.value = false
       form.use_session = false

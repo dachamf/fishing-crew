@@ -5,10 +5,13 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class FishingCatch extends Model
 {
     protected $table = 'catches';
+
+    protected $appends = ['species_label'];
 
     protected $fillable = [
         'group_id', 'user_id', 'event_id', 'session_id',
@@ -94,5 +97,16 @@ class FishingCatch extends Model
                 $c->group_id = optional($c->session)->group_id;
             }
         });
+    }
+
+    public function getSpeciesLabelAttribute(): string
+    {
+        if (is_string($this->species) && $this->species !== '') return $this->species;
+        if (!empty($this->species_name)) return (string) $this->species_name;
+        if (!empty($this->species_id)) {
+            return Species::query()->where('id', $this->species_id)->value('name_sr') ?? '';
+        }
+        if (is_array($this->species) && !empty($this->species['name_sr'])) return (string) $this->species['name_sr'];
+        return '';
     }
 }

@@ -1,89 +1,108 @@
 <script setup lang="ts">
+defineOptions({ name: 'SessionDetailPage' })
 const route = useRoute()
+const { $api } = useNuxtApp() as any
 const id = Number(route.params.id)
-const { getOne, closeSession } = useSessions()
-const { data, pending, error, refresh } = await useAsyncData(
-  () => `session:${id}`,
-  () => getOne(id),
-  { watch: [() => id] }
-)
 
-const s = computed(() => data.value)
-async function onClose() { await closeSession(id); await refresh() }
+const { data, pending, error } = await useAsyncData(
+  () => `session:${id}`,
+  async () => {
+    const res = await $api.get(`/v1/sessions/${id}`, {
+      // ako API podržava includes:
+      params: { include: 'photos,group,user,catches.user' }
+    })
+    // fallback: ako nema includes, uradi naknadno fetch za catches
+    const session = res.data
+    if (!session.catches) {
+      const c = await $api.get('/v1/catches', { params: { fishing_session_id: id, per_page: 100 } })
+      session.catches = c.data?.data ?? c.data ?? []
+    }
+    return session
+  }
+)
 </script>
 
 <template>
-  <div class="container mx-auto p-4">
-    <div v-if="pending" class="loading loading-spinner"></div>
+  <div class="container mx-auto p-4 space-y-4">
+    <div class="breadcrumbs text-sm">
+      <ul>
+        <li><NuxtLink to="/catches">Sesije</NuxtLink></li>
+        <li>Detalj</li>
+      </ul>
+    </div>
+
+    <div v-if="pending" class="flex items-center gap-2">
+      <span class="loading loading-spinner"></span> Učitavanje…
+    </div>
     <div v-else-if="error" class="alert alert-error">Greška pri učitavanju.</div>
-    <div v-else-if="!s" class="alert">Nema podataka.</div>
-
-    <div v-else class="grid lg:grid-cols-3 gap-6">
-      <div class="lg:col-span-2 space-y-4">
-        <div class="card bg-base-100 shadow">
-          <div class="card-body">
-            <div class="flex justify-between items-start">
-              <div>
-                <h1 class="card-title text-2xl">{{ s.title || 'Sesija' }}</h1>
-                <div class="flex items-center gap-2">
-                  <span class="badge">{{ s.status }}</span>
-                  <span class="opacity-60 text-sm">{{ s.water_body || '—' }}</span>
-                </div>
-              </div>
-              <button v-if="s.status==='open'" class="btn btn-sm btn-warning" @click="onClose">Završi sesiju</button>
-            </div>
-
-            <div class="text-xs opacity-60">
-              Početak: {{ new Date(s.started_at).toLocaleString('sr-RS') }}
-              <span v-if="s.ended_at"> • Kraj: {{ new Date(s.ended_at).toLocaleString('sr-RS') }}</span>
-            </div>
+    <div v-else>
+      <div class="flex items-start justify-between">
+        <div>
+          <h1 class="text-2xl font-semibold">{{ data.title || 'Fishing sesija' }}</h1>
+          <div class="opacity-75 flex flex-wrap gap-2">
+            <FishingCatchesTimeBadge :iso="data.started_at" :with-time="true" />
+            <span v-if="data.location_name" class="badge badge-ghost">{{ data.location_name }}</span>
+            <span v-if="data.group?.name" class="badge badge-ghost">{{ data.group.name }}</span>
           </div>
         </div>
+        <span v-if="data.status" class="badge badge-outline">{{ data.status }}</span>
+      </div>
 
-        <div class="card bg-base-100 shadow">
-          <div class="card-body">
-            <h2 class="card-title mb-2">Brz unos ulova</h2>
-            <SessionQuickAdd :session-id="id" />
-          </div>
+      <div v-if="(data.photos?.length||0) > 0" class="mt-3 grid grid-cols-3 gap-2">
+        <div v-for="(p, idx) in data.photos.slice(0,3)" :key="idx" class="aspect-video rounded-xl overflow-hidden border border-base-300">
+          <img :src="p.url || p" class="w-full h-full object-cover" />
         </div>
+      </div>
 
-        <div class="card bg-base-100 shadow">
-          <div class="card-body">
-            <h2 class="card-title mb-2">Ulov</h2>
-            <div v-if="s.catches?.length" class="grid gap-2">
-              <div v-for="c in s.catches" :key="c.id" class="flex justify-between items-center p-2 rounded-lg border">
-                <div>
-                  <div class="font-semibold">{{ c.species }}</div>
-                  <div class="text-xs opacity-70">
-                    Kom: {{ c.count }} • Težina: {{ c.total_weight_kg ?? 0 }} kg • Max: {{ c.biggest_single_kg ?? 0 }} kg
+      <div class="divider">Ulov</div>
+
+      <div class="overflow-x-auto">
+        <table class="table">
+          <thead>
+          <tr>
+            <th>Vrsta</th>
+            <th class="text-right">Kom</th>
+            <th class="text-right">Težina (kg)</th>
+            <th class="text-right">Najveća (kg)</th>
+            <th>Korisnik</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr v-for="row in data.catches || []" :key="row.id">
+            <td>{{ row.species }}</td>
+            <td class="text-right">{{ row.count }}</td>
+            <td class="text-right">{{ Number(row.total_weight_kg||0).toFixed(3) }}</td>
+            <td class="text-right">{{ Number(row.biggest_single_kg||0).toFixed(3) }}</td>
+            <td>
+              <div class="flex items-center gap-2">
+                <div class="avatar">
+                  <div class="w-6 rounded-full overflow-hidden border border-base-300">
+                    <img :src="row.user?.avatar_url || '/icons/icon-64.png'">
                   </div>
                 </div>
-                <div class="text-xs opacity-60">{{ c.caught_at ? new Date(c.caught_at).toLocaleString('sr-RS') : '' }}</div>
+                <span class="text-sm">{{ row.user?.display_name || row.user?.name }}</span>
               </div>
-            </div>
-            <div v-else class="opacity-70 text-sm">Još nema ulova.</div>
-          </div>
-        </div>
+            </td>
+            <td>
+              <span
+class="badge" :class="{
+                'badge-warning': row.status==='pending',
+                'badge-success': row.status==='approved',
+                'badge-error': row.status==='rejected',
+              }">
+                {{ row.status }}
+              </span>
+            </td>
+            <td class="text-right">
+              <NuxtLink :to="`/catches/${row.id}`" class="btn btn-ghost btn-xs">Detalji ulova</NuxtLink>
+            </td>
+          </tr>
+          </tbody>
+        </table>
       </div>
 
-      <div class="lg:col-span-1">
-        <div class="card bg-base-100 shadow">
-          <div class="card-body">
-            <h2 class="card-title">Lokacija</h2>
-            <div class="rounded-xl overflow-hidden border border-base-300">
-              <MapCoordPicker
-                v-if="s.latitude!=null && s.longitude!=null"
-                :coords="{ lng: Number(s.longitude), lat: Number(s.latitude) }"
-                :editable="false"
-              />
-              <div v-else class="p-4 text-sm opacity-70">Lokacija nije setovana.</div>
-            </div>
-            <div v-if="s.latitude!=null && s.longitude!=null" class="mt-2 text-xs opacity-70">
-              {{ Number(s.longitude).toFixed(6) }}, {{ Number(s.latitude).toFixed(6) }}
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   </div>
 </template>

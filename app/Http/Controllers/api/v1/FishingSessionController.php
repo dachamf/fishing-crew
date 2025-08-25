@@ -15,32 +15,80 @@ class FishingSessionController extends Controller
             ->with([
                 'user:id,name',
                 'user.profile:id,user_id,display_name,avatar_path',
-                ]);
+            ]);
 
         if ($r->filled('group_id'))    $q->where('group_id', (int)$r->group_id);
         if ($r->filled('user_id'))     $q->where('user_id', (int)$r->user_id);
         if ($r->filled('status'))      $q->where('status', $r->status);
         if ($r->filled('season_year')) $q->where('season_year', (int)$r->season_year);
         if ($r->filled('from') || $r->filled('to')) {
-            $from = $r->filled('from') ? Carbon::parse($r->from) : null;
-            $to   = $r->filled('to')   ? Carbon::parse($r->to)   : null;
-            $q->between($from,$to);
+            $from = $r->filled('from') ? \Carbon\Carbon::parse($r->from) : null;
+            $to   = $r->filled('to')   ? \Carbon\Carbon::parse($r->to)   : null;
+            $q->between($from, $to);
+        }
+
+        if ($s = trim((string) $r->query('search', ''))) {
+            $q->where(function ($w) use ($s) {
+                $w->where('title', 'like', "%{$s}%");
+            });
+        }
+
+        // NEW: include param sa white-listom i limitom fotki (max 3)
+        $include = collect(explode(',', (string) $r->query('include', '')))
+            ->map(fn ($i) => trim($i))
+            ->filter()
+            ->values();
+
+        $allowed = ['photos', 'catches', 'catches.user', 'event'];
+        $with = [];
+
+        if ($include->contains('catches.user')) {
+            $with['catches'] = fn ($qq) => $qq->orderByDesc('caught_at')->orderByDesc('id')
+                ->with(['user:id,name', 'user.profile:id,user_id,display_name,avatar_path']);
+        } elseif ($include->contains('catches')) {
+            $with['catches'] = fn ($qq) => $qq->orderByDesc('caught_at')->orderByDesc('id');
+        }
+        if ($include->contains('event')) {
+            $with[] = 'event:id,title,start_at';
+        }
+
+        if (!empty($with)) {
+            $q->with($with);
         }
 
         $q->latest('started_at')->latest('id');
 
-        return response()->json($q->paginate(20));
+        $perPage = min(100, (int) $r->query('per_page', 20));
+        return response()->json($q->paginate($perPage));
     }
 
     public function show(FishingSession $session) {
         $this->authorize('view', $session);
-        $session->load([
+
+        // NEW: podrži iste include-ove i ovde
+        $include = collect(explode(',', (string) request()->query('include', '')))
+            ->map(fn ($i) => trim($i))
+            ->filter()
+            ->values();
+
+        $base = [
             'user:id,name',
             'user.profile:id,user_id,display_name,avatar_path',
-            'catches' => function($q){ $q->orderByDesc('caught_at')->orderByDesc('id'); },
-            'catches.user:id,name',
-            'event:id,title,start_at',
-        ]);
+        ];
+
+        $with = [];
+        if ($include->contains('catches.user')) {
+            $with['catches'] = fn ($qq) => $qq->orderByDesc('caught_at')->orderByDesc('id')
+                ->with(['user:id,name', 'user.profile:id,user_id,display_name,avatar_path']);
+        } elseif ($include->contains('catches')) {
+            $with['catches'] = fn ($qq) => $qq->orderByDesc('caught_at')->orderByDesc('id');
+        }
+        if ($include->contains('event')) {
+            $with[] = 'event:id,title,start_at';
+        }
+
+        $session->load(array_merge($base, $with));
+
         return response()->json($session);
     }
 
@@ -70,7 +118,6 @@ class FishingSessionController extends Controller
 
         $data = $r->validate([
             'title'      => ['nullable','string','max:100'],
-            'water_body' => ['nullable','string','max:100'],
             'latitude'   => ['nullable','numeric','between:-90,90'],
             'longitude'  => ['nullable','numeric','between:-180,180'],
             'started_at' => ['nullable','date'],

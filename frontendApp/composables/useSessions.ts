@@ -1,40 +1,37 @@
-type Session = {
-  id:number; status:'open'|'closed'; start_at:string|null; end_at:string|null;
-  group_id:number; event_id?:number|null; location_name?:string|null;
-  latitude?:number|null; longitude?:number|null;
+export type SessionPhoto = { id: number; url: string }
+export type SessionUser  = { id: number; name: string; display_name?: string; avatar_url?: string }
+export type SessionGroup = { id: number; name: string }
+
+export type FishingSession = {
+  id: number
+  title?: string
+  started_at?: string
+  ended_at?: string
+  latitude?: number | null
+  longitude?: number | null
+  status?: 'active' | 'closed'
+  photos?: SessionPhoto[]
+  user?: SessionUser
+  group?: SessionGroup
 }
 
-export function useMySessions() {
-  const {$api} = useNuxtApp() as any
-  const open = ref<Session|null>(null)
-  const recent = ref<Session[]>([])
-  const loading = ref(false)
+export type SessionsResponse = { items: any[]; meta?: any }
 
-  async function fetchAll() {
-    loading.value = true
-    try {
-      // pretpostavka: /v1/sessions?mine=1
-      const [a,b] = await Promise.all([
-        $api.get('/v1/sessions', { params: { mine: 1, status: 'open', limit: 1 } }),
-        $api.get('/v1/sessions', { params: { mine: 1, status: 'closed', limit: 10 } }),
-      ])
-      const arrOpen = a.data?.data ?? a.data ?? []
-      open.value = arrOpen[0] ?? null
-      recent.value = b.data?.data ?? b.data ?? []
-    } finally { loading.value = false }
-  }
+export const useSessions = (paramsRef?: Ref<Record<string, any>>) => {
+  const { $api } = useNuxtApp() as any
+  const p = (paramsRef ?? ref({})) as Ref<Record<string, any>>
 
-  async function startNew(groupId:number, payload:Partial<Session>={}) {
-    const res = await $api.post('/v1/sessions', { group_id: groupId, ...payload })
-    await fetchAll()
-    return res.data
-  }
+  const asyncData = useAsyncData<SessionsResponse>(
+    computed(() => `sessions:${JSON.stringify(toRaw(p.value))}`),
+    async () => {
+      const res = await $api.get('/v1/sessions', {
+        params: { ...toRaw(p.value), include: 'catches.user,photos' }
+      })
+      return { items: res.data?.data ?? res.data ?? [], meta: res.data?.meta }
+    },
+    { watch: [p] }
+  )
 
-  async function closeSession(id:number, endAt?:string) {
-    await $api.post(`/v1/sessions/${id}/close`, { end_at: endAt })
-    await fetchAll()
-  }
-
-  onMounted(fetchAll)
-  return { open, recent, loading, fetchAll, startNew, closeSession }
+  const list = computed(() => asyncData.data.value?.items ?? [])
+  return { ...asyncData, list }
 }
