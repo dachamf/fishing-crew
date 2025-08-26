@@ -1,96 +1,88 @@
 <script setup lang="ts">
-import { watchDebounced } from '@vueuse/core'
+import {watchDebounced} from '@vueuse/core'
+import type { FishingSession, FishingCatch, SessionListParams } from '~/types/api'
 
 defineOptions({name: 'CatchListPage'})
 
 const {$api} = useNuxtApp() as any
 
-const { label: speciesLabel } = useSpecies()
-
-// 1) Učitamo user-a (radi grupa i user_id)
-const {data: me} = await useAsyncData('me', async () => {
+// 1) Učitaj /v1/me da bismo znali user_id i default group_id
+const {data: me} = useAsyncData('me', async () => {
   const res = await $api.get('/v1/me')
   return res.data
 }, {server: false, immediate: true})
 
-// 2) Query stanje za LISTU SESIJA (ne ulova)
-const queryParams = reactive({
+const query = reactive<SessionListParams & { page: number; per_page: number }>({
   search: '',
-  status: '',        // filtrira prikaz ulova u kartici (klijentski)
-  group_id: '',      // default iz me.groups[0]
-  season_year: '',
+  group_id: undefined,
+  season_year: undefined,
   page: 1,
+  per_page: 10
 })
 
-watch(() => me.value, (val) => {
-  if (!val) return
-  if (!queryParams.group_id && Array.isArray(val.groups) && val.groups.length) {
-    queryParams.group_id = val.groups[0].id
+// default group iz /v1/me (ako postoji)
+watch(() => me.value, (v) => {
+  if (!v) return
+  if (!query.group_id && Array.isArray(v.groups) && v.groups.length) {
+    query.group_id = v.groups[0].id
   }
 }, {immediate: true})
 
-// 3) useSessions – tražimo SAMO sesije korisnika (moje)
-const sessionParams = computed(() => ({
-  search: queryParams.search || undefined,
-  group_id: queryParams.group_id || undefined,
-  season_year: queryParams.season_year || undefined,
-  user_id: me.value?.id || undefined, // moje sesije
-  page: queryParams.page,
+// 3) Parametri za sessions API (uvek tražimo catches.user + photos)
+const paramsRef = computed<SessionListParams>(() => ({
+  search: query.search || undefined,
+  group_id: query.group_id,
+  season_year: query.season_year,
+  user_id: me.value?.id,                   // moje sesije
+  has_catches: 'any',
+  page: query.page,
+  per_page: query.per_page,
+  include: 'catches.user,photos'
 }))
-const {data: sessionsData, pending, error, refresh} = useSessions(sessionParams)
-const sessions = computed(() => sessionsData.value?.items ?? [])
-const meta = computed(() => sessionsData.value?.meta)
 
-// 4) Za svaku sesiju dohvatimo ulove (cache po ID-u)
-const sessionCatches = reactive<Record<number, any[]>>({})
+// 4) Poziv ka useSessions (koji internо radi GET /v1/sessions)
+const {data, pending, error, refresh, list: sessions} = useSessions(paramsRef)
+const meta = computed(() => data.value?.meta)
 
-async function loadCatchesForSession(sessionId: number) {
-  if (sessionCatches[sessionId]) return
-  const res = await $api.get('/v1/catches', {
-    params: {fishing_session_id: sessionId, per_page: 100}
-  })
-  sessionCatches[sessionId] = res.data?.data ?? res.data ?? []
-}
-
-// učitaj ulove za sesije na trenutnoj strani (sa blagim limiterom)
-  watch(() => sessions.value.map((s: any) => s.id), async (ids) => {
-  for (const id of ids) {
-    try {
-      await loadCatchesForSession(id)
-    } catch (e) { /* no-op */
-    }
-  }
-}, {immediate: true})
-
-// 5) Debounce za search (ponovno učitavanje sesija)
-watchDebounced(() => queryParams.search, () => {
-  queryParams.page = 1;
+// 5) Debounce za search + refresh za ostale filtere
+watchDebounced(() => query.search, () => {
+  query.page = 1;
   refresh()
 }, {debounce: 350})
-
-// 6) Ostali filteri -> refresh sesija
-watch(() => [queryParams.group_id, queryParams.season_year], () => {
-  queryParams.page = 1
+watch(() => [query.group_id, query.season_year], () => {
+  query.page = 1;
   refresh()
 })
 
-// 7) Paginacija sesija
+// 6) Paginacija
 function goPage(p: number) {
   if (!meta.value) return
-  queryParams.page = Math.min(Math.max(1, p), meta.value.last_page || 1)
+  query.page = Math.min(Math.max(1, p), meta.value.last_page || 1)
 }
 
-// 8) Izračuni za zaglavlje kartice (agregati iz ulova)
-function getSessionAgg(sessionId: number) {
-  const rows = sessionCatches[sessionId] || []
-  const filtered = (queryParams.status)
-    ? rows.filter((r: any) => r.status === queryParams.status)
-    : rows
-  const totalCount = filtered.reduce((a: number, r: any) => a + (Number(r.count) || 0), 0)
-  const totalWeight = filtered.reduce((a: number, r: any) => a + (Number(r.total_weight_kg) || 0), 0)
-  const biggest = filtered.reduce((mx: number, r: any) => Math.max(mx, Number(r.biggest_single_kg) || 0), 0)
-  return {rows: filtered, totalCount, totalWeight, biggest}
+// 7) Agregati iz ulova u SESIJI (filtrira po statusu ulova ako je zadat)
+type Agg = { rows: FishingCatch[]; totalCount: number; totalWeight: number; biggest: number }
+
+function getAgg(s: FishingSession): Agg {
+  const rowsAll = (s.catches || []) as FishingCatch[]
+  const rows = (routeQueryStatus.value
+    ? rowsAll.filter(r => r.status === routeQueryStatus.value)
+    : rowsAll)
+
+  const totalCount = rows.reduce((a, r) => a + (Number(r.count) || 0), 0)
+  const totalWeight = rows.reduce((a, r) => a + (Number(r.total_weight_kg) || 0), 0)
+  const biggest = rows.reduce((mx, r) => Math.max(mx, Number(r.biggest_single_kg) || 0), 0)
+  return {rows, totalCount, totalWeight, biggest}
 }
+
+// (opciono) ako želiš da status ulova ide preko URL-a kao i ostali filteri:
+const route = useRoute()
+const router = useRouter()
+const routeQueryStatus = computed(() => {
+  const s = route.query.status as string | undefined
+  return (s === 'pending' || s === 'approved' || s === 'rejected') ? s : undefined
+})
+watch(() => routeQueryStatus.value, () => refresh())
 </script>
 <template>
   <div class="container mx-auto p-4 space-y-4">
@@ -106,20 +98,20 @@ function getSessionAgg(sessionId: number) {
       <div class="card-body">
         <div class="grid gap-3 md:grid-cols-4">
           <input
-v-model="queryParams.search" type="search" placeholder="Pretraga sesija…"
-                 class="input input-bordered w-full"/>
-          <select v-model="queryParams.status" class="select select-bordered w-full">
+            v-model="query.search" type="search" placeholder="Pretraga sesija…"
+            class="input input-bordered w-full"/>
+          <select v-model="query.status" class="select select-bordered w-full">
             <option value="">Status ulova (svi)</option>
             <option value="pending">Na čekanju</option>
             <option value="approved">Odobreno</option>
             <option value="rejected">Odbijeno</option>
           </select>
           <input
-v-model.number="queryParams.season_year" type="number" placeholder="Sezona (npr 2025)"
-                 class="input input-bordered w-full"/>
+            v-model.number="query.season_year" type="number" placeholder="Sezona (npr 2025)"
+            class="input input-bordered w-full"/>
           <input
-v-model.number="queryParams.group_id" type="number" placeholder="ID grupe (opciono)"
-                 class="input input-bordered w-full"/>
+            v-model.number="query.group_id" type="number" placeholder="ID grupe (opciono)"
+            class="input input-bordered w-full"/>
           <!-- (Opc.) zameni ovo dropdown-om "Moje grupe" -->
         </div>
       </div>
@@ -161,15 +153,15 @@ v-model.number="queryParams.group_id" type="number" placeholder="ID grupe (opcio
             <div class="stats bg-base-200 shadow hidden md:grid">
               <div class="stat">
                 <div class="stat-title">Komada</div>
-                <div class="stat-value text-primary">{{ getSessionAgg(s.id).totalCount }}</div>
+                <div class="stat-value text-primary">{{ getAgg(s).totalCount }}</div>
               </div>
               <div class="stat">
                 <div class="stat-title">Težina</div>
-                <div class="stat-value">{{ getSessionAgg(s.id).totalWeight.toFixed(3) }} kg</div>
+                <div class="stat-value">{{ getAgg(s).totalWeight.toFixed(1) }} kg</div>
               </div>
               <div class="stat">
                 <div class="stat-title">Najveća</div>
-                <div class="stat-value">{{ getSessionAgg(s.id).biggest.toFixed(3) }} kg</div>
+                <div class="stat-value">{{ getAgg(s).biggest.toFixed(1) }} kg</div>
               </div>
             </div>
           </div>
@@ -177,9 +169,10 @@ v-model.number="queryParams.group_id" type="number" placeholder="ID grupe (opcio
           <!-- fotke sesije (max 3) -->
           <div v-if="(s.photos?.length||0) > 0" class="mt-3 grid grid-cols-3 gap-2">
             <div
-v-for="(p, idx) in s.photos.slice(0,3)" :key="idx"
-                 class="aspect-video rounded-xl overflow-hidden border border-base-300">
-              <img :src="p.url || p" alt="" class="w-full h-full object-cover"/>
+              v-for="(p, idx) in (s.photos ?? []).slice(0,3)"
+              :key="idx"
+              class="aspect-video rounded-xl overflow-hidden border border-base-300">
+              <img :src="p.url" alt="" class="w-full h-full object-cover" loading="lazy" />
             </div>
           </div>
 
@@ -200,11 +193,11 @@ v-for="(p, idx) in s.photos.slice(0,3)" :key="idx"
               </tr>
               </thead>
               <tbody>
-              <tr v-for="row in getSessionAgg(s.id).rows" :key="row.id">
+              <tr v-for="row in getAgg(s).rows" :key="row.id">
                 <td>{{ row.species_label || row.species || row.species_name || '-' }}</td>
                 <td class="text-right">{{ row.count }}</td>
-                <td class="text-right">{{ Number(row.total_weight_kg || 0).toFixed(3) }}</td>
-                <td class="text-right">{{ Number(row.biggest_single_kg || 0).toFixed(3) }}</td>
+                <td class="text-right">{{ Number(row.total_weight_kg || 0).toFixed(1) }}</td>
+                <td class="text-right">{{ Number(row.biggest_single_kg || 0).toFixed(1) }}</td>
                 <td>
                   <div class="flex items-center gap-2">
                     <div class="avatar">
@@ -237,15 +230,15 @@ v-for="(p, idx) in s.photos.slice(0,3)" :key="idx"
           <div class="stats bg-base-200 shadow md:hidden mt-3">
             <div class="stat">
               <div class="stat-title">Komada</div>
-              <div class="stat-value text-primary">{{ getSessionAgg(s.id).totalCount }}</div>
+              <div class="stat-value text-primary">{{ getAgg(s).totalCount }}</div>
             </div>
             <div class="stat">
               <div class="stat-title">Težina</div>
-              <div class="stat-value">{{ getSessionAgg(s.id).totalWeight.toFixed(3) }} kg</div>
+              <div class="stat-value">{{ getAgg(s).totalWeight.toFixed(3) }} kg</div>
             </div>
             <div class="stat">
               <div class="stat-title">Najveća</div>
-              <div class="stat-value">{{ getSessionAgg(s.id).biggest.toFixed(3) }} kg</div>
+              <div class="stat-value">{{ getAgg(s).biggest.toFixed(3) }} kg</div>
             </div>
           </div>
 
@@ -255,8 +248,8 @@ v-for="(p, idx) in s.photos.slice(0,3)" :key="idx"
 
     <!-- PAGINACIJA SESIJA -->
     <div v-if="meta" class="join mt-2">
-      <button class="btn btn-sm join-item" :disabled="queryParams.page<=1" @click="goPage(1)">«</button>
-      <button class="btn btn-sm join-item" :disabled="queryParams.page<=1" @click="goPage(queryParams.page-1)">‹
+      <button class="btn btn-sm join-item" :disabled="query.page<=1" @click="goPage(1)">«</button>
+      <button class="btn btn-sm join-item" :disabled="query.page<=1" @click="goPage(query.page-1)">‹
       </button>
       <button class="btn btn-sm join-item pointer-events-none">
         Str. {{ meta.current_page }} / {{ meta.last_page }}
@@ -264,7 +257,7 @@ v-for="(p, idx) in s.photos.slice(0,3)" :key="idx"
       <button
         class="btn btn-sm join-item"
         :disabled="meta.current_page>=meta.last_page"
-        @click="goPage(queryParams.page+1)">›
+        @click="goPage(query.page+1)">›
       </button>
       <button
         class="btn btn-sm join-item"

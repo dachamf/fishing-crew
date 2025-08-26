@@ -16,6 +16,14 @@ class FishingSessionController extends Controller
                 'user:id,name',
                 'user.profile:id,user_id,display_name,avatar_path',
             ]);
+        $has = $r->query('has_catches'); // "1" | "true" | "any" | "mine"
+        if ($has === 'mine') {
+            if ($uid = optional($r->user())->id) {
+                $q->whereHas('catches', fn($qq) => $qq->where('user_id', $uid));
+            }
+        } elseif ($r->boolean('has_catches') || $has === 'any' || $has === '1' || $has === 'true') {
+            $q->has('catches');
+        }
 
         if ($r->filled('group_id'))    $q->where('group_id', (int)$r->group_id);
         if ($r->filled('user_id'))     $q->where('user_id', (int)$r->user_id);

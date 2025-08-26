@@ -1,26 +1,24 @@
 <script setup lang="ts">
-defineOptions({ name: 'SessionDetailPage' })
-const route = useRoute()
-const { $api } = useNuxtApp() as any
-const id = Number(route.params.id)
+import type { FishingSession, PhotoLite } from '~/types/api'
 
-const { data, pending, error } = await useAsyncData(
+defineOptions({ name: 'SessionDetailPage' })
+
+const route = useRoute()
+const id = Number(route.params.id)
+const { $api } = useNuxtApp() as any
+const photos = computed<PhotoLite[]>(() => data.value?.photos ?? [])
+
+const { data, pending, error } = await useAsyncData<FishingSession>(
   () => `session:${id}`,
   async () => {
     const res = await $api.get(`/v1/sessions/${id}`, {
-      // ako API podržava includes:
-      params: { include: 'photos,group,user,catches.user' }
+      params: { include: 'catches.user,photos' }
     })
-    // fallback: ako nema includes, uradi naknadno fetch za catches
-    const session = res.data
-    if (!session.catches) {
-      const c = await $api.get('/v1/catches', { params: { fishing_session_id: id, per_page: 100 } })
-      session.catches = c.data?.data ?? c.data ?? []
-    }
-    return session
+    return res.data as FishingSession
   }
 )
 </script>
+
 
 <template>
   <div class="container mx-auto p-4 space-y-4">
@@ -38,19 +36,22 @@ const { data, pending, error } = await useAsyncData(
     <div v-else>
       <div class="flex items-start justify-between">
         <div>
-          <h1 class="text-2xl font-semibold">{{ data.title || 'Fishing sesija' }}</h1>
+          <h1 class="text-2xl font-semibold">{{ data?.title || 'Fishing sesija' }}</h1>
           <div class="opacity-75 flex flex-wrap gap-2">
-            <FishingCatchesTimeBadge :iso="data.started_at" :with-time="true" />
-            <span v-if="data.location_name" class="badge badge-ghost">{{ data.location_name }}</span>
-            <span v-if="data.group?.name" class="badge badge-ghost">{{ data.group.name }}</span>
+            <FishingCatchesTimeBadge :iso="data?.started_at" :with-time="true" />
+            <span v-if="data?.location_name" class="badge badge-ghost">{{ data.location_name }}</span>
+            <span v-if="data?.group?.name" class="badge badge-ghost">{{ data.group.name }}</span>
           </div>
         </div>
-        <span v-if="data.status" class="badge badge-outline">{{ data.status }}</span>
+        <span v-if="data?.status" class="badge badge-outline">{{ data.status }}</span>
       </div>
 
-      <div v-if="(data.photos?.length||0) > 0" class="mt-3 grid grid-cols-3 gap-2">
-        <div v-for="(p, idx) in data.photos.slice(0,3)" :key="idx" class="aspect-video rounded-xl overflow-hidden border border-base-300">
-          <img :src="p.url || p" class="w-full h-full object-cover" />
+      <div v-if="(data?.photos?.length||0) > 0" class="mt-3 grid grid-cols-3 gap-2">
+        <div 
+          v-for="(p, idx) in (data?.photos ?? []).slice(0,3)" 
+          :key="idx" 
+          class="aspect-video rounded-xl overflow-hidden border border-base-300">
+          <img :src="p.url" class="w-full h-full object-cover" loading="lazy"  alt=""/>
         </div>
       </div>
 
@@ -70,8 +71,8 @@ const { data, pending, error } = await useAsyncData(
           </tr>
           </thead>
           <tbody>
-          <tr v-for="row in data.catches || []" :key="row.id">
-            <td>{{ row.species }}</td>
+          <tr v-for="row in data?.catches || []" :key="row.id">
+            <td>{{ row.species_label || row.species || row.species_name || '-' }}</td>
             <td class="text-right">{{ row.count }}</td>
             <td class="text-right">{{ Number(row.total_weight_kg||0).toFixed(3) }}</td>
             <td class="text-right">{{ Number(row.biggest_single_kg||0).toFixed(3) }}</td>
@@ -87,7 +88,7 @@ const { data, pending, error } = await useAsyncData(
             </td>
             <td>
               <span
-class="badge" :class="{
+                class="badge" :class="{
                 'badge-warning': row.status==='pending',
                 'badge-success': row.status==='approved',
                 'badge-error': row.status==='rejected',

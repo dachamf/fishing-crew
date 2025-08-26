@@ -1,11 +1,4 @@
-export type SpeciesItem = {
-  id?: number
-  key?: string
-  code?: string
-  slug?: string
-  name_sr?: string
-  label?: string
-}
+import type { SpeciesItem } from '~/types/api'
 
 export const useSpecies = () => {
   const { $api } = useNuxtApp() as any

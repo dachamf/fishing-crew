@@ -2,26 +2,17 @@ export type SessionPhoto = { id: number; url: string }
 export type SessionUser  = { id: number; name: string; display_name?: string; avatar_url?: string }
 export type SessionGroup = { id: number; name: string }
 
-export type FishingSession = {
-  id: number
-  title?: string
-  started_at?: string
-  ended_at?: string
-  latitude?: number | null
-  longitude?: number | null
-  status?: 'active' | 'closed'
-  photos?: SessionPhoto[]
-  user?: SessionUser
-  group?: SessionGroup
-}
+import type { FishingSession, ApiList, SessionListParams } from '~/types/api'
 
 export type SessionsResponse = { items: any[]; meta?: any }
 
 export const useSessions = (paramsRef?: Ref<Record<string, any>>) => {
   const { $api } = useNuxtApp() as any
+  const params = ref<SessionListParams>({})
   const p = (paramsRef ?? ref({})) as Ref<Record<string, any>>
 
-  const asyncData = useAsyncData<SessionsResponse>(
+
+  const asyncData = useAsyncData<ApiList<FishingSession>>(
     computed(() => `sessions:${JSON.stringify(toRaw(p.value))}`),
     async () => {
       const res = await $api.get('/v1/sessions', {

@@ -14,9 +14,10 @@ class FishingCatch extends Model
     protected $appends = ['species_label'];
 
     protected $fillable = [
-        'group_id', 'user_id', 'event_id', 'session_id',
-        'species_id', 'count', 'total_weight_kg', 'biggest_single_kg',
-        'note', 'status', 'caught_at', 'season_year',
+        'group_id','session_id','event_id',
+        'species','species_id','species_name',
+        'count','total_weight_kg','biggest_single_kg',
+        'note','season_year','caught_at','status',
     ];
 
     protected $casts = [
@@ -55,7 +56,9 @@ class FishingCatch extends Model
 
     public function session(): BelongsTo
     {
-        return $this->belongsTo(FishingSession::class, 'session_id');
+        return $this->belongsTo(FishingSession::class, 'session_id')
+            ->orderByDesc('caught_at')
+            ->orderByDesc('id');
     }
 
     public function species(): BelongsTo

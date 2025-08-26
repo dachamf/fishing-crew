@@ -1,4 +1,3 @@
-// frontendApp/composables/useTheme.ts
 import { computed, watch, onMounted, onUnmounted, getCurrentInstance } from 'vue';
 import { toErrorMessage } from "~/utils/http";
 

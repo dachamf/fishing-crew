@@ -82,7 +82,12 @@ class CatchesController extends Controller
         $catch->season_year = $v['season_year'] ?? (int)($catch->caught_at?->format('Y'));
         $catch->save();
 
-        return response()->json($catch->load(['photos', 'confirmations']), 201);
+        return response()->json($catch->load([
+            'user:id,name',
+            'user.profile:id,user_id,display_name,avatar_path',
+            'photos', 'confirmations'
+            ]
+        ), 201);
     }
 
     /**

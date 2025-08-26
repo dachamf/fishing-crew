@@ -25,20 +25,48 @@ class CatchStoreRequest extends FormRequest
                 $this->merge(['species_id' => $found]);
             }
         }
+
+        $sid = $this->input('session_id');
+        if ($sid === null || $sid === '' || $sid === 'null') {
+            $sid = $this->input('fishing_session_id');
+        }
+        if ($sid !== null && $sid !== '' && $sid !== 'null') {
+            $this->merge(['session_id' => (int) $sid]);
+        } else {
+            // ako ništa nije stiglo, obriši ključ da 'nullable' radi kako treba
+            $this->request->remove('session_id');
+        }
+
+        if ($this->filled('caught_at')) {
+            try {
+                $dt = \Carbon\Carbon::parse($this->input('caught_at'));
+                $this->merge([
+                    'caught_at' => $dt->toISOString(),
+                    'season_year' => $this->input('season_year') ?? (int) $dt->year,
+                ]);
+            } catch (\Throwable $e) {}
+        }
     }
 
     public function rules(): array
     {
         return [
-            'group_id' => ['required','exists:groups,id'],
-            'event_id' => ['nullable','exists:events,id'],
-            'species_id' => ['required','integer','exists:species,id'],
-            'count'    => ['required','integer','min:1'],
+            'group_id'    => ['required','integer','exists:groups,id'],
+            'session_id'  => ['nullable','integer',
+                Rule::exists('fishing_sessions','id')
+                ->where('group_id', (int) $this->input('group_id'))
+                ->where('user_id', $this->user()?->id),
+                ],
+            'event_id'    => ['nullable','integer','exists:events,id'],
+            'species'     => ['nullable','string','max:100'],
+            'species_id'  => ['nullable','integer'],
+            'species_name'=> ['nullable','string','max:100'],
+            'count'       => ['required','integer','min:1'],
             'total_weight_kg'   => ['nullable','numeric','min:0'],
             'biggest_single_kg' => ['nullable','numeric','min:0'],
-            'note'     => ['nullable','string','max:2000'],
-            'caught_at'=> ['nullable','date'],
-            'season_year' => ['nullable','integer','min:1900','max:3000'],
+            'note'        => ['nullable','string','max:500'],
+            'season_year' => ['nullable','integer','min:2000','max:2100'],
+            'caught_at'   => ['nullable','date'],
         ];
     }
 

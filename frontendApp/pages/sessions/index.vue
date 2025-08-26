@@ -1,5 +1,6 @@
 <script setup lang="ts">
 definePageMeta({ name: 'sessions' })
+const fmtDate = (iso?: string) => iso ? new Date(iso).toLocaleString('sr-RS') : '—'
 const params = ref<Record<string, any>>({ page: 1, per_page: 20 })
 const { list, data, pending, error } = useSessions(params)
 </script>
@@ -20,7 +21,7 @@ const { list, data, pending, error } = useSessions(params)
             <NuxtLink class="btn btn-sm btn-outline" :to="`/sessions/${s.id}`">Otvori</NuxtLink>
           </div>
           <div class="text-xs opacity-60">
-            Počela: {{ new Date(s.started_at).toLocaleString('sr-RS') }}
+            Počela: {{ fmtDate(s.started_at) }}
             <span v-if="s.ended_at"> • Završenа: {{ new Date(s.ended_at).toLocaleString('sr-RS') }}</span>
           </div>
         </div>
