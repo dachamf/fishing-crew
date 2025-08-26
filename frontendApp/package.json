@@ -11,8 +11,10 @@
     "type-check": "nuxi typecheck"
   },
   "lint-staged": {
-    "*.{ts,vue,js,css,md}": [
-      "eslint . --fix",
+    "*.{js,jsx,ts,tsx,vue}": [
+      "eslint --fix"
+    ],
+    "*.{ts,tsx,js,jsx,vue,json,md,css,scss}": [
       "prettier --write"
     ]
   },

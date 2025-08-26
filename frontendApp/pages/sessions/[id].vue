@@ -1,14 +1,21 @@
 <script setup lang="ts">
 import type { FishingSession, PhotoLite } from '~/types/api'
-
 defineOptions({ name: 'SessionDetailPage' })
+
 
 const route = useRoute()
 const id = Number(route.params.id)
 const { $api } = useNuxtApp() as any
 const photos = computed<PhotoLite[]>(() => data.value?.photos ?? [])
 
-const { data, pending, error } = await useAsyncData<FishingSession>(
+const {data: me} = useAsyncData('me', async () => {
+  const res = await $api.get('/v1/me')
+  return res.data
+}, {server: false, immediate: true});
+
+const myId = computed(() => me.value?.id);
+
+const { data, pending, error, refresh } = await useAsyncData<FishingSession>(
   () => `session:${id}`,
   async () => {
     const res = await $api.get(`/v1/sessions/${id}`, {
@@ -17,6 +24,11 @@ const { data, pending, error } = await useAsyncData<FishingSession>(
     return res.data as FishingSession
   }
 )
+
+const closeOpen = ref(false)
+function onClosed() {
+  refresh()
+}
 </script>
 
 
@@ -43,7 +55,22 @@ const { data, pending, error } = await useAsyncData<FishingSession>(
             <span v-if="data?.group?.name" class="badge badge-ghost">{{ data.group.name }}</span>
           </div>
         </div>
-        <span v-if="data?.status" class="badge badge-outline">{{ data.status }}</span>
+        <div class="flex items-center gap-2">
+          <span v-if="data?.status" class="badge badge-outline">{{ data.status }}</span>
+          <button
+            v-if="data?.user?.id === myId && data?.status === 'open'"
+            class="btn btn-sm btn-outline btn-error"
+            @click="closeOpen = true"
+          >
+            Zatvori sesiju
+          </button>
+          <SessionCloseDialog
+            v-model="closeOpen"
+            :session-id="data?.id"
+            :group-id="data?.group?.id"
+            @closed="onClosed"
+          />
+        </div>
       </div>
 
       <div v-if="(data?.photos?.length||0) > 0" class="mt-3 grid grid-cols-3 gap-2">
@@ -74,13 +101,13 @@ const { data, pending, error } = await useAsyncData<FishingSession>(
           <tr v-for="row in data?.catches || []" :key="row.id">
             <td>{{ row.species_label || row.species || row.species_name || '-' }}</td>
             <td class="text-right">{{ row.count }}</td>
-            <td class="text-right">{{ Number(row.total_weight_kg||0).toFixed(3) }}</td>
-            <td class="text-right">{{ Number(row.biggest_single_kg||0).toFixed(3) }}</td>
+            <td class="text-right">{{ Number(row.total_weight_kg||0).toFixed(1) }}</td>
+            <td class="text-right">{{ Number(row.biggest_single_kg||0).toFixed(1) }}</td>
             <td>
               <div class="flex items-center gap-2">
                 <div class="avatar">
                   <div class="w-6 rounded-full overflow-hidden border border-base-300">
-                    <img :src="row.user?.avatar_url || '/icons/icon-64.png'">
+                    <img :src="row.user?.profile?.avatar_url || '/icons/icon-64.png'">
                   </div>
                 </div>
                 <span class="text-sm">{{ row.user?.display_name || row.user?.name }}</span>

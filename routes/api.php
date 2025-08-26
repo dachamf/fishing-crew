@@ -86,6 +86,9 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
         Route::post('sessions/{session}/close', [FishingSessionController::class, 'close']);
         Route::post('sessions/{session}/catches/stack', [SessionCatchController::class, 'upsert']);
 
+        Route::post('/v1/sessions/{session}/close-and-nominate', [FishingSessionController::class, 'closeAndNominate']);
+
+
         Route::get('profile/me', [ProfileController::class, 'me']);
         Route::patch('profile', [ProfileController::class, 'update']);
         Route::post('profile/avatar', [ProfileController::class, 'uploadAvatar']);

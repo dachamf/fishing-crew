@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {watchDebounced} from '@vueuse/core'
+import { watchDebounced } from '@vueuse/core'
 import type { FishingSession, FishingCatch, SessionListParams } from '~/types/api'
 
 defineOptions({name: 'CatchListPage'})
@@ -40,6 +40,8 @@ const paramsRef = computed<SessionListParams>(() => ({
   include: 'catches.user,photos'
 }))
 
+const myId = computed(() => me.value?.id);
+
 // 4) Poziv ka useSessions (koji internо radi GET /v1/sessions)
 const {data, pending, error, refresh, list: sessions} = useSessions(paramsRef)
 const meta = computed(() => data.value?.meta)
@@ -53,6 +55,12 @@ watch(() => [query.group_id, query.season_year], () => {
   query.page = 1;
   refresh()
 })
+
+const closeOpen = ref(false)
+function onClosed() {
+  // refresh liste/stranice
+  refresh()
+}
 
 // 6) Paginacija
 function goPage(p: number) {
@@ -77,7 +85,6 @@ function getAgg(s: FishingSession): Agg {
 
 // (opciono) ako želiš da status ulova ide preko URL-a kao i ostali filteri:
 const route = useRoute()
-const router = useRouter()
 const routeQueryStatus = computed(() => {
   const s = route.query.status as string | undefined
   return (s === 'pending' || s === 'approved' || s === 'rejected') ? s : undefined
@@ -96,10 +103,11 @@ watch(() => routeQueryStatus.value, () => refresh())
 
     <div class="card bg-base-100 shadow">
       <div class="card-body">
-        <div class="grid gap-3 md:grid-cols-4">
+        <div class="grid gap-3 md:grid-cols-3">
           <input
             v-model="query.search" type="search" placeholder="Pretraga sesija…"
-            class="input input-bordered w-full"/>
+            class="input input-bordered w-full"
+          />
           <select v-model="query.status" class="select select-bordered w-full">
             <option value="">Status ulova (svi)</option>
             <option value="pending">Na čekanju</option>
@@ -109,9 +117,9 @@ watch(() => routeQueryStatus.value, () => refresh())
           <input
             v-model.number="query.season_year" type="number" placeholder="Sezona (npr 2025)"
             class="input input-bordered w-full"/>
-          <input
-            v-model.number="query.group_id" type="number" placeholder="ID grupe (opciono)"
-            class="input input-bordered w-full"/>
+<!--          <input-->
+<!--            v-model.number="query.group_id" type="number" placeholder="ID grupe (opciono)"-->
+<!--            class="input input-bordered w-full"/>-->
           <!-- (Opc.) zameni ovo dropdown-om "Moje grupe" -->
         </div>
       </div>
@@ -137,6 +145,19 @@ watch(() => routeQueryStatus.value, () => refresh())
                   {{ s.title || 'Fishing sesija' }}
                 </NuxtLink>
                 <span v-if="s.status" class="badge badge-outline">{{ s.status }}</span>
+                <button
+                  v-if="s.user?.id === myId && s.status === 'open'"
+                  class="btn btn-sm btn-outline btn-error"
+                  @click="closeOpen = true"
+                >
+                  Zatvori sesiju
+                </button>
+                <SessionCloseDialog
+                  v-model="closeOpen"
+                  :session-id="s.id"
+                  :group-id="s.id"
+                  @closed="onClosed"
+                />
               </div>
               <div class="flex flex-wrap items-center gap-2 opacity-75">
                 <FishingCatchesTimeBadge :iso="s.started_at" :with-time="true"/>

@@ -64,13 +64,8 @@
             "@php artisan config:clear --ansi",
             "php artisan test --parallel"
         ],
-        "pint": "@php vendor/bin/pint -v",
-        "pint:test": "@php vendor/bin/pint --test",
-        "qa": [
-            "@pint",
-            "@pint:test",
-            "@test"
-        ]
+        "pint": "pint",
+        "pint:dirty": "pint --dirty"
     },
     "extra": {
         "laravel": {

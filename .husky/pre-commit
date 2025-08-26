@@ -1,16 +1,26 @@
 #!/usr/bin/env sh
 . "$(dirname -- "$0")/_/husky.sh"
 
-# Backend: auto-fix i restage
-composer pint
-git add -A
+echo "🔧 Pre-commit: lint-staged (frontend) & pint (backend)"
 
-# (Opciono) Frontend format/lint ako postoje skripte u frontendApp/package.json
-if [ -f frontendApp/package.json ]; then
-  if pnpm -C frontendApp run | grep -qE "(^| )format( |$)"; then pnpm -C frontendApp -s format; fi
-  if pnpm -C frontendApp run | grep -qE "(^| )lint( |$)"; then pnpm -C frontendApp -s lint; fi
-  git add -A
+# FRONTEND: lint & format samo staged fajlove
+if [ -d "frontendApp" ]; then
+  echo "→ Frontend: lint-staged"
+  cd frontendApp || exit 1
+  pnpm exec lint-staged || exit 1
+  cd - >/dev/null 2>&1
 fi
 
-# Brza verifikacija koda (ne pokrećemo duge testove na commit)
-composer pint:test
+# BACKEND: pint samo na promenjenim fajlovima
+if [ -d "backend" ]; then
+  echo "→ Backend: pint --dirty"
+  cd backend || exit 1
+  if [ -f "vendor/bin/pint" ]; then
+    vendor/bin/pint --dirty || exit 1
+  else
+    ./vendor/bin/pint --dirty || exit 1
+  fi
+  cd - >/dev/null 2>&1
+fi
+
+echo "✅ Pre-commit ok"
