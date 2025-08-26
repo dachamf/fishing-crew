@@ -1,36 +1,36 @@
 <script lang="ts" setup>
-import type {FishingSession} from "~/types/api";
+import type { FishingSession } from "~/types/api";
 
-defineOptions({ name: 'SessionDetailPage' })
+defineOptions({ name: "SessionDetailPage" });
 
-const route = useRoute()
-const id = Number(route.params.id)
-const { $api } = useNuxtApp() as any
+const route = useRoute();
+const id = Number(route.params.id);
+const { $api } = useNuxtApp() as any;
 
 const { data: me } = useAsyncData(
-  'me',
+  "me",
   async () => {
-    const res = await $api.get('/v1/me')
-    return res.data
+    const res = await $api.get("/v1/me");
+    return res.data;
   },
   { server: false, immediate: true },
-)
+);
 
-const myId = computed(() => me.value?.id)
+const myId = computed(() => me.value?.id);
 
 const { data, pending, error, refresh } = await useAsyncData<FishingSession>(
   () => `session:${id}`,
   async () => {
     const res = await $api.get(`/v1/sessions/${id}`, {
-      params: { include: 'catches.user,photos' },
-    })
-    return res.data as FishingSession
+      params: { include: "catches.user,photos" },
+    });
+    return res.data as FishingSession;
   },
-)
+);
 
-const closeOpen = ref(false)
+const closeOpen = ref(false);
 function onClosed() {
-  refresh()
+  refresh();
 }
 </script>
 
@@ -39,7 +39,9 @@ function onClosed() {
     <div class="breadcrumbs text-sm">
       <ul>
         <li>
-          <NuxtLink to="/catches"> Sesije </NuxtLink>
+          <NuxtLink to="/catches">
+            Sesije
+          </NuxtLink>
         </li>
         <li>Detalj</li>
       </ul>
@@ -48,7 +50,9 @@ function onClosed() {
     <div v-if="pending" class="flex items-center gap-2">
       <span class="loading loading-spinner" /> Učitavanje…
     </div>
-    <div v-else-if="error" class="alert alert-error">Greška pri učitavanju.</div>
+    <div v-else-if="error" class="alert alert-error">
+      Greška pri učitavanju.
+    </div>
     <div v-else>
       <div class="flex items-start justify-between">
         <div>
@@ -88,20 +92,33 @@ function onClosed() {
           :key="idx"
           class="aspect-video rounded-xl overflow-hidden border border-base-300"
         >
-          <img :src="p.url" alt="" class="w-full h-full object-cover" loading="lazy" />
+          <img
+            :src="p.url"
+            alt=""
+            class="w-full h-full object-cover"
+            loading="lazy"
+          >
         </div>
       </div>
 
-      <div class="divider">Ulov</div>
+      <div class="divider">
+        Ulov
+      </div>
 
       <div class="overflow-x-auto">
         <table class="table">
           <thead>
             <tr>
               <th>Vrsta</th>
-              <th class="text-right">Kom</th>
-              <th class="text-right">Težina (kg)</th>
-              <th class="text-right">Najveća (kg)</th>
+              <th class="text-right">
+                Kom
+              </th>
+              <th class="text-right">
+                Težina (kg)
+              </th>
+              <th class="text-right">
+                Najveća (kg)
+              </th>
               <th>Korisnik</th>
               <th>Status</th>
               <th />
@@ -123,7 +140,7 @@ function onClosed() {
                 <div class="flex items-center gap-2">
                   <div class="avatar">
                     <div class="w-6 rounded-full overflow-hidden border border-base-300">
-                      <img :src="row.user?.profile?.avatar_url || '/icons/icon-64.png'" />
+                      <img :src="row.user?.profile?.avatar_url || '/icons/icon-64.png'">
                     </div>
                   </div>
                   <span class="text-sm">{{ row.user?.display_name || row.user?.name }}</span>

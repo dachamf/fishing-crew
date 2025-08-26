@@ -1,4 +1,3 @@
-# .github/workflows/ci.yml
 name: CI
 on: [push, pull_request]
 
@@ -26,6 +25,7 @@ jobs:
 
       - run: pnpm -v
       - run: pnpm install --frozen-lockfile
+      - run: pnpm nuxi prepare
       - run: pnpm run lint
       - run: pnpm run type-check
       - run: pnpm run build
