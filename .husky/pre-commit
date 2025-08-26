@@ -1,26 +1,19 @@
 #!/usr/bin/env sh
 . "$(dirname -- "$0")/_/husky.sh"
+set -e
 
-echo "🔧 Pre-commit: lint-staged (frontend) & pint (backend)"
+echo "🔧 Pre-commit via DDEV"
 
-# FRONTEND: lint & format samo staged fajlove
+# Frontend: lint-staged (eslint + prettier) na STAGED fajlovima
 if [ -d "frontendApp" ]; then
-  echo "→ Frontend: lint-staged"
-  cd frontendApp || exit 1
-  pnpm exec lint-staged || exit 1
-  cd - >/dev/null 2>&1
+  echo "→ Frontend lint-staged"
+  ddev exec bash -lc 'cd frontendApp && pnpm exec lint-staged'
 fi
 
-# BACKEND: pint samo na promenjenim fajlovima
+# Backend: Pint (samo na dirty fajlovima)
 if [ -d "backend" ]; then
-  echo "→ Backend: pint --dirty"
-  cd backend || exit 1
-  if [ -f "vendor/bin/pint" ]; then
-    vendor/bin/pint --dirty || exit 1
-  else
-    ./vendor/bin/pint --dirty || exit 1
-  fi
-  cd - >/dev/null 2>&1
+  echo "→ Backend pint --dirty"
+  ddev exec bash -lc 'cd backend && ( [ -f vendor/bin/pint ] && vendor/bin/pint --dirty || ./vendor/bin/pint --dirty )'
 fi
 
-echo "✅ Pre-commit ok"
+echo "✅ Pre-commit OK"

@@ -7,4 +7,3 @@
     Leaderboard
   </h1>
 </template>
-

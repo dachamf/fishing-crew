@@ -1,82 +1,49 @@
-// ESLint 9 flat config for Nuxt 3/4 + TypeScript + Vue
-import js from '@eslint/js'
-import tseslint from 'typescript-eslint'
-import vue from 'eslint-plugin-vue'
-import vueParser from 'vue-eslint-parser'
-import prettier from 'eslint-config-prettier'
+import antfu from "@antfu/eslint-config";
 
-export default [
+import { withNuxt } from "./.nuxt/eslint.config.mjs";
+// TODO: add tailwindcss plugin
 
-  // Ignorisanja
-  {
-    ignores: ['.nuxt/**', '.output/**', 'dist/**', 'node_modules/**', '.eslintrc.*']
+export default withNuxt(antfu({
+  type: "app",
+  vue: true,
+  typescript: true,
+  formatters: true,
+  stylistic: {
+    indent: 2,
+    semi: true,
+    quotes: "double",
   },
-
-  js.configs.recommended,
-
-  // Vue preporuke (postavljaju vue parser)
-  ...vue.configs['flat/recommended'],
-
-  // TS preporuke (bez type-aware lint-a; type-check radiš odvojeno sa `nuxi typecheck`)
-  ...tseslint.configs.recommended,
-
-  // Parser opcije za .vue + TS <script setup lang="ts">
-  {
-    files: ['**/*.vue'],
-    languageOptions: {
-      parser: vueParser,
-      parserOptions: {
-        // TS parser za <script lang="ts">
-        parser: tseslint.parser,
-        ecmaVersion: 'latest',
-        sourceType: 'module',
-        extraFileExtensions: ['.vue'],
+  ignores: [".pnpm-store/**", "**/migrations/*", ".nuxt/**"],
+  overrides: [
+    {
+      files: ["nuxt.config.*", "*.config.*"],
+      rules: {
+        "node/no-process-env": "off",
       },
     },
-    rules: {
-      // Za Nuxt pages/layouts često koristimo single-word imena; isključi za njih u override-u ispod
-    },
-  },
-
-  // Parser za .ts/.tsx fajlove
-  {
-    files: ['**/*.ts', '**/*.tsx'],
-    languageOptions: {
-      parser: tseslint.parser,
-      parserOptions: {
-        ecmaVersion: 'latest',
-        sourceType: 'module',
+  ],
+}, {
+  rules: {
+    "vue/max-attributes-per-line": ["error", {
+      singleline: {
+        max: 2,
       },
-    },
+      multiline: {
+        max: 1,
+      },
+    }],
+    "ts/no-redeclare": "off",
+    "ts/consistent-type-definitions": ["error", "type"],
+    "no-console": ["warn"],
+    "antfu/no-top-level-await": ["off"],
+    "node/prefer-global/process": ["off"],
+    "node/no-process-env": ["error"],
+    "perfectionist/sort-imports": ["error", {
+      tsconfigRootDir: ".",
+    }],
+    "unicorn/filename-case": ["error", {
+      case: "camelCase",
+      ignore: ["README.md"],
+    }],
   },
-
-  // Override: dozvoli single-word imena u pages/layouts
-  {
-    files: ['pages/**/*.{vue,ts,tsx}', 'layouts/**/*.{vue,ts,tsx}'],
-    rules: { 'vue/multi-word-component-names': 'off' },
-  },
-
-  // Ako ne želiš da preimenuješ `components/app/menu.vue` u `AppMenu.vue`,
-  // možeš ignorisati konkretno ime:
-  {
-    files: ['components/**/*.{vue,ts,tsx}'],
-    rules: {
-      'vue/multi-word-component-names': ['warn', { ignores: ['menu', 'index', 'default', 'profile'] }],
-    },
-  },
-
-  // Opšta pravila (prilagodi po ukusu)
-  {
-    rules: {
-      // Nuxt auto-importi često triggeruju no-undef; možeš privremeno ugasiti:
-      'no-undef': 'off',
-
-      'no-console': 'warn',
-      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
-      '@typescript-eslint/no-explicit-any': 'off', // privremeno; postroži kasnije
-    },
-  },
-
-  // Uvek poslednje: Prettier ugašava konfliktne stilove
-  prettier,
-]
+}));

@@ -1,20 +1,23 @@
-export type ThemeMode = 'light' | 'dark' | 'system'
+export type ThemeMode = "light" | "dark" | "system";
+export type CatchStatus = "pending" | "approved" | "rejected";
 
-export interface Profile {
-  id: number
-  user_id: number
-  display_name?: string | null
-  birth_year?: number | null
-  location?: string | null
-  favorite_species?: string | null
-  gear?: string | null
-  bio?: string | null
-  avatar_url?: string | null
-  settings?: { theme?: ThemeMode; [k: string]: any } | null
-  theme?: ThemeMode | null
-  created_at?: string
-  updated_at?: string
-}
+export type ConfirmationStatus = "pending" | "approved" | "rejected" | "changes_requested";
+
+export type Profile = {
+  id: number;
+  user_id: number;
+  display_name?: string | null;
+  birth_year?: number | null;
+  location?: string | null;
+  favorite_species?: string | null;
+  gear?: string | null;
+  bio?: string | null;
+  avatar_url?: string | null;
+  settings?: { theme?: ThemeMode; [k: string]: any } | null;
+  theme?: ThemeMode | null;
+  created_at?: string;
+  updated_at?: string;
+};
 
 // frontendApp/types/api.ts
 
@@ -24,25 +27,24 @@ export type ISODate = string;
 export type Kg = number;
 
 /** Status enums */
-export type CatchStatus = 'pending' | 'approved' | 'rejected';
-export type SessionStatus = 'open' | 'closed';
-export type RSVP = 'yes' | 'undecided' | 'no';
+export type SessionStatus = "open" | "closed";
+export type RSVP = "yes" | "undecided" | "no";
 
 /** Pagination (naš “flat” oblik) */
-export interface PaginationMeta {
+export type PaginationMeta = {
   current_page: number;
   last_page: number;
   per_page: number;
   total: number;
-}
+};
 
-export interface ApiList<T> {
+export type ApiList<T> = {
   items: T[];
   meta?: PaginationMeta;
-}
+};
 
 /** Laravel paginator raw oblik (kada dođe direktno iz API-ja) */
-export interface LaravelPagination<T> {
+export type LaravelPagination<T> = {
   data: T[];
   current_page: number;
   last_page: number;
@@ -50,7 +52,7 @@ export interface LaravelPagination<T> {
   total: number;
   from: number | null;
   to: number | null;
-}
+};
 
 /** Pomagač: laravel -> naš ApiList<T> */
 export function mapLaravel<T>(p: LaravelPagination<T>): ApiList<T> {
@@ -59,47 +61,47 @@ export function mapLaravel<T>(p: LaravelPagination<T>): ApiList<T> {
 }
 
 /** User / Profile / Group (lite) */
-export interface UserProfileLite {
+export type UserProfileLite = {
   id: ID;
   user_id: ID;
   display_name?: string;
   avatar_path?: string;
   avatar_url?: string;
-}
+};
 
-export interface UserLite {
+export type UserLite = {
   id: ID;
   name: string;
   display_name?: string;
   avatar_url?: string;
   profile?: UserProfileLite;
-}
+};
 
-export interface GroupLite {
+export type GroupLite = {
   id: ID;
   name: string;
   season_year?: number;
   role?: string; // pivot role
-}
+};
 
 /** Species */
-export interface SpeciesItem {
-  id?: number
-  key?: string
-  code?: string
-  slug?: string
-  name_sr?: string
-  label?: string
-}
+export type SpeciesItem = {
+  id?: number;
+  key?: string;
+  code?: string;
+  slug?: string;
+  name_sr?: string;
+  label?: string;
+};
 
 /** Photos (FE koristi url) */
-export interface PhotoLite {
+export type PhotoLite = {
   id: ID;
   url: string;
-}
+};
 
 /** Event (lite) */
-export interface EventLite {
+export type EventLite = {
   id: ID;
   title: string;
   start_at?: ISODate;
@@ -107,25 +109,26 @@ export interface EventLite {
   latitude?: number | null;
   longitude?: number | null;
   status?: string;
-}
+};
 
 /** Catch confirmation */
-export interface CatchConfirmation {
-  id: ID;
-  catch_id: ID;
-  confirmed_by: ID;
-  status: 'approved' | 'rejected';
+export type CatchConfirmation = {
+  id: number;
+  catch_id: number;
+  confirmed_by: number;
+  status: ConfirmationStatus;
   note?: string;
   created_at?: ISODate;
-}
+  updated_at?: ISODate;
+};
 
 /** FishingCatch */
-export interface FishingCatch {
+export type FishingCatch = {
   id: ID;
   group_id: ID;
   user_id: ID;
   event_id?: ID | null;
-  fishing_session_id?: ID | null;
+  session_id?: ID | null;
 
   // species različiti izvori + normalized label
   species?: string | { name?: string };
@@ -145,10 +148,10 @@ export interface FishingCatch {
   group?: GroupLite;
   session?: FishingSessionLite;
   confirmations?: CatchConfirmation[];
-}
+};
 
 /** FishingSession (lite vs full) */
-export interface FishingSessionLite {
+export type FishingSessionLite = {
   id: ID;
   title?: string;
   started_at?: ISODate;
@@ -166,54 +169,53 @@ export interface FishingSessionLite {
 
   // accessor “photos” (prve 3 fotke preko ulova)
   photos?: PhotoLite[];
-}
+};
 
+export type NewCatchPayload = {
+  group_id: ID;
+  species?: string;
+  species_id?: number;
+  species_name?: string;
+  count: number;
+  total_weight_kg?: Kg;
+  biggest_single_kg?: Kg;
+  note?: string;
+  season_year?: number;
+  session_id?: ID | null;
+  event_id?: ID | null;
+  caught_at?: ISODate;
+};
 
-export interface NewCatchPayload {
-  group_id: ID
-  species?: string
-  species_id?: number
-  species_name?: string
-  count: number
-  total_weight_kg?: Kg
-  biggest_single_kg?: Kg
-  note?: string
-  season_year?: number
-  session_id?: ID | null
-  event_id?: ID | null
-  caught_at?: ISODate
-}
+export type SessionListParams = {
+  search?: string;
+  group_id?: ID;
+  user_id?: ID;
+  season_year?: number;
+  status?: SessionStatus;
+  page?: number;
+  per_page?: number;
+  include?: string; // npr. "catches.user,photos"
+};
 
-export interface SessionListParams {
-  search?: string
-  group_id?: ID
-  user_id?: ID
-  season_year?: number
-  status?: SessionStatus
-  page?: number
-  per_page?: number
-  include?: string // npr. "catches.user,photos"
-}
-
-export interface FishingSession extends FishingSessionLite {
+export type FishingSession = {
   catches?: FishingCatch[]; // kada se traži include=catches(.user)
-}
+} & FishingSessionLite;
 
 /** /v1/me payload */
-export interface Me {
+export type Me = {
   id: ID;
   name: string;
   email: string;
   groups: GroupLite[];
-}
+};
 
-export interface GroupMember {
+export type GroupMember = {
   id: number;
   name?: string;
   display_name?: string;
   avatar_url?: string;
   profile?: {
     avatar_url?: string;
-    display_name?: string
-  }
-}
+    display_name?: string;
+  };
+};

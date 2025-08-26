@@ -1,16 +1,14 @@
 {
-  // https://nuxt.com/docs/guide/concepts/typescript
-  "files": [],
   "compilerOptions": {
     "target": "ES2020",
+    "jsx": "preserve",
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "strict": true,
-    "jsx": "preserve",
-    "allowJs": false,
     "types": [
       "node"
-    ]
+    ],
+    "allowJs": false,
+    "strict": true
   },
   "references": [
     {
@@ -25,5 +23,7 @@
     {
       "path": "./.nuxt/tsconfig.node.json"
     }
-  ]
+  ],
+  // https://nuxt.com/docs/guide/concepts/typescript
+  "files": []
 }

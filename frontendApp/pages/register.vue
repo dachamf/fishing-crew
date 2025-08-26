@@ -1,46 +1,49 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useHead } from '#imports'
+import { useHead } from "#imports";
+import { ref } from "vue";
 
 useHead({
-  title: 'Registracija — Fishing Crew',
+  title: "Registracija — Fishing Crew",
   meta: [
-    { name: 'description', content: 'Kreirajte nalog da pratite ulove i organizujete pecaroške događaje sa ekipom.' }
-  ]
-})
+    { name: "description", content: "Kreirajte nalog da pratite ulove i organizujete pecaroške događaje sa ekipom." },
+  ],
+});
 
-const auth = useAuth()
-const router = useRouter()
+const auth = useAuth();
+const router = useRouter();
 
-const name = ref('')
-const email = ref('')
-const password = ref('')
-const password_confirmation = ref('')
-const showPass = ref(false)
-const busy = ref(false)
-const formErr = ref<string | null>(null)
+const name = ref("");
+const email = ref("");
+const password = ref("");
+const password_confirmation = ref("");
+const showPass = ref(false);
+const busy = ref(false);
+const formErr = ref<string | null>(null);
 
 async function submit() {
-  if (busy.value) return
-  busy.value = true
-  formErr.value = null
+  if (busy.value)
+    return;
+  busy.value = true;
+  formErr.value = null;
   try {
     // pretpostavka: auth.register(name,email,password,password_confirmation)
     await auth.register(
       name.value.trim(),
       email.value.trim(),
       password.value,
-      password_confirmation.value
-    )
+      password_confirmation.value,
+    );
     // nakon registracije često ide verifikacija email-a → preusmeri na /verify ili /login
-    await router.push('/verify')
-  } catch (e: any) {
-    formErr.value =
-      e?.response?.data?.errors
-        ? Object.values(e.response.data.errors).flat().join(' ')
-        : (e?.response?.data?.message || 'Greška pri registraciji.');
-  } finally {
-    busy.value = false
+    await router.push("/verify");
+  }
+  catch (e: any) {
+    formErr.value
+      = e?.response?.data?.errors
+        ? Object.values(e.response.data.errors).flat().join(" ")
+        : (e?.response?.data?.message || "Greška pri registraciji.");
+  }
+  finally {
+    busy.value = false;
   }
 }
 </script>
@@ -62,7 +65,9 @@ async function submit() {
                shadow-xl ring-1 ring-base-content/10"
       >
         <div class="card-body">
-          <h1 class="text-2xl font-bold text-base-content/90">Registracija</h1>
+          <h1 class="text-2xl font-bold text-base-content/90">
+            Registracija
+          </h1>
           <p class="text-base-content/60 text-sm">
             Kreiraj nalog i pridruži se ekipi 🎣
           </p>
@@ -73,7 +78,12 @@ async function submit() {
             :aria-busy="busy"
             @submit.prevent="submit"
           >
-            <p v-if="formErr" class="alert alert-error text-sm mb-3" role="alert" aria-live="assertive">
+            <p
+              v-if="formErr"
+              class="alert alert-error text-sm mb-3"
+              role="alert"
+              aria-live="assertive"
+            >
               {{ formErr }}
             </p>
 
@@ -89,7 +99,7 @@ async function submit() {
                 class="input input-bordered w-full placeholder:text-base-content/60"
                 required
                 aria-label="Ime i prezime"
-              />
+              >
             </label>
 
             <label class="form-control w-full">
@@ -104,7 +114,7 @@ async function submit() {
                 class="input input-bordered w-full placeholder:text-base-content/60"
                 required
                 aria-label="Email adresa"
-              />
+              >
             </label>
 
             <label class="form-control w-full">
@@ -127,7 +137,7 @@ async function submit() {
                 required
                 aria-label="Lozinka"
                 minlength="8"
-              />
+              >
             </label>
 
             <label class="form-control w-full">
@@ -144,7 +154,7 @@ async function submit() {
                 minlength="8"
                 aria-label="Potvrda lozinke"
                 @keyup.enter="submit"
-              />
+              >
             </label>
 
             <button
@@ -154,13 +164,19 @@ async function submit() {
               :aria-busy="busy"
               aria-label="Potvrdi registraciju"
             >
-              <span v-if="busy" class="loading loading-spinner loading-sm mr-2" aria-hidden="true" />
+              <span
+                v-if="busy"
+                class="loading loading-spinner loading-sm mr-2"
+                aria-hidden="true"
+              />
               <span>Kreiraj nalog</span>
             </button>
 
             <div class="text-sm mt-2 text-center">
               Već imaš nalog?
-              <NuxtLink to="/login" class="link link-primary">Prijavi se</NuxtLink>
+              <NuxtLink to="/login" class="link link-primary">
+                Prijavi se
+              </NuxtLink>
             </div>
           </form>
         </div>

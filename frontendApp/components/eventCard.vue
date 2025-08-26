@@ -1,6 +1,6 @@
 <script setup lang="ts">
-interface Props{ event: any }
-const props = defineProps<Props>()
+type Props = { event: any };
+const props = defineProps<Props>();
 </script>
 
 <template>

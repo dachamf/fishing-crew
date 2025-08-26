@@ -1,7 +1,7 @@
 export default defineNuxtRouteMiddleware(async (to) => {
   // dozvoli javne stranice
-  if (to.meta.public === true || to.path.startsWith('/login') || to.path.startsWith('/register') || to.path.startsWith('/verify')) {
-    return
+  if (to.meta.public === true || to.path.startsWith("/login") || to.path.startsWith("/register") || to.path.startsWith("/verify")) {
+    return;
   }
 
   const {
@@ -9,24 +9,25 @@ export default defineNuxtRouteMiddleware(async (to) => {
     user,
     me,
     logout,
-    isVerified
-  } = useAuth()
+    isVerified,
+  } = useAuth();
 
   // nema token -> na login sa "next" parametrom
   if (!token.value) {
-    return navigateTo(`/login?next=${encodeURIComponent(to.fullPath)}`)
+    return navigateTo(`/login?next=${encodeURIComponent(to.fullPath)}`);
   }
 
   // imamo token ali nemamo usera u memoriji -> probaj /auth/me
   if (!user.value) {
     try {
-      await me()
-    } catch {
-      await logout()
-      return navigateTo(`/login?next=${encodeURIComponent(to.fullPath)}`)
+      await me();
+    }
+    catch {
+      await logout();
+      return navigateTo(`/login?next=${encodeURIComponent(to.fullPath)}`);
     }
   }
   if (!isVerified.value) {
-    return navigateTo('/verify')
+    return navigateTo("/verify");
   }
-})
+});

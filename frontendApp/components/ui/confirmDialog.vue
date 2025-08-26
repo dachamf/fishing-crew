@@ -1,55 +1,77 @@
-<script setup lang="ts">
-import UiDialog from '~/components/ui/Dialog.vue'
+<script lang="ts" setup>
+import UiDialog from "~/components/ui/dialog.vue";
 
-type Size = 'sm' | 'md' | 'lg' | 'xl'
-type Tone = 'default' | 'danger' | 'warning'
+type Size = "sm" | "md" | "lg" | "xl";
+type Tone = "default" | "danger" | "warning";
 
-const props = withDefaults(defineProps<{
-  modelValue: boolean
-  title?: string
-  message?: string
-  confirmText?: string
-  cancelText?: string
-  tone?: Tone
-  size?: Size
-  loading?: boolean
-  preventClose?: boolean
-  showClose?: boolean
-}>(), {
-  confirmText: 'Potvrdi',
-  cancelText: 'Otkaži',
-  tone: 'default',
-  size: 'sm',
-  loading: false,
-  preventClose: false,
-  showClose: true,
-})
+const props = withDefaults(
+  defineProps<{
+    modelValue: boolean;
+    title?: string;
+    message?: string;
+    confirmText?: string;
+    cancelText?: string;
+    tone?: Tone;
+    size?: Size;
+    loading?: boolean;
+    preventClose?: boolean;
+    showClose?: boolean;
+  }>(),
+  {
+    confirmText: "Potvrdi",
+    cancelText: "Otkaži",
+    tone: "default",
+    size: "sm",
+    loading: false,
+    preventClose: false,
+    showClose: true,
+  },
+);
 
 const emit = defineEmits<{
-  (e: 'update:modelValue', v: boolean): void
-  (e: 'confirm'): void
-  (e: 'cancel'): void
-  (e: 'open'): void
-  (e: 'close'): void
-}>()
+  (e: "update:modelValue", v: boolean): void;
+  (e: "confirm"): void;
+  (e: "cancel"): void;
+  (e: "open"): void;
+  (e: "close"): void;
+}>();
 
 const confirmBtnClass = computed(() => {
-  if (props.tone === 'danger') return 'btn-error'
-  if (props.tone === 'warning') return 'btn-warning'
-  return 'btn-primary'
-})
+  if (props.tone === "danger")
+    return "btn-error";
+  if (props.tone === "warning")
+    return "btn-warning";
+  return "btn-primary";
+});
+
+// v-model bridge
+const open = computed({
+  get: () => props.modelValue,
+  set: (v: boolean) => emit("update:modelValue", v),
+});
+
+function onCancel() {
+  emit("cancel");
+  if (!props.loading && !props.preventClose)
+    emit("update:modelValue", false);
+}
+
+function onConfirm() {
+  // ne zatvaramo ovde — parent (npr. confirmReject) će zatvoriti kad završi
+  emit("confirm");
+}
 </script>
 
 <template>
   <UiDialog
-    :model-value="modelValue"
-    :title="title"
-    :size="size"
-    :prevent-close="preventClose"
+    :model-value="open"
+    :prevent-close="preventClose || loading"
     :show-close="showClose"
-    @open="$emit('open')"
+    :size="size"
+    :title="title"
     @close="$emit('close')"
-    @update:modelValue="$emit('update:modelValue', $event)"
+    @open="$emit('open')"
+    @update:model-value="$emit('update:modelValue', $event)"
   >
     <!-- Body -->
     <slot>
@@ -61,13 +83,17 @@ const confirmBtnClass = computed(() => {
     <!-- Footer -->
     <template #footer>
       <div class="flex items-center gap-2">
-        <button class="btn" :disabled="loading" @click="$emit('cancel'); $emit('update:modelValue', false)">
+        <button
+          :disabled="loading"
+          class="btn"
+          @click="onCancel"
+        >
           {{ cancelText }}
         </button>
         <button
-          class="btn"
           :class="[confirmBtnClass, { loading }]"
-          @click="$emit('confirm')"
+          class="btn"
+          @click="onConfirm"
         >
           {{ confirmText }}
         </button>

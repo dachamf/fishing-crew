@@ -1,34 +1,36 @@
 <script setup lang="ts">
-import {toErrorMessage} from '~/utils/http'
+import { toErrorMessage } from "~/utils/http";
 
-const {$api} = useNuxtApp() as any
-const auth = useAuth()
-const {profile, loadMe, avatarBuster} = useProfile()
-const {success, error} = useToast()
+const { $api } = useNuxtApp() as any;
+const auth = useAuth();
+const { profile, loadMe, avatarBuster } = useProfile();
+const { success, error } = useToast();
 
-const route = useRoute()
-const router = useRouter()
+const route = useRoute();
+const router = useRouter();
 
 // Mobile dropdown toggle
 const open = ref(false);
 
 // Sticky shadow on scroll
-const scrolled = ref(false)
+const scrolled = ref(false);
 
 function onScroll() {
-  scrolled.value = window.scrollY > 4
+  scrolled.value = window.scrollY > 4;
 }
 
 onMounted(async () => {
-  if (auth.user.value && !profile.value) await loadMe()
-  if (process.client) {
-    onScroll()
-    window.addEventListener('scroll', onScroll, {passive: true})
+  if (auth.user.value && !profile.value)
+    await loadMe();
+  if (import.meta.client) {
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
   }
 });
 
 onUnmounted(() => {
-  if (process.client) window.removeEventListener('scroll', onScroll)
+  if (import.meta.client)
+    window.removeEventListener("scroll", onScroll);
 });
 
 // Aktivni link helper
@@ -38,54 +40,59 @@ function isActive(to: string, exact = false) {
 
 // Navigacija
 const links = computed(() => [
-  {to: '/', label: 'Početna', exact: true},
-  {to: '/events', label: 'Događaji', auth: true},
-  {to: '/events/new', label: 'Novi događaj', auth: true},
-  {to: '/catches', label: 'Ulov', auth: true},
-  {to: '/leaderboard', label: 'Leaderboard', auth: true},
-])
+  { to: "/", label: "Početna", exact: true },
+  { to: "/events", label: "Događaji", auth: true },
+  { to: "/events/new", label: "Novi događaj", auth: true },
+  { to: "/catches", label: "Ulov", auth: true },
+  { to: "/leaderboard", label: "Leaderboard", auth: true },
+]);
 const visibleLinks = computed(() =>
-  links.value.filter(l => !l.auth || !!auth.user.value)
-)
+  links.value.filter(l => !l.auth || !!auth.user.value),
+);
 
 // Avatar URL sa cache-busterom
-const placeholder = '/icons/icon-64.png'
+const placeholder = "/icons/icon-64.png";
 const avatarUrl = computed(() => {
-  const url = profile.value?.avatar_url
-  if (!url) return placeholder
-  const sep = url.includes('?') ? '&' : '?'
-  return `${url}${sep}v=${avatarBuster.value}`
-})
+  const url = profile.value?.avatar_url;
+  if (!url)
+    return placeholder;
+  const sep = url.includes("?") ? "&" : "?";
+  return `${url}${sep}v=${avatarBuster.value}`;
+});
 
 // Verifikacija
-const isVerified = computed(() => !!auth.user.value?.email_verified_at)
-const sendingVerify = ref(false)
+const isVerified = computed(() => !!auth.user.value?.email_verified_at);
+const sendingVerify = ref(false);
 
 async function resendVerification() {
-  if (!auth.user.value) return
+  if (!auth.user.value)
+    return;
   try {
-    sendingVerify.value = true
-    await $api.post('/auth/email/verification-notification')
-    success('Poslali smo verifikacioni email ✅')
-  } catch (e: any) {
-    error(toErrorMessage(e))
-  } finally {
-    sendingVerify.value = false
+    sendingVerify.value = true;
+    await $api.post("/auth/email/verification-notification");
+    success("Poslali smo verifikacioni email ✅");
+  }
+  catch (e: any) {
+    error(toErrorMessage(e));
+  }
+  finally {
+    sendingVerify.value = false;
   }
 }
 
 // Logout + redirect
 async function doLogout() {
   try {
-    await auth.logout()
-  } finally {
+    await auth.logout();
+  }
+  finally {
     open.value = false;
-    router.push('/login')
+    router.push("/login");
   }
 }
 
 // Zatvori dropdown na promenu rute
-watch(() => route.fullPath, () => (open.value = false))
+watch(() => route.fullPath, () => (open.value = false));
 </script>
 
 <template>
@@ -98,13 +105,24 @@ watch(() => route.fullPath, () => (open.value = false))
     <div class="navbar-start">
       <!-- Mobile menu -->
       <div class="dropdown">
-        <button class="btn btn-ghost lg:hidden" aria-label="Open main menu" @click="open = !open">
+        <button
+          class="btn btn-ghost lg:hidden"
+          aria-label="Open main menu"
+          @click="open = !open"
+        >
           <svg
-            xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
-            viewBox="0 0 24 24" stroke="currentColor">
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-5 w-5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
             <path
-              stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M4 6h16M4 12h16M4 18h16"/>
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M4 6h16M4 12h16M4 18h16"
+            />
           </svg>
         </button>
         <ul
@@ -118,23 +136,28 @@ watch(() => route.fullPath, () => (open.value = false))
           </li>
 
           <li v-if="!auth.user.value" class="mt-2">
-            <NuxtLink class="btn btn-primary btn-sm" to="/login">Prijava</NuxtLink>
+            <NuxtLink class="btn btn-primary btn-sm" to="/login">
+              Prijava
+            </NuxtLink>
           </li>
           <li v-if="!auth.user.value">
-            <NuxtLink class="btn btn-ghost btn-sm" to="/register">Registracija</NuxtLink>
+            <NuxtLink class="btn btn-ghost btn-sm" to="/register">
+              Registracija
+            </NuxtLink>
           </li>
 
           <li v-if="auth.user.value && !isVerified" class="mt-2">
             <button
               class="btn btn-warning btn-sm w-full"
               :disabled="sendingVerify"
-              @click="resendVerification">
+              @click="resendVerification"
+            >
               {{ sendingVerify ? 'Slanje...' : 'Ponovo pošalji verifikaciju' }}
             </button>
           </li>
 
           <li class="mt-2">
-            <ThemeSwitch/>
+            <ThemeSwitch />
           </li>
         </ul>
       </div>
@@ -142,7 +165,13 @@ watch(() => route.fullPath, () => (open.value = false))
       <!-- Brand -->
       <NuxtLink to="/" class="btn btn-ghost text-xl font-bold">
         Fishing Crew
-        <img src="/logo.png" alt="logo" width="128" height="32" class="inline-block align-text-bottom ml-2"/>
+        <img
+          src="/logo.png"
+          alt="logo"
+          width="128"
+          height="32"
+          class="inline-block align-text-bottom ml-2"
+        >
       </NuxtLink>
     </div>
 
@@ -152,7 +181,8 @@ watch(() => route.fullPath, () => (open.value = false))
         <li v-for="l in visibleLinks" :key="l.to">
           <NuxtLink
             :to="l.to"
-            :class="['rounded-btn', { 'active font-semibold': isActive(l.to, l.exact) }]"
+            class="rounded-btn"
+            :class="[{ 'active font-semibold': isActive(l.to, l.exact) }]"
           >
             {{ l.label }}
           </NuxtLink>
@@ -167,11 +197,15 @@ watch(() => route.fullPath, () => (open.value = false))
         Neverifikovano
       </span>
 
-      <ThemeSwitch/>
+      <ThemeSwitch />
       <!-- Not logged in -->
       <div v-if="!auth.user.value" class="hidden lg:flex gap-2">
-        <NuxtLink class="btn btn-primary btn-sm" to="/login">Prijava</NuxtLink>
-        <NuxtLink class="btn btn-ghost btn-sm" to="/register">Registracija</NuxtLink>
+        <NuxtLink class="btn btn-primary btn-sm" to="/login">
+          Prijava
+        </NuxtLink>
+        <NuxtLink class="btn btn-ghost btn-sm" to="/register">
+          Registracija
+        </NuxtLink>
       </div>
 
       <!-- Logged in -->
@@ -189,7 +223,7 @@ watch(() => route.fullPath, () => (open.value = false))
                   :src="avatarUrl"
                   class="w-full h-full object-cover"
                   alt="avatar"
-                />
+                >
               </div>
             </div>
           </div>
@@ -197,7 +231,9 @@ watch(() => route.fullPath, () => (open.value = false))
 
         <ul class="menu menu-sm dropdown-content bg-base-100 rounded-box z-50 mt-3 w-56 p-2 shadow">
           <li class="px-3 py-2">
-            <div class="text-sm opacity-70">Ulogovan</div>
+            <div class="text-sm opacity-70">
+              Ulogovan
+            </div>
             <div class="font-medium truncate">
               {{ profile?.display_name || auth.user.value?.name }}
             </div>
@@ -205,22 +241,31 @@ watch(() => route.fullPath, () => (open.value = false))
               <button
                 class="btn btn-warning btn-xs w-full"
                 :disabled="sendingVerify"
-                @click="resendVerification">
+                @click="resendVerification"
+              >
                 {{ sendingVerify ? 'Slanje…' : 'Verifikuj email' }}
               </button>
             </div>
           </li>
           <li>
-            <NuxtLink to="/profile">Profil</NuxtLink>
+            <NuxtLink to="/profile">
+              Profil
+            </NuxtLink>
           </li>
           <li>
-            <NuxtLink to="/catches">Moji ulovi</NuxtLink>
+            <NuxtLink to="/catches">
+              Moji ulovi
+            </NuxtLink>
           </li>
           <li>
-            <NuxtLink to="/events">Događaji</NuxtLink>
+            <NuxtLink to="/events">
+              Događaji
+            </NuxtLink>
           </li>
           <li>
-            <button @click="doLogout">Odjava</button>
+            <button @click="doLogout">
+              Odjava
+            </button>
           </li>
         </ul>
       </div>

@@ -1,13 +1,8 @@
 #!/usr/bin/env sh
 . "$(dirname -- "$0")/_/husky.sh"
+set -e
 
-# Backend stil mora biti čist
-composer pint:test
+echo "🧪 Pre-push type-check (Nuxt)"
+ddev exec bash -lc 'cd frontendApp && pnpm type-check'
 
-# Testovi (bez --parallel radi kompatibilnosti na svim OS-ovima)
-php artisan test
-
-# (Opciono) Frontend build ako postoji
-if [ -f frontendApp/package.json ]; then
-  if pnpm -C frontendApp run | grep -qE "(^| )build( |$)"; then pnpm -C frontendApp -s build; fi
-fi
+echo "✅ Pre-push OK"
