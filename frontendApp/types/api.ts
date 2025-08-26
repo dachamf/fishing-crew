@@ -206,3 +206,14 @@ export interface Me {
   email: string;
   groups: GroupLite[];
 }
+
+export interface GroupMember {
+  id: number;
+  name?: string;
+  display_name?: string;
+  avatar_url?: string;
+  profile?: {
+    avatar_url?: string;
+    display_name?: string
+  }
+}

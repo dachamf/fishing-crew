@@ -70,9 +70,10 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
 
         // nominacije & review flow
 
-        Route::post('catches/{id}/nominate',       [CatchReviewController::class, 'nominate']);
-        Route::post('catches/{id}/confirm',        [CatchReviewController::class, 'confirm']);        // approve/reject
-        Route::post('catches/{id}/request-change', [CatchReviewController::class, 'requestChange']);  // traži izmenu// ulovi koji čekaju mene
+        Route::post('catches/{id}/reviewers', [CatchReviewController::class, 'nominate']);
+        Route::post('catches/{id}/review',     [CatchReviewController::class, 'confirm']);
+        Route::post('catches/{id}/review/request-change', [CatchReviewController::class, 'requestChange']);
+        Route::get('review/assigned',          [CatchReviewController::class, 'assignedToMe']);
 
         // fotke (max 3)
         Route::post('catches/{id}/photos',                 [CatchPhotoController::class, 'store']);   // multipart

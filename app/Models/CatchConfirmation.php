@@ -7,7 +7,16 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class CatchConfirmation extends Model
 {
-    protected $fillable = ['catch_id', 'confirmed_by', 'status', 'note'];
+    protected $fillable = [
+        'catch_id',
+        'confirmed_by',
+        'status',
+        'note',
+        'suggested_payload'
+    ];
+    protected $casts = [
+        'suggested_payload' => 'array',
+    ];
 
     public function catch(): BelongsTo
     {

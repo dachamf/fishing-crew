@@ -5,25 +5,39 @@ namespace App\Http\Controllers\api\v1;
 use App\Http\Controllers\Controller;
 use App\Models\FishingCatch;
 use App\Models\CatchConfirmation;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class CatchReviewController extends Controller
 {
+    /**
+     * @throws \Throwable
+     */
     public function nominate(Request $r, $id) {
         $catch = FishingCatch::with('confirmations')->findOrFail($id);
-        $this->authorize('update', $catch); // vlasnik
+        $this->authorize('update', $catch);
 
         $data = $r->validate([
             'reviewer_ids' => ['required','array','min:1'],
             'reviewer_ids.*' => ['integer','exists:users,id'],
         ]);
 
-        // *opciono*: potvrdi da su u istoj grupi
-        // $catch->group_id ...
-
         $existing = $catch->confirmations()->pluck('confirmed_by')->all();
-        $toCreate = array_values(array_diff($data['reviewer_ids'], $existing));
+
+        // filtriraj: unique, bez vlasnika
+        $ids = collect($data['reviewer_ids'])
+            ->map(fn($i)=>(int)$i)->unique()
+            ->reject(fn($uid) => $uid === (int)$catch->user_id);
+
+        // (opciono) validiraj da su u istoj grupi kao ulov
+        $validIds = $ids->when(true, function($c) use ($catch) {
+            return User::whereIn('id', $c->all())
+                ->whereHas('groups', fn($g) => $g->where('groups.id', $catch->group_id))
+                ->pluck('id');
+        });
+
+        $toCreate = array_values(array_diff($validIds->all(), $existing));
 
         DB::transaction(function() use ($catch, $toCreate) {
             foreach ($toCreate as $uid) {
@@ -32,31 +46,44 @@ class CatchReviewController extends Controller
                     'confirmed_by' => $uid,
                     'status' => 'pending',
                 ]);
-                // ovde pošalji Laravel Notification (database/mail) ako želiš
+                // TODO: optional notifikacija
             }
         });
 
         return response()->json($catch->fresh()->load('confirmations'));
     }
 
+
     public function confirm(Request $r, $id) {
         $catch = FishingCatch::with('confirmations')->findOrFail($id);
+
+        if ((int)$catch->user_id === (int)$r->user()->id) {
+            abort(403, 'Vlasnik ne može potvrditi sopstveni ulov.');
+        }
 
         $data = $r->validate([
             'status' => ['required','in:approved,rejected'],
             'note'   => ['nullable','string','max:500'],
         ]);
 
-        $conf = $catch->confirmations()->where('confirmed_by',$r->user()->id)->firstOrFail();
+        $conf = $catch->confirmations()
+            ->where('confirmed_by', $r->user()->id)
+            ->firstOrFail(); // samo nominovani
+
+        if ($conf->status !== 'pending') {
+            abort(422, 'Ova potvrda je već obrađena.');
+        }
+
         $conf->update(['status'=>$data['status'],'note'=>$data['note'] ?? null]);
 
-        // (po želji) ako svi 'approved' => označi ulov kao approved
+        // auto-approve samo kad su sve potvrde 'approved'
         if ($catch->confirmations()->where('status','!=','approved')->count() === 0) {
-            $catch->update(['status'=>'approved']);
+            $catch->update(['status' => 'approved']);
         }
 
         return response()->json($catch->fresh()->load('confirmations'));
     }
+
 
     public function requestChange(Request $r, $id) {
         $catch = FishingCatch::with('confirmations')->findOrFail($id);

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\api\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\RegisterRequest;
+use App\Models\Group;
 use App\Models\User;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Hash;
@@ -15,6 +16,14 @@ class RegisterController extends Controller
      */
     public function __invoke(RegisterRequest $request)
     {
+        $group = Group::first();
+        if (!$group) {
+            $group = Group::create([
+                'name' => 'Kuchna',
+                'season_year' => now()->year,
+            ]);
+        }
+
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
