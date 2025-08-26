@@ -68,7 +68,8 @@ async function createSession() {
       <div class="grid md:grid-cols-2 gap-2">
         <div>
           <label class="label-text text-sm">Naziv sesije</label>
-          <input v-model.trim="newTitle" type="text" maxlength="100" placeholder="npr. Noćni izlazak"
+          <input
+v-model.trim="newTitle" type="text" maxlength="100" placeholder="npr. Noćni izlazak"
                  class="input input-bordered w-full" />
         </div>
         <div>

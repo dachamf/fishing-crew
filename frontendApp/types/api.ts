@@ -64,6 +64,7 @@ export interface UserProfileLite {
   user_id: ID;
   display_name?: string;
   avatar_path?: string;
+  avatar_url?: string;
 }
 
 export interface UserLite {

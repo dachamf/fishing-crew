@@ -12,7 +12,7 @@
   },
   "lint-staged": {
     "*.{ts,vue,js,css,md}": [
-      "eslint --fix",
+      "eslint . --fix",
       "prettier --write"
     ]
   },
