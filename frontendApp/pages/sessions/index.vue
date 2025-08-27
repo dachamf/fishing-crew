@@ -1,6 +1,6 @@
-<script setup lang="ts">
+<script lang="ts" setup>
 definePageMeta({ name: "sessions" });
-const fmtDate = (iso?: string) => iso ? new Date(iso).toLocaleString("sr-RS") : "—";
+const fmtDate = (iso?: string) => (iso ? new Date(iso).toLocaleString("sr-RS") : "—");
 const params = ref<Record<string, any>>({ page: 1, per_page: 20 });
 const { list, pending, error } = useSessions(params);
 </script>
@@ -15,6 +15,9 @@ const { list, pending, error } = useSessions(params);
       Greška
     </div>
     <div v-else>
+      <NuxtLink class="btn btn-outline btn-sm mb-2" to="/sessions/assigned">
+        Sesije koje čekaju mene
+      </NuxtLink>
       <div
         v-for="s in list"
         :key="s.id"
@@ -30,13 +33,14 @@ const { list, pending, error } = useSessions(params);
                 {{ s.status }}
               </div>
             </div>
-            <NuxtLink class="btn btn-sm btn-outline" :to="`/sessions/${s.id}`">
+            <NuxtLink :to="`/sessions/${s.id}`" class="btn btn-sm btn-outline">
               Otvori
             </NuxtLink>
           </div>
           <div class="text-xs opacity-60">
             Počela: {{ fmtDate(s.started_at) }}
-            <span v-if="s.ended_at"> • Završenа: {{ new Date(s.ended_at).toLocaleString('sr-RS') }}</span>
+            <span v-if="s.ended_at">
+              • Završenа: {{ new Date(s.ended_at).toLocaleString('sr-RS') }}</span>
           </div>
         </div>
       </div>

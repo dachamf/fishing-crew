@@ -83,14 +83,14 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
 
         Route::post('/catches/{catch}/confirm', [CatchesConfirmationController::class, 'store']);
 
+        Route::get('/sessions/assigned-to-me', [SessionReviewController::class,'assignedToMe']);
         Route::apiResource('sessions', FishingSessionController::class)->only(['index','show','store','update','destroy']);
         Route::post('sessions/{session}/close', [FishingSessionController::class, 'close']);
         Route::post('sessions/{session}/catches/stack', [SessionCatchController::class, 'upsert']);
 
-        Route::post('/v1/sessions/{session}/close-and-nominate', [FishingSessionController::class, 'closeAndNominate']);
+        Route::post('/sessions/{session}/close-and-nominate', [FishingSessionController::class, 'closeAndNominate']);
 
-        Route::post('/v1/sessions/{session}/review', [SessionReviewController::class,'review']);
-        Route::get('/v1/sessions/assigned-to-me', [SessionReviewController::class,'assignedToMe']);
+        Route::post('/sessions/{session}/review', [SessionReviewController::class,'review']);
 
 
         Route::get('profile/me', [ProfileController::class, 'me']);

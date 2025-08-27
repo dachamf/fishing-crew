@@ -1,4 +1,4 @@
-<script setup lang="ts">
+<script lang="ts" setup>
 import { toErrorMessage } from "~/utils/http";
 
 const { $api } = useNuxtApp() as any;
@@ -6,11 +6,42 @@ const auth = useAuth();
 const { profile, loadMe, avatarBuster } = useProfile();
 const { success, error } = useToast();
 
+// +++ Assigned to me bell + preview + counter +++
+const { assignedToMe } = useSessionReview();
+
 const route = useRoute();
 const router = useRouter();
 
 // Mobile dropdown toggle
 const open = ref(false);
+
+const assignedPreview = ref<{ items: any[]; meta: any } | null>(null);
+const assignedCount = computed(
+  () => assignedPreview.value?.meta?.total ?? assignedPreview.value?.items?.length ?? 0,
+);
+
+async function loadAssignedPreview() {
+  if (!auth.user.value) {
+    return;
+  }
+  try {
+    const { items, meta } = await assignedToMe(1, 5);
+    assignedPreview.value = { items: Array.isArray(items) ? items : [], meta };
+  }
+  catch {
+    assignedPreview.value = { items: [], meta: null };
+  }
+}
+
+// osveži na mount i kad se promeni ruta ili user
+onMounted(loadAssignedPreview);
+watch([() => route.fullPath, () => auth.user.value?.id], () => loadAssignedPreview());
+
+// (opciono) lagani auto-refresh dok je tab aktivan
+if (import.meta.client) {
+  const interval = setInterval(loadAssignedPreview, 60_000);
+  onUnmounted(() => clearInterval(interval));
+}
 
 // Sticky shadow on scroll
 const scrolled = ref(false);
@@ -46,9 +77,7 @@ const links = computed(() => [
   { to: "/catches", label: "Ulov", auth: true },
   { to: "/leaderboard", label: "Leaderboard", auth: true },
 ]);
-const visibleLinks = computed(() =>
-  links.value.filter(l => !l.auth || !!auth.user.value),
-);
+const visibleLinks = computed(() => links.value.filter(l => !l.auth || !!auth.user.value));
 
 // Avatar URL sa cache-busterom
 const placeholder = "/icons/icon-64.png";
@@ -92,36 +121,39 @@ async function doLogout() {
 }
 
 // Zatvori dropdown na promenu rute
-watch(() => route.fullPath, () => (open.value = false));
+watch(
+  () => route.fullPath,
+  () => (open.value = false),
+);
 </script>
 
 <template>
   <!-- sticky + blur + poluprozirna pozadina -->
   <div
-    class="navbar sticky top-0 z-50 backdrop-blur bg-base-200/70 transition-shadow"
     :class="scrolled ? 'shadow-md border-b border-base-300' : 'shadow-sm'"
+    class="navbar sticky top-0 z-50 backdrop-blur bg-base-200/70 transition-shadow"
   >
     <!-- LEFT -->
     <div class="navbar-start">
       <!-- Mobile menu -->
       <div class="dropdown">
         <button
-          class="btn btn-ghost lg:hidden"
           aria-label="Open main menu"
+          class="btn btn-ghost lg:hidden"
           @click="open = !open"
         >
           <svg
-            xmlns="http://www.w3.org/2000/svg"
             class="h-5 w-5"
             fill="none"
-            viewBox="0 0 24 24"
             stroke="currentColor"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
           >
             <path
+              d="M4 6h16M4 12h16M4 18h16"
               stroke-linecap="round"
               stroke-linejoin="round"
               stroke-width="2"
-              d="M4 6h16M4 12h16M4 18h16"
             />
           </svg>
         </button>
@@ -130,7 +162,7 @@ watch(() => route.fullPath, () => (open.value = false));
           class="menu menu-sm dropdown-content bg-base-100 rounded-box z-50 mt-3 w-56 p-2 shadow"
         >
           <li v-for="l in visibleLinks" :key="l.to">
-            <NuxtLink :to="l.to" :class="[{ 'active font-semibold': isActive(l.to, l.exact) }]">
+            <NuxtLink :class="[{ 'active font-semibold': isActive(l.to, l.exact) }]" :to="l.to">
               {{ l.label }}
             </NuxtLink>
           </li>
@@ -148,8 +180,8 @@ watch(() => route.fullPath, () => (open.value = false));
 
           <li v-if="auth.user.value && !isVerified" class="mt-2">
             <button
-              class="btn btn-warning btn-sm w-full"
               :disabled="sendingVerify"
+              class="btn btn-warning btn-sm w-full"
               @click="resendVerification"
             >
               {{ sendingVerify ? 'Slanje...' : 'Ponovo pošalji verifikaciju' }}
@@ -163,14 +195,14 @@ watch(() => route.fullPath, () => (open.value = false));
       </div>
 
       <!-- Brand -->
-      <NuxtLink to="/" class="btn btn-ghost text-xl font-bold">
+      <NuxtLink class="btn btn-ghost text-xl font-bold" to="/">
         Fishing Crew
         <img
-          src="/logo.png"
           alt="logo"
-          width="128"
-          height="32"
           class="inline-block align-text-bottom ml-2"
+          height="32"
+          src="/logo.png"
+          width="128"
         >
       </NuxtLink>
     </div>
@@ -180,9 +212,9 @@ watch(() => route.fullPath, () => (open.value = false));
       <ul class="menu menu-horizontal px-1">
         <li v-for="l in visibleLinks" :key="l.to">
           <NuxtLink
+            :class="[{ 'active font-semibold': isActive(l.to, l.exact) }]"
             :to="l.to"
             class="rounded-btn"
-            :class="[{ 'active font-semibold': isActive(l.to, l.exact) }]"
           >
             {{ l.label }}
           </NuxtLink>
@@ -208,66 +240,143 @@ watch(() => route.fullPath, () => (open.value = false));
         </NuxtLink>
       </div>
 
-      <!-- Logged in -->
-      <div v-else class="dropdown dropdown-end">
-        <button class="btn btn-ghost btn-circle" aria-label="Profile menu">
-          <div class="indicator">
-            <!-- mala tačkica kad nije verifikovan -->
-            <span v-if="!isVerified" class="indicator-item badge badge-warning badge-xs">!</span>
+      <div v-else>
+        <div class="dropdown dropdown-end">
+          <div
+            aria-label="Assigned to me"
+            class="btn btn-ghost btn-circle"
+            role="button"
+            tabindex="0"
+          >
+            <div class="indicator">
+              <Icon class="w-6 h-6" name="tabler:bell" />
+              <!-- brojka preko zvonca; sakrij ako je 0 -->
+              <span
+                v-if="assignedCount > 0"
+                :title="`${assignedCount} sesija čeka tvoju odluku`"
+                class="indicator-item badge badge-error badge-xs"
+              >
+                {{ Math.min(99, assignedCount) }}
+              </span>
+            </div>
+          </div>
 
-            <!-- avatar wrapper koji garantuje krug -->
-            <div class="avatar">
-              <div class="w-10 rounded-full ring ring-offset-2 ring-base-300 overflow-hidden">
-                <img
-                  :key="avatarUrl"
-                  :src="avatarUrl"
-                  class="w-full h-full object-cover"
-                  alt="avatar"
+          <!-- Dropdown sa top 5 sesija -->
+          <div
+            class="mt-3 dropdown-content w-80 card card-compact bg-base-100 shadow z-50"
+            tabindex="0"
+          >
+            <div class="card-body">
+              <div class="flex items-center justify-between">
+                <h3 class="card-title text-base">
+                  Za moju odluku
+                </h3>
+                <NuxtLink class="link link-primary text-sm" to="/sessions/assigned">
+                  Vidi sve
+                </NuxtLink>
+              </div>
+
+              <ul v-if="(assignedPreview?.items?.length || 0) > 0" class="mt-1 space-y-2">
+                <li
+                  v-for="s in assignedPreview?.items || []"
+                  :key="s.id"
+                  class="flex items-start justify-between gap-3"
                 >
+                  <div class="min-w-0">
+                    <NuxtLink
+                      :title="s.title || `Sesija #${s.id}`"
+                      :to="`/sessions/${s.id}`"
+                      class="font-medium text-sm hover:underline truncate block"
+                    >
+                      {{ s.title || `Sesija #${s.id}` }}
+                    </NuxtLink>
+                    <div class="text-xs opacity-70">
+                      Počela:
+                      {{ s.started_at ? new Date(s.started_at).toLocaleString('sr-RS') : '—' }} •
+                      Ulova: {{ s.catches_count ?? '—' }}
+                    </div>
+                  </div>
+                  <NuxtLink :to="`/sessions/${s.id}`" class="btn btn-ghost btn-xs">
+                    Otvori
+                  </NuxtLink>
+                </li>
+              </ul>
+
+              <div v-else class="opacity-70 text-sm">
+                Nema sesija koje čekaju tvoju odluku.
+              </div>
+
+              <div class="pt-1">
+                <NuxtLink class="btn btn-primary btn-sm w-full" to="/sessions/assigned">
+                  Otvori listu zadataka
+                </NuxtLink>
               </div>
             </div>
           </div>
-        </button>
+        </div>
+        <!-- Logged in -->
+        <div class="dropdown dropdown-end">
+          <button aria-label="Profile menu" class="btn btn-ghost btn-circle">
+            <div class="indicator">
+              <!-- mala tačkica kad nije verifikovan -->
+              <span v-if="!isVerified" class="indicator-item badge badge-warning badge-xs">!</span>
 
-        <ul class="menu menu-sm dropdown-content bg-base-100 rounded-box z-50 mt-3 w-56 p-2 shadow">
-          <li class="px-3 py-2">
-            <div class="text-sm opacity-70">
-              Ulogovan
+              <!-- avatar wrapper koji garantuje krug -->
+              <div class="avatar">
+                <div class="w-10 rounded-full ring ring-offset-2 ring-base-300 overflow-hidden">
+                  <img
+                    :key="avatarUrl"
+                    :src="avatarUrl"
+                    alt="avatar"
+                    class="w-full h-full object-cover"
+                  >
+                </div>
+              </div>
             </div>
-            <div class="font-medium truncate">
-              {{ profile?.display_name || auth.user.value?.name }}
-            </div>
-            <div v-if="!isVerified" class="mt-2">
-              <button
-                class="btn btn-warning btn-xs w-full"
-                :disabled="sendingVerify"
-                @click="resendVerification"
-              >
-                {{ sendingVerify ? 'Slanje…' : 'Verifikuj email' }}
+          </button>
+
+          <ul
+            class="menu menu-sm dropdown-content bg-base-100 rounded-box z-50 mt-3 w-56 p-2 shadow"
+          >
+            <li class="px-3 py-2">
+              <div class="text-sm opacity-70">
+                Ulogovan
+              </div>
+              <div class="font-medium truncate">
+                {{ profile?.display_name || auth.user.value?.name }}
+              </div>
+              <div v-if="!isVerified" class="mt-2">
+                <button
+                  :disabled="sendingVerify"
+                  class="btn btn-warning btn-xs w-full"
+                  @click="resendVerification"
+                >
+                  {{ sendingVerify ? 'Slanje…' : 'Verifikuj email' }}
+                </button>
+              </div>
+            </li>
+            <li>
+              <NuxtLink to="/profile">
+                Profil
+              </NuxtLink>
+            </li>
+            <li>
+              <NuxtLink to="/catches">
+                Moji ulovi
+              </NuxtLink>
+            </li>
+            <li>
+              <NuxtLink to="/events">
+                Događaji
+              </NuxtLink>
+            </li>
+            <li>
+              <button @click="doLogout">
+                Odjava
               </button>
-            </div>
-          </li>
-          <li>
-            <NuxtLink to="/profile">
-              Profil
-            </NuxtLink>
-          </li>
-          <li>
-            <NuxtLink to="/catches">
-              Moji ulovi
-            </NuxtLink>
-          </li>
-          <li>
-            <NuxtLink to="/events">
-              Događaji
-            </NuxtLink>
-          </li>
-          <li>
-            <button @click="doLogout">
-              Odjava
-            </button>
-          </li>
-        </ul>
+            </li>
+          </ul>
+        </div>
       </div>
     </div>
   </div>

@@ -53,7 +53,10 @@ class SessionReviewController extends Controller
         $q = FishingSession::query()
             ->whereHas('reviews', fn($x)=>$x->where('reviewer_id',$r->user()->id)->where('status','pending'))
             ->withCount('catches')
-            ->with(['user:id,name','user.profile:id,user_id,display_name,avatar_path'])
+            ->with([
+                'user:id,name',
+                'user.profile:id,user_id,display_name,avatar_path'
+            ])
             ->latest('started_at')->latest('id');
 
         return response()->json($q->paginate(20));

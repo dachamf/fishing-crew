@@ -4,7 +4,19 @@ export function useSessionReview() {
   const review = (sessionId: number, status: "approved" | "rejected", note?: string) =>
     $api.post(`/v1/sessions/${sessionId}/review`, { status, note });
 
-  const assignedToMe = (page = 1) => $api.get("/v1/sessions/assigned-to-me", { params: { page } });
+  const assignedToMe = async (page = 1, perPage = 5) => {
+    const res = await $api.get("/v1/sessions/assigned-to-me", {
+      params: { page, per_page: perPage },
+    });
+    // normalizacija
+    const payload = res.data ?? {};
+    const items = payload.data ?? payload.items ?? payload; // Laravel paginate / custom
+    const meta = payload.meta ?? null;
+    return { items, meta };
+  };
 
-  return { review, assignedToMe };
+  return {
+    review,
+    assignedToMe,
+  };
 }
