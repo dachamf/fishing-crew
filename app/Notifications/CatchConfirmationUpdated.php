@@ -13,14 +13,20 @@ class CatchConfirmationUpdated extends Notification implements ShouldQueue
 {
     use Queueable;
 
+
     public function __construct(
         public FishingCatch $catch,
         public CatchConfirmation $confirmation
     ) {}
 
+    protected array $channels = ['database', 'mail'];
+    public function setChannels(array $channels): self
+    {
+        $this->channels = $channels; return $this;
+    }
     public function via($notifiable): array
     {
-        return ['database', 'mail'];
+        return $this->channels;
     }
 
     public function toMail($notifiable): MailMessage

@@ -8,6 +8,7 @@ use App\Models\CatchConfirmation;
 use App\Models\User;
 use App\Notifications\CatchChangeRequested;
 use App\Notifications\CatchConfirmationUpdated;
+use App\Notifications\OwnerCatchFinalized;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -90,7 +91,19 @@ class CatchReviewController extends Controller
         // obavesti vlasnika ulova
         $owner = $catch->user()->first();
         if ($owner) {
-            $owner->notify(new CatchConfirmationUpdated($catch, $conf));
+            $statuses = $catch->confirmations()->pluck('status');
+
+            if ($statuses->contains('rejected')) {
+                // final: odbijen => mejl + DB
+                $owner->notify(new OwnerCatchFinalized($catch, 'rejected'));
+            } elseif ($statuses->count() > 0 && $statuses->every(fn($s) => $s === 'approved')) {
+                // final: svi odobrili => mejl + DB
+                $owner->notify(new OwnerCatchFinalized($catch, 'approved'));
+            } else {
+                // međukorak: samo DB notifikacija, bez mejla
+                $owner->notify((new CatchConfirmationUpdated($catch, $conf))
+                    ->setChannels(['database']));
+            }
         }
 
         return response()->json($catch->fresh()->load('confirmations'));
@@ -114,7 +127,7 @@ class CatchReviewController extends Controller
 
         $owner = $catch->user()->first();
         if ($owner) {
-            $owner->notify(new CatchChangeRequested($catch, $conf));
+            $owner->notify(new CatchChangeRequested($catch, $conf))->setChannels(['database']);
         }
 
         return response()->json($catch->fresh()->load('confirmations'));

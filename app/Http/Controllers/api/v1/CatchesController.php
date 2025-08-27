@@ -5,12 +5,9 @@ namespace App\Http\Controllers\api\v1;
 use App\Http\Controllers\Controller;
 use Carbon\Carbon;
 use App\Http\Requests\{CatchStoreRequest, CatchUpdateRequest};
-use App\Models\{FishingCatch, Event, Group};
-use Illuminate\Auth\Access\AuthorizationException;
+use App\Models\{FishingCatch, Event};
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
-use Illuminate\Support\Facades\DB;
 
 class CatchesController extends Controller
 {

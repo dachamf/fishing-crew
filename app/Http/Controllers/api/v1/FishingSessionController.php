@@ -248,6 +248,9 @@ class FishingSessionController extends Controller
     public function closeAndNominate(Request $r, FishingSession $session) {
         $this->authorize('update', $session); // owner/mod prema tvojoj policy
 
+        $created = 0;
+        $createdByReviewer = []; // [uid => array<array minimalnih podataka o catchu>
+
         $data = $r->validate([
             'reviewer_ids'   => ['required','array','min:1'],
             'reviewer_ids.*' => ['integer','exists:users,id'],
@@ -267,45 +270,73 @@ class FishingSessionController extends Controller
             }
         }
 
+        // na vrhu metode
         $created = 0;
+        $createdByReviewer = []; // [uid => array<array minimalnih podataka o catchu>]
 
-        DB::transaction(function() use ($session, $data, &$created) {
+        \DB::transaction(function() use ($session, $data, &$created, &$createdByReviewer) {
             // 1) zatvori sesiju
             $session->update([
                 'status'   => 'closed',
                 'ended_at' => $session->ended_at ?? now(),
             ]);
 
-            // 2) za svaki ulov iz sesije, kreiraj pending potvrde
-            $catches = FishingCatch::query()
+            // 2) svi ulovi iz sesije
+            $catches = \App\Models\FishingCatch::query()
                 ->where('session_id', $session->id)
-                ->get(['id']);
+                ->get();
 
             foreach ($catches as $catch) {
+                // pređi ulov u pending
+                if ($catch->status !== 'pending') {
+                    $catch->update(['status' => 'pending']);
+                }
+
                 foreach ($data['reviewer_ids'] as $uid) {
-                    // firstOrCreate zbog unique(catch_id, confirmed_by)
-                    $conf = CatchConfirmation::firstOrCreate(
+                    $conf = \App\Models\CatchConfirmation::firstOrCreate(
                         ['catch_id' => $catch->id, 'confirmed_by' => $uid],
                         ['status' => 'pending']
                     );
                     if ($conf->wasRecentlyCreated) {
                         $created++;
+                        // prikupljamo za agregirani mejl
+                        $createdByReviewer[$uid][] = [
+                            'id' => $catch->id,
+                            'species' => $catch->species_label ?? $catch->species ?? $catch->species_name ?? '-',
+                            'count' => $catch->count,
+                            'total_weight_kg' => $catch->total_weight_kg,
+                            'caught_at' => $catch->caught_at,
+                        ];
 
-                        //Notify reviewer
-                        $reviewer = User::find($uid);
-                        if($reviewer) {
-                            $reviewer->notify(new CatchConfirmationRequested($catch, $session));
+                        // (opciono) per-catch **database** notifikacija, bez mejla
+                        $reviewer = \App\Models\User::find($uid);
+                        if ($reviewer) {
+                            $reviewer->notify(
+                                (new CatchConfirmationRequested($catch, $session))
+                                    ->onQueue('notifications') // po želji
+                                    // osiguraj da ova notifikacija **ne** šalje mail, samo 'database'
+                                    ->setChannels(['database'])
+                            );
                         }
                     }
                 }
             }
         });
 
+        // 3) posle transakcije — jedan mejl po reviewer-u
+        foreach ($createdByReviewer as $uid => $list) {
+            $reviewer = \App\Models\User::find($uid);
+            if ($reviewer && !empty($list)) {
+                $reviewer->notify(new \App\Notifications\SessionConfirmationsRequested($session, $list));
+            }
+        }
+
         return response()->json([
-            'message' => 'Sesija zatvorena i poslati zahtevi za potvrdu.',
+            'message' => 'Sesija zatvorena. Poslati zahtevi za potvrdu.',
             'created' => $created,
             'session' => $session->fresh(),
         ]);
+
     }
 
 
