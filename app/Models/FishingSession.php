@@ -50,6 +50,11 @@ class FishingSession extends Model
         return $this->hasMany(FishingCatch::class, 'session_id');
     }
 
+    public function reviews(): HasMany
+    {
+        return $this->hasMany(SessionReview::class, 'session_id');
+    }
+
     /* Scopes */
     public function scopeOpen($q)
     {

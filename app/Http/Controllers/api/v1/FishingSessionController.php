@@ -5,8 +5,10 @@ use App\Http\Controllers\Controller;
 use App\Models\CatchConfirmation;
 use App\Models\FishingCatch;
 use App\Models\FishingSession;
+use App\Models\SessionReview;
 use App\Models\User;
 use App\Notifications\CatchConfirmationRequested;
+use App\Notifications\SessionConfirmationsRequested;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -121,6 +123,13 @@ class FishingSessionController extends Controller
         }
         if ($include->contains('event')) {
             $with[] = 'event:id,title,start_at';
+        }
+
+        if ($include->contains('reviews.reviewer')) {
+            $with['reviews'] = fn($qq) => $qq->with(['reviewer:id,name', 'reviewer.profile:id,user_id,display_name,avatar_path']);
+        }
+        elseif ($include->contains('reviews')) {
+            $with[] = 'reviews';
         }
 
         $session->load(array_merge($base, $with));
@@ -270,10 +279,6 @@ class FishingSessionController extends Controller
             }
         }
 
-        // na vrhu metode
-        $created = 0;
-        $createdByReviewer = []; // [uid => array<array minimalnih podataka o catchu>]
-
         \DB::transaction(function() use ($session, $data, &$created, &$createdByReviewer) {
             // 1) zatvori sesiju
             $session->update([
@@ -282,43 +287,31 @@ class FishingSessionController extends Controller
             ]);
 
             // 2) svi ulovi iz sesije
-            $catches = \App\Models\FishingCatch::query()
-                ->where('session_id', $session->id)
-                ->get();
-
-            foreach ($catches as $catch) {
-                // pređi ulov u pending
-                if ($catch->status !== 'pending') {
-                    $catch->update(['status' => 'pending']);
+            FishingCatch::where('session_id', $session->id)->update(['status' => 'pending']);
+            // nominacije na nivou sesije
+            $createdByReviewer = [];
+            foreach ($data['reviewer_ids'] as $uid) {
+                $rev = SessionReview::firstOrCreate(
+                    ['session_id' => $session->id, 'reviewer_id' => $uid],
+                    ['status' => 'pending']
+                );
+                if ($rev->wasRecentlyCreated) {
+                    // pripremi listu ulova za email preview
+                    $createdByReviewer[$uid] = FishingCatch::where('session_id',$session->id)
+                        ->get(['id','species','species_name','count','total_weight_kg','caught_at'])
+                        ->map(fn($c)=>[
+                            'id'=>$c->id,
+                            'species'=>$c->species_label ?? $c->species ?? $c->species_name ?? '-',
+                            'count'=>$c->count,
+                            'total_weight_kg'=>$c->total_weight_kg,
+                            'caught_at'=>$c->caught_at,
+                        ])->all();
                 }
-
-                foreach ($data['reviewer_ids'] as $uid) {
-                    $conf = \App\Models\CatchConfirmation::firstOrCreate(
-                        ['catch_id' => $catch->id, 'confirmed_by' => $uid],
-                        ['status' => 'pending']
-                    );
-                    if ($conf->wasRecentlyCreated) {
-                        $created++;
-                        // prikupljamo za agregirani mejl
-                        $createdByReviewer[$uid][] = [
-                            'id' => $catch->id,
-                            'species' => $catch->species_label ?? $catch->species ?? $catch->species_name ?? '-',
-                            'count' => $catch->count,
-                            'total_weight_kg' => $catch->total_weight_kg,
-                            'caught_at' => $catch->caught_at,
-                        ];
-
-                        // (opciono) per-catch **database** notifikacija, bez mejla
-                        $reviewer = \App\Models\User::find($uid);
-                        if ($reviewer) {
-                            $reviewer->notify(
-                                (new CatchConfirmationRequested($catch, $session))
-                                    ->onQueue('notifications') // po želji
-                                    // osiguraj da ova notifikacija **ne** šalje mail, samo 'database'
-                                    ->setChannels(['database'])
-                            );
-                        }
-                    }
+            }
+            // nakon transakcije: jedan mail po reviewer-u
+            foreach ($createdByReviewer as $uid => $items) {
+                if ($user = User::find($uid)) {
+                    $user->notify(new SessionConfirmationsRequested($session, $items));
                 }
             }
         });

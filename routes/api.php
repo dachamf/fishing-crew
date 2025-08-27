@@ -15,6 +15,7 @@ use App\Http\Controllers\api\v1\FishingSessionController;
 use App\Http\Controllers\api\v1\GroupsController;
 use App\Http\Controllers\api\v1\ProfileController;
 use App\Http\Controllers\api\v1\SessionCatchController;
+use App\Http\Controllers\api\v1\SessionReviewController;
 use App\Http\Controllers\api\v1\SpeciesController;
 use App\Http\Controllers\Auth\MeController;
 use Illuminate\Http\Request;
@@ -87,6 +88,9 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
         Route::post('sessions/{session}/catches/stack', [SessionCatchController::class, 'upsert']);
 
         Route::post('/v1/sessions/{session}/close-and-nominate', [FishingSessionController::class, 'closeAndNominate']);
+
+        Route::post('/v1/sessions/{session}/review', [SessionReviewController::class,'review']);
+        Route::get('/v1/sessions/assigned-to-me', [SessionReviewController::class,'assignedToMe']);
 
 
         Route::get('profile/me', [ProfileController::class, 'me']);

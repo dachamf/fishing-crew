@@ -74,7 +74,20 @@ export type UserLite = {
   name: string;
   display_name?: string;
   avatar_url?: string;
-  profile?: UserProfileLite;
+  profile?: UserProfileLite | null;
+};
+
+export type SessionReviewStatus = "pending" | "approved" | "rejected";
+
+export type SessionReview = {
+  id: ID;
+  session_id: ID;
+  reviewer_id: ID;
+  status: SessionReviewStatus;
+  note?: string | null;
+  reviewer?: UserLite;
+  created_at?: string;
+  updated_at?: string;
 };
 
 export type GroupLite = {
@@ -198,7 +211,8 @@ export type SessionListParams = {
 };
 
 export type FishingSession = {
-  catches?: FishingCatch[]; // kada se traži include=catches(.user)
+  catches?: FishingCatch[];
+  reviews?: SessionReview[];
 } & FishingSessionLite;
 
 /** /v1/me payload */
