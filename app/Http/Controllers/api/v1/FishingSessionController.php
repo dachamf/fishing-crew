@@ -3,13 +3,14 @@ namespace App\Http\Controllers\api\v1;
 
 use App\Http\Controllers\Controller;
 use App\Models\CatchConfirmation;
+use App\Models\FishingCatch;
 use App\Models\FishingSession;
 use App\Models\User;
+use App\Notifications\CatchConfirmationRequested;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
-use Carbon\Carbon;
 
 class FishingSessionController extends Controller
 {
@@ -276,7 +277,7 @@ class FishingSessionController extends Controller
             ]);
 
             // 2) za svaki ulov iz sesije, kreiraj pending potvrde
-            $catches = \App\Models\FishingCatch::query()
+            $catches = FishingCatch::query()
                 ->where('session_id', $session->id)
                 ->get(['id']);
 
@@ -287,7 +288,15 @@ class FishingSessionController extends Controller
                         ['catch_id' => $catch->id, 'confirmed_by' => $uid],
                         ['status' => 'pending']
                     );
-                    if ($conf->wasRecentlyCreated) $created++;
+                    if ($conf->wasRecentlyCreated) {
+                        $created++;
+
+                        //Notify reviewer
+                        $reviewer = User::find($uid);
+                        if($reviewer) {
+                            $reviewer->notify(new CatchConfirmationRequested($catch, $session));
+                        }
+                    }
                 }
             }
         });

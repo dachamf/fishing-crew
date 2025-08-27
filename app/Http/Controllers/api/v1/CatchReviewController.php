@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\FishingCatch;
 use App\Models\CatchConfirmation;
 use App\Models\User;
+use App\Notifications\CatchChangeRequested;
+use App\Notifications\CatchConfirmationUpdated;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -76,9 +78,19 @@ class CatchReviewController extends Controller
 
         $conf->update(['status'=>$data['status'],'note'=>$data['note'] ?? null]);
 
-        // auto-approve samo kad su sve potvrde 'approved'
-        if ($catch->confirmations()->where('status','!=','approved')->count() === 0) {
+        $statuses = $catch->confirmations()->pluck('status');  // Collection<string>
+        if ($statuses->contains('rejected')) {
+            $catch->update(['status' => 'rejected']);
+        } elseif ($statuses->count() > 0 && $statuses->every(fn($s) => $s === 'approved')) {
             $catch->update(['status' => 'approved']);
+        } else {
+            $catch->update(['status' => 'pending']);
+        }
+
+        // obavesti vlasnika ulova
+        $owner = $catch->user()->first();
+        if ($owner) {
+            $owner->notify(new CatchConfirmationUpdated($catch, $conf));
         }
 
         return response()->json($catch->fresh()->load('confirmations'));
@@ -100,7 +112,10 @@ class CatchReviewController extends Controller
             'note' => $data['note'] ?? null,
         ]);
 
-        // (po želji) notifikacija vlasniku
+        $owner = $catch->user()->first();
+        if ($owner) {
+            $owner->notify(new CatchChangeRequested($catch, $conf));
+        }
 
         return response()->json($catch->fresh()->load('confirmations'));
     }
