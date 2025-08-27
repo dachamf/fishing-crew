@@ -219,3 +219,7 @@ export type GroupMember = {
     display_name?: string;
   };
 };
+
+export type CloseAndNominatePayload = {
+  reviewer_ids: number[];
+};

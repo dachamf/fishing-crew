@@ -1,22 +1,13 @@
 <script lang="ts" setup>
 import type { FishingSession } from "~/types/api";
 
-defineOptions({ name: "SessionDetailPage" });
+defineOptions({
+  name: "SessionDetailPage",
+});
 
 const route = useRoute();
 const id = Number(route.params.id);
 const { $api } = useNuxtApp() as any;
-
-const { data: me } = useAsyncData(
-  "me",
-  async () => {
-    const res = await $api.get("/v1/me");
-    return res.data;
-  },
-  { server: false, immediate: true },
-);
-
-const myId = computed(() => me.value?.id);
 
 const { data, pending, error, refresh } = await useAsyncData<FishingSession>(
   () => `session:${id}`,
@@ -30,6 +21,7 @@ const { data, pending, error, refresh } = await useAsyncData<FishingSession>(
 
 const closeOpen = ref(false);
 function onClosed() {
+  closeOpen.value = false;
   refresh();
 }
 </script>
@@ -70,16 +62,17 @@ function onClosed() {
         <div class="flex items-center gap-2">
           <span v-if="data?.status" class="badge badge-outline">{{ data.status }}</span>
           <button
-            v-if="data?.user?.id === myId && data?.status === 'open'"
-            class="btn btn-sm btn-outline btn-error"
+            v-if="data?.status === 'open'"
+            class="btn btn-error btn-sm"
             @click="closeOpen = true"
           >
             Zatvori sesiju
           </button>
+
           <SessionCloseDialog
-            v-if="data?.id && data?.group?.id"
+            v-if="data?.id"
             v-model="closeOpen"
-            :group-id="data.group.id"
+            :group-id="data.group?.id"
             :session-id="data.id"
             @closed="onClosed"
           />

@@ -62,8 +62,10 @@ async function submit() {
     await $api.post(`/v1/sessions/${props.sessionId}/close-and-nominate`, {
       reviewer_ids: selected.value.filter(uid => uid !== myId),
     });
+    toast.success("Sesija zatvorena i poslatizahtevi");
     open.value = false;
     emit("closed");
+    emit("update:modelValue", false);
   }
   catch (e: any) {
     toast.error(toErrorMessage(e?.response?.data?.message) || "Greška pri zatvaranju sesije");

@@ -167,6 +167,18 @@ class FishingSessionController extends Controller
         $session->status  = 'open';
         $session->started_at = $data['started_at'] ?? now();
         $session->season_year = $data['season_year'] ?? (int)($session->started_at?->format('Y'));
+
+        $hasOpen = FishingSession::query()
+            ->where('user_id', $r->user()->id)
+            ->where('status', 'open')
+            ->exists();
+
+        if ($hasOpen) {
+            return response()->json([
+                'message' => 'Već imaš otvorenu sesiju. Zatvori je pre nove.'
+            ], 422);
+        }
+
         $session->save();
 
         return response()->json($session, 201);
@@ -232,80 +244,61 @@ class FishingSessionController extends Controller
      * @return JsonResponse
      * @throws \Throwable
      */
-    public function closeAndNominate(Request $r, FishingSession $session)
-    {
-        $this->authorize('update', $session); // vlasnik sesije
+    public function closeAndNominate(Request $r, FishingSession $session) {
+        $this->authorize('update', $session); // owner/mod prema tvojoj policy
 
         $data = $r->validate([
             'reviewer_ids'   => ['required','array','min:1'],
             'reviewer_ids.*' => ['integer','exists:users,id'],
         ]);
 
-        // izbaci sebe, zadrži samo članove iste grupe (ako grupu ima)
-        $ids = collect($data['reviewer_ids'])
-            ->map(fn($i)=>(int)$i)->unique()
-            ->reject(fn($uid)=>$uid === (int)$r->user()->id);
-
+        // (opciono) osiguraj da su svi u istoj grupi:
         if ($session->group_id) {
-            $ids = User::whereIn('id', $ids->all())
-                ->whereHas('groups', fn($g)=>$g->where('groups.id',$session->group_id))
-                ->pluck('id');
+            $memberIds = \DB::table('group_user')
+                ->where('group_id', $session->group_id)
+                ->pluck('user_id')->all();
+
+            $invalid = array_diff($data['reviewer_ids'], $memberIds);
+            if (!empty($invalid)) {
+                return response()->json([
+                    'message' => 'Neki izabrani korisnici nisu članovi grupe.'
+                ], 422);
+            }
         }
 
-        DB::transaction(function() use ($session, $ids) {
-            // 1) close
-            if ($session->status !== 'closed') {
-                $session->update([
-                    'status'   => 'closed',
-                    'ended_at' => $session->ended_at ?? now(),
-                ]);
-            }
+        $created = 0;
 
-            // 2) nominacije za sve ulove **vlasnika sesije** u toj sesiji
-            $catches = $session->catches()
-                ->where('user_id', $session->user_id)
-                ->pluck('id');
+        DB::transaction(function() use ($session, $data, &$created) {
+            // 1) zatvori sesiju
+            $session->update([
+                'status'   => 'closed',
+                'ended_at' => $session->ended_at ?? now(),
+            ]);
 
-            if ($catches->isEmpty() || $ids->isEmpty()) return;
+            // 2) za svaki ulov iz sesije, kreiraj pending potvrde
+            $catches = \App\Models\FishingCatch::query()
+                ->where('session_id', $session->id)
+                ->get(['id']);
 
-            // napravi pending za svaku (catch_id × reviewer_id), preskači postojeće
-            $existing = CatchConfirmation::query()
-                ->whereIn('catch_id', $catches)
-                ->whereIn('confirmed_by', $ids)
-                ->get(['catch_id','confirmed_by'])
-                ->map(fn($cc)=>$cc->catch_id.'|'.$cc->confirmed_by)
-                ->all();
-
-            $payload = [];
-            foreach ($catches as $cid) {
-                foreach ($ids as $uid) {
-                    $key = $cid.'|'.$uid;
-                    if (!in_array($key, $existing, true)) {
-                        $payload[] = [
-                            'catch_id'     => $cid,
-                            'confirmed_by' => $uid,
-                            'status'       => 'pending',
-                            'created_at'   => now(),
-                            'updated_at'   => now(),
-                        ];
-                    }
+            foreach ($catches as $catch) {
+                foreach ($data['reviewer_ids'] as $uid) {
+                    // firstOrCreate zbog unique(catch_id, confirmed_by)
+                    $conf = CatchConfirmation::firstOrCreate(
+                        ['catch_id' => $catch->id, 'confirmed_by' => $uid],
+                        ['status' => 'pending']
+                    );
+                    if ($conf->wasRecentlyCreated) $created++;
                 }
-            }
-            if ($payload) {
-                CatchConfirmation::insert($payload);
             }
         });
 
-        // vrati sesiju sa ulovima i potvrđivačima po želji
-        $session->load([
-            'catches' => fn($q)=>$q->with(['confirmations','user:id,name'])
-        ]);
-
         return response()->json([
             'message' => 'Sesija zatvorena i poslati zahtevi za potvrdu.',
-            'session' => $session,
+            'created' => $created,
+            'session' => $session->fresh(),
         ]);
     }
+
 
 
     /**
