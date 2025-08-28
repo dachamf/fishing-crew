@@ -5,6 +5,7 @@ use App\Http\Controllers\api\Auth\LoginController;
 use App\Http\Controllers\api\Auth\LogoutController;
 use App\Http\Controllers\api\Auth\RegisterController;
 use App\Http\Controllers\api\v1\AccountController;
+use App\Http\Controllers\api\v1\ActivityController;
 use App\Http\Controllers\api\v1\CatchesConfirmationController;
 use App\Http\Controllers\api\v1\CatchesController;
 use App\Http\Controllers\api\v1\CatchPhotoController;
@@ -51,11 +52,12 @@ Route::middleware(['auth:sanctum', 'verified'])->prefix('v1')->group(function ()
 
     Route::get('events/{event}', [EventsController::class, 'show']);
     Route::patch('events/{event}', [EventsController::class, 'update']);
-    Route::post('events/{event}/rsvp', [EventsController::class, 'rsvp']);
+    Route::post('events/{event}/rsvp', [EventsController::class, 'rsvp'])->middleware('throttle:20,1');
     Route::post('events/{event}/checkin', [EventsController::class, 'checkin']);
     Route::post('events/{event}/postpone/propose', [EventsController::class, 'proposePostpone']);
     Route::post('events/{event}/postpone/vote', [EventsController::class, 'votePostpone']);
 
+    Route::get('/events', [EventsController::class, 'index']);
     Route::get('/events/{event}/attendees', [EventAttendeeController::class, 'index']);
     Route::post('/events/{event}/attendees', [EventAttendeeController::class, 'store']);
     Route::patch('/events/{event}/attendees', [EventAttendeeController::class, 'update']);
@@ -109,6 +111,8 @@ Route::middleware(['auth:sanctum', 'verified'])->prefix('v1')->group(function ()
     Route::get('users/{user}/profile', [ProfileController::class, 'showPublic']); // po želji public bez auth
 
     Route::get('/leaderboard', [LeaderboardController::class, 'index']);
+
+    Route::get('/activity', [ActivityController::class, 'index']);
 
     Route::get('/user', function (Request $request) {
         return $request->user();

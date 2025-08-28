@@ -264,3 +264,35 @@ export type LeaderboardResponse = {
     order_by: string;
   };
 };
+
+export type FeedItem = {
+  type: string;
+  id: number;
+  at: string;
+  title: string;
+  by?: { id: number };
+  url: string;
+};
+
+export type Rsvp = "yes" | "undecided" | "no";
+export type EventItem = {
+  id: number;
+  title: string;
+  start_at: string;
+  my_rsvp?: { status: Rsvp } | null;
+};
+
+export type Row = {
+  user_id: number;
+  total_weight_kg: number;
+  catches_count: number;
+  biggest_single_kg: number;
+  user?: UserLite;
+};
+export type Biggest = {
+  id: number;
+  user_id: number;
+  session_id: number;
+  weight_kg: number;
+  user?: UserLite;
+};

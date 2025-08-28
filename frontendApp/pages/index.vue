@@ -387,5 +387,27 @@ function onCloseSession() {
         }
       "
     />
+
+    <!-- Phase 2 blok -->
+    <div class="grid gap-6 md:grid-cols-2">
+      <Events-UpcomingEventsCard
+        :group-id="defaultGroupId || undefined"
+        title="Predstojeći događaji"
+        view-all-to="/events"
+      />
+      <Activity-RecentActivityCard
+        :group-id="defaultGroupId || undefined"
+        title="Nedavna aktivnost"
+        view-all-to="/activity"
+      />
+      <Leaderboard-MiniLeaderboardCard
+        v-if="defaultGroupId"
+        :group-id="defaultGroupId"
+        :year="currentYear"
+        :limit="5"
+        title="Mini leaderboard"
+        view-all-to="/leaderboard"
+      />
+    </div>
   </div>
 </template>

@@ -4,81 +4,57 @@ namespace App\Http\Controllers\api\v1;
 
 use App\Http\Controllers\Controller;
 use App\Models\FishingCatch;
-use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class LeaderboardController extends Controller
 {
+    // GET /v1/leaderboard?group_id=G&year=Y&limit=5&include=user
     public function index(Request $r)
     {
-        $groupId = (int) $r->query('group_id');
-        $season  = (int) $r->query('season_year', now()->year);
+        $gid   = (int) $r->query('group_id');
+        $year  = (int) $r->query('year', now()->year);
+        $limit = min(50, (int) $r->query('limit', 5));
 
-        // 1) Bazni agregat po useru
-        $base = FishingCatch::query()
-            ->where('group_id', $groupId)
-            ->where('season_year', $season)
-            ->where('status', 'approved')
-            ->selectRaw('
-                user_id,
-                COUNT(*)                         AS catches_total,
-                COALESCE(SUM(`count`), 0)        AS pieces_total,
-                COALESCE(SUM(total_weight_kg),0) AS weight_total,
-                COALESCE(MAX(biggest_single_kg),0) AS biggest
-            ')
-            ->groupBy('user_id');
-
-        // 2) Spoljašnji upit nad subquery-jem + join na users/profiles
-        $q = DB::query()->fromSub($base, 'L')
-            ->join('users', 'users.id', '=', 'L.user_id')
-            ->leftJoin('profiles', 'profiles.user_id', '=', 'users.id')
+        // metrika: total_weight + broj ulova + biggest_single
+        $q = FishingCatch::query()
             ->select([
-                'L.user_id',
-                'L.catches_total',
-                'L.pieces_total',
-                'L.weight_total',
-                'L.biggest',
-                'users.id as u_id',
-                'users.name',
-                DB::raw('profiles.display_name'),
-                DB::raw('profiles.avatar_path'),
-            ]);
+                'fishing_catches.user_id',
+                DB::raw('SUM(COALESCE(fishing_catches.total_weight_kg, fishing_catches.weight_kg)) AS total_weight_kg'),
+                DB::raw('COUNT(*) AS catches_count'),
+                DB::raw('MAX(COALESCE(fishing_catches.weight_kg, 0)) AS biggest_single_kg'),
+            ])
+            ->join('fishing_sessions as s', 's.id', '=', 'fishing_catches.session_id')
+            ->when($gid, fn($qq) => $qq->where('s.group_id', $gid))
+            ->whereYear('s.started_at', $year)
+            ->groupBy('fishing_catches.user_id')
+            ->orderByDesc('total_weight_kg');
 
-        // sorting (dozvoli samo poznate kolone)
-        $sort = $r->query('sort', 'weight_total');
-        $dir  = strtolower($r->query('dir', 'desc')) === 'asc' ? 'asc' : 'desc';
-        $allowedSorts = ['weight_total', 'catches_total', 'pieces_total', 'biggest'];
-        if (!in_array($sort, $allowedSorts, true)) {
-            $sort = 'weight_total';
+        // ONLY_FULL_GROUP_BY safe: selektujemo i grupišemo striktno po navedenim poljima
+
+        $rows = $q->limit($limit)->get();
+
+        if (str_contains((string)$r->query('include',''), 'user')) {
+            $rows->load(['user:id,name', 'user.profile:id,user_id,display_name,avatar_path']);
         }
 
-        $q->orderBy($sort, $dir)->orderBy('L.user_id');
+        // biggest overall (po pojedinačnom ulovu)
+        $biggest = FishingCatch::query()
+            ->select(['id','user_id','session_id',
+                DB::raw('COALESCE(weight_kg, total_weight_kg) as weight_kg')])
+            ->join('fishing_sessions as s', 's.id','=','fishing_catches.session_id')
+            ->when($gid, fn($qq) => $qq->where('s.group_id', $gid))
+            ->whereYear('s.started_at', $year)
+            ->orderByDesc(DB::raw('COALESCE(weight_kg, total_weight_kg)'))
+            ->first();
 
-        $perPage = min(100, (int) $r->query('per_page', 50));
-        $page    = $q->paginate($perPage);
-
-        // 3) Upakuj user objekat u svaki red radi FE očekivanja
-        $page->getCollection()->transform(function ($row) {
-            $row->user = [
-                'id'           => (int) $row->u_id,
-                'name'         => $row->name,
-                'display_name' => $row->display_name ?? null,
-                // prilagodi ako praviš full URL od avatar_path
-                'avatar_url'   => $row->avatar_path ? asset('storage/'.$row->avatar_path) : null,
-            ];
-            unset($row->u_id, $row->name, $row->display_name, $row->avatar_path);
-            return $row;
-        });
+        if ($biggest) {
+            $biggest->load(['user:id,name', 'user.profile:id,user_id,display_name,avatar_path']);
+        }
 
         return response()->json([
-            'items' => $page->items(),
-            'meta'  => [
-                'current_page' => $page->currentPage(),
-                'last_page'    => $page->lastPage(),
-                'per_page'     => $page->perPage(),
-                'total'        => $page->total(),
-            ],
+            'top'     => $rows,
+            'biggest' => $biggest,
         ]);
     }
 }

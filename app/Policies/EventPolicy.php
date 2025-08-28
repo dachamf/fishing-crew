@@ -20,10 +20,14 @@ class EventPolicy
         return $this->createInGroup($user, $group);
     }
 
+    public function view(User $user, Event $event): bool {
+        return !$event->group_id || $user->groups()->where('groups.id', $event->group_id)->exists();
+    }
+
     public function rsvp(User $user, Event $event): bool
     {
         // samo članovi grupe mogu RSVP
-        return $event->group->members()->where('users.id', $user->id)->exists();
+        return $this->view($user, $event);
     }
 
     public function update(User $user, Event $event): bool

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreEventRequest;
 use App\Http\Resources\EventResource;
 use App\Models\Event;
+use App\Models\EventRsvp;
 use App\Models\Group;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
@@ -14,17 +15,46 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class EventsController extends Controller
 {
+
     /**
-     * Retrieve the latest events of a given group, ordered by the start date,
-     * and paginate the results.
-     *
-     * @param  Group  $group  The group instance whose events are being retrieved.
-     * @return AnonymousResourceCollection Paginated list of the group's events.
+     * @param Request $r
+     * @return JsonResponse
      */
-    public function index(Group $group)
+    public function index(Request $r, ?Group $group = null)
     {
-        $events =  $group->events()->latest('start_at')->paginate(20);
-        return EventResource::collection($events);
+        $q = Event::query()->with(['group:id,name']);
+
+        // scope po grupi (path param ima prioritet)
+        if ($group) {
+            $q->where('group_id', $group->id);
+        } elseif ($r->filled('group_id')) {
+            $q->where('group_id', (int)$r->group_id);
+        }
+
+        // from=today | ISO date
+        $from = $r->query('from');
+        if ($from === 'today') {
+            $q->where('start_at', '>=', now()->startOfDay());
+        } elseif ($from) {
+            $q->where('start_at', '>=', \Carbon\Carbon::parse($from));
+        }
+
+        // include=my_rsvp
+        $include = collect(explode(',', (string)$r->query('include','')))
+            ->map(fn($i)=>trim($i))->filter()->values();
+        if ($include->contains('my_rsvp')) {
+            $q->with(['rsvps' => fn($qq) => $qq->where('user_id', $r->user()->id)]);
+        }
+
+        $events = $q->orderBy('start_at')->limit(min(50, (int)$r->query('limit', 3)))->get();
+
+        // Normalizuj my_rsvp
+        $events->each(function($e) {
+            $e->setRelation('my_rsvp', optional($e->rsvps)->first());
+            unset($e->rsvps);
+        });
+
+        return response()->json($events);
     }
 
     /**
@@ -86,22 +116,30 @@ class EventsController extends Controller
      * @param  Event  $event  The event for which the RSVP is being recorded.
      * @return JsonResponse A response indicating no content.
      */
-    public function rsvp(Request $req, Event $event)
+    public function rsvp(Request $r, Event $event, ?Group $group = null)
     {
-        $data = $req->validate([
-            'rsvp' => 'required|in:yes,no,undecided',
-            'reason' => 'nullable|string',
+        // Ako je pozvano kroz grupnu rutu, validiraj pripadnost
+        if ($group && (int)$event->group_id !== (int)$group->id) {
+            abort(404);
+        }
+
+        $this->authorize('rsvp', $event);
+
+        $data = $r->validate([
+            'status' => ['required', Rule::in(['going','maybe','declined'])],
         ]);
 
-        $userId = $req->user()->id;
+        $rsvp = EventRsvp::updateOrCreate(
+            ['event_id' => $event->id, 'user_id' => $r->user()->id],
+            ['status' => $data['status']]
+        );
 
-        // Upsert nad pivot tabelom event_attendees
-        $event->attendees()->syncWithoutDetaching([
-            $userId => $data,
-        ]);
+        $counts = EventRsvp::selectRaw('status, COUNT(*) c')
+            ->where('event_id', $event->id)
+            ->groupBy('status')
+            ->pluck('c','status');
 
-        // Ako >50% "no" -> kreirati subject za glasanje
-        return response()->json(['ok'=>true]);
+        return response()->json(['my_rsvp' => $rsvp, 'counts' => $counts]);
     }
 
     /**
