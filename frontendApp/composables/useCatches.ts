@@ -1,19 +1,4 @@
-type CatchItem = {
-  id: number;
-  session_id: number | null;
-  group_id: number;
-  user_id: number;
-  species?: { id: number; name_sr: string; name_latin?: string };
-  species_id?: number | null;
-  count: number;
-  total_weight_kg?: number | null;
-  biggest_single_kg?: number | null;
-  caught_at?: string | null;
-  note?: string | null;
-  status: "pending" | "approved" | "rejected";
-  photos?: string[]; // putanje/URL-ovi sa BE
-  session?: any;
-};
+import type { CatchItem } from "~/types/api";
 
 export function useCatchList(params?: () => Record<string, any>) {
   const { $api } = useNuxtApp() as any;

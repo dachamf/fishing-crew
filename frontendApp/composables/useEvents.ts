@@ -3,11 +3,12 @@ import type { EventItem, Rsvp } from "~/types/api";
 export function useEvents() {
   const items = ref<EventItem[]>([]);
   const loading = ref(false);
+  const { $api } = useNuxtApp() as any;
 
   async function fetchUpcoming(limit = 3, groupId?: number) {
     loading.value = true;
     try {
-      const { data } = await useFetch<EventItem[]>("/api/v1/events", {
+      const { data } = await $api.get("/v1/events", {
         query: { from: "today", limit, include: "my_rsvp", group_id: groupId },
         credentials: "include",
       });
@@ -26,7 +27,7 @@ export function useEvents() {
       ev.my_rsvp = { status }; // optimistic
 
     try {
-      const res = await $fetch<{ my_rsvp?: { status: Rsvp } }>(`/api/v1/events/${eventId}/rsvp`, {
+      const res = await $api.post(`/v1/events/${eventId}/rsvp`, {
         method: "POST",
         body: { status },
         credentials: "include",
