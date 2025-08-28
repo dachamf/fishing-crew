@@ -65,7 +65,7 @@ export function useAuth() {
 
     // BITNO: koristi endpoint koji stvarno imaš. Ako imaš /auth/me – koristi njega.
     // Ako koristiš /user (kao u kodu koji si poslao), ostavi ovako:
-    const { data } = await $api.get("/user", cfg);
+    const { data } = await $api.get("/v1/user", cfg);
     user.value = data;
     return data;
   }
