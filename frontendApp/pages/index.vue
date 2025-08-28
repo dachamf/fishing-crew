@@ -82,9 +82,7 @@ async function onStartOrResume() {
     return;
   }
   try {
-    const s = await startNew(defaultGroupId.value, {
-      start_at: new Date().toISOString(),
-    });
+    const s = await startNew(defaultGroupId.value);
     await router.push(`/sessions/${s.id}`);
   }
   catch (e: any) {
