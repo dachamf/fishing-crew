@@ -18,6 +18,7 @@ class MeController extends Controller
             'id' => $user->id,
             'name' => $user->name,
             'email'=> $user->email,
+            'profile' => $user->profile,
             'groups' => $user->groups->map(fn ($g) => [
                 'id' => $g->id,
                 'name' => $g->name,

@@ -220,6 +220,7 @@ export type Me = {
   id: ID;
   name: string;
   email: string;
+  profile?: UserProfileLite;
   groups: GroupLite[];
 };
 
