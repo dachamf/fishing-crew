@@ -33,83 +33,85 @@ Route::prefix('auth')->group(function () {
         ->name('verification.verify');
 
     Route::post('/email/verification-notification', [EmailVerificationController::class, 'send'])
-        ->middleware(['auth:sanctum','throttle:6,1']);
+        ->middleware(['auth:sanctum', 'throttle:6,1']);
 });
 
-Route::middleware(['auth:sanctum', 'verified'])->group(function () {
-    Route::prefix('v1')->group(function () {
+Route::middleware(['auth:sanctum', 'verified'])->prefix('v1')->group(function () {
 
-        Route::middleware('auth:sanctum')->group(function () {
-            Route::get('/me', MeController::class);
-        });
-
-        Route::apiResource('groups', GroupsController::class);
-        Route::get('groups/{group}/members', [GroupsController::class, 'members']);
-        Route::post('groups/{group}/invite', [GroupsController::class, 'invite']);
-
-        Route::get('groups/{group}/events', [EventsController::class, 'index']);
-        Route::post('groups/{group}/events', [EventsController::class, 'store']);
-
-        Route::get('events/{event}', [EventsController::class, 'show']);
-        Route::patch('events/{event}', [EventsController::class, 'update']);
-        Route::post('events/{event}/rsvp', [EventsController::class, 'rsvp']);
-        Route::post('events/{event}/checkin', [EventsController::class, 'checkin']);
-        Route::post('events/{event}/postpone/propose', [EventsController::class, 'proposePostpone']);
-        Route::post('events/{event}/postpone/vote', [EventsController::class, 'votePostpone']);
-
-        Route::get   ('/events/{event}/attendees', [EventAttendeeController::class, 'index']);
-        Route::post  ('/events/{event}/attendees', [EventAttendeeController::class, 'store']);
-        Route::patch ('/events/{event}/attendees', [EventAttendeeController::class, 'update']);
-        Route::delete('/events/{event}/attendees', [EventAttendeeController::class, 'destroy']);
-
-        Route::get('/species', [SpeciesController::class, 'index']);
-
-        Route::get('catches/to-review',            [CatchReviewController::class, 'assignedToMe']);
-        Route::get('catches',        [CatchesController::class, 'index']);   // samo moj ulov po defaultu
-        Route::get('catches/{id}',   [CatchesController::class, 'show']);
-        Route::post('catches',       [CatchesController::class, 'store']);
-        Route::patch('catches/{id}', [CatchesController::class, 'update']);
-        Route::delete('catches/{id}',[CatchesController::class, 'destroy']);
-
-        // nominacije & review flow
-
-        Route::post('catches/{id}/reviewers', [CatchReviewController::class, 'nominate']);
-        Route::post('catches/{id}/review',     [CatchReviewController::class, 'confirm']);
-        Route::post('catches/{id}/review/request-change', [CatchReviewController::class, 'requestChange']);
-        Route::get('review/assigned',          [CatchReviewController::class, 'assignedToMe']);
-
-        // fotke (max 3)
-        Route::post('catches/{id}/photos',                 [CatchPhotoController::class, 'store']);   // multipart
-        Route::delete('catches/{id}/photos/{photoId}',     [CatchPhotoController::class, 'destroy']);
-
-
-        Route::post('/catches/{catch}/confirm', [CatchesConfirmationController::class, 'store']);
-
-        Route::get('/sessions/assigned-to-me', [SessionReviewController::class,'assignedToMe']);
-        Route::get('/stats/season', [StatsController::class, 'mySeason']);
-        Route::apiResource('sessions', FishingSessionController::class)->only(['index','show','store','update','destroy']);
-        Route::post('sessions/{session}/close', [FishingSessionController::class, 'close']);
-        Route::post('sessions/{session}/catches/stack', [SessionCatchController::class, 'upsert']);
-
-        Route::post('/sessions/{session}/close-and-nominate', [FishingSessionController::class, 'closeAndNominate']);
-
-        Route::post('/sessions/{session}/review', [SessionReviewController::class,'review']);
-
-
-        Route::get('profile/me', [ProfileController::class, 'me']);
-        Route::patch('profile', [ProfileController::class, 'update']);
-        Route::post('profile/avatar', [ProfileController::class, 'uploadAvatar']);
-        Route::delete('profile/avatar', [ProfileController::class, 'deleteAvatar']);
-
-        Route::patch('profile/password', [AccountController::class, 'changePassword']);
-        Route::delete('account', [AccountController::class, 'destroy']);
-
-        Route::get('users/{user}/profile', [ProfileController::class, 'showPublic']); // po želji public bez auth
-
-        Route::get('/leaderboard', [LeaderboardController::class, 'index']);
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::get('/me', MeController::class);
     });
+
+    Route::apiResource('groups', GroupsController::class);
+    Route::get('groups/{group}/members', [GroupsController::class, 'members']);
+    Route::post('groups/{group}/invite', [GroupsController::class, 'invite']);
+
+    Route::get('groups/{group}/events', [EventsController::class, 'index']);
+    Route::post('groups/{group}/events', [EventsController::class, 'store']);
+
+    Route::get('events/{event}', [EventsController::class, 'show']);
+    Route::patch('events/{event}', [EventsController::class, 'update']);
+    Route::post('events/{event}/rsvp', [EventsController::class, 'rsvp']);
+    Route::post('events/{event}/checkin', [EventsController::class, 'checkin']);
+    Route::post('events/{event}/postpone/propose', [EventsController::class, 'proposePostpone']);
+    Route::post('events/{event}/postpone/vote', [EventsController::class, 'votePostpone']);
+
+    Route::get('/events/{event}/attendees', [EventAttendeeController::class, 'index']);
+    Route::post('/events/{event}/attendees', [EventAttendeeController::class, 'store']);
+    Route::patch('/events/{event}/attendees', [EventAttendeeController::class, 'update']);
+    Route::delete('/events/{event}/attendees', [EventAttendeeController::class, 'destroy']);
+
+    Route::get('/species', [SpeciesController::class, 'index']);
+
+    Route::get('catches/to-review', [CatchReviewController::class, 'assignedToMe']);
+    Route::get('catches', [CatchesController::class, 'index']);   // samo moj ulov po defaultu
+    Route::get('catches/{id}', [CatchesController::class, 'show']);
+    Route::post('catches', [CatchesController::class, 'store']);
+    Route::patch('catches/{id}', [CatchesController::class, 'update']);
+    Route::delete('catches/{id}', [CatchesController::class, 'destroy']);
+
+    // nominacije & review flow
+
+    Route::post('catches/{id}/reviewers', [CatchReviewController::class, 'nominate']);
+    Route::post('catches/{id}/review', [CatchReviewController::class, 'confirm']);
+    Route::post('catches/{id}/review/request-change', [CatchReviewController::class, 'requestChange']);
+    Route::get('review/assigned', [CatchReviewController::class, 'assignedToMe']);
+
+    // fotke (max 3)
+    Route::post('catches/{id}/photos', [CatchPhotoController::class, 'store']);   // multipart
+    Route::delete('catches/{id}/photos/{photoId}', [CatchPhotoController::class, 'destroy']);
+
+
+    Route::post('/catches/{catch}/confirm', [CatchesConfirmationController::class, 'store']);
+
+    Route::get('/sessions/assigned-to-me', [SessionReviewController::class, 'assignedToMe']);
+    Route::get('/stats/season', [StatsController::class, 'mySeason']);
+    Route::apiResource('sessions', FishingSessionController::class)->only(['index', 'show', 'store', 'update', 'destroy']);
+    Route::post('sessions/{session}/close', [FishingSessionController::class, 'close']);
+    Route::post('sessions/{session}/catches/stack', [SessionCatchController::class, 'upsert']);
+
+    Route::post('/sessions/{session}/close-and-nominate', [FishingSessionController::class, 'closeAndNominate']);
+
+    Route::post('/sessions/{session}/review', [SessionReviewController::class, 'review']);
+    Route::post('/sessions/{session}/nominate', [SessionReviewController::class, 'nominate']);
+    Route::post('/sessions/{session}/confirm', [SessionReviewController::class, 'confirm']);
+    Route::post('/sessions/{session}/finalize', [SessionReviewController::class, 'finalize']);
+
+
+    Route::get('profile/me', [ProfileController::class, 'me']);
+    Route::patch('profile', [ProfileController::class, 'update']);
+    Route::post('profile/avatar', [ProfileController::class, 'uploadAvatar']);
+    Route::delete('profile/avatar', [ProfileController::class, 'deleteAvatar']);
+
+    Route::patch('profile/password', [AccountController::class, 'changePassword']);
+    Route::delete('account', [AccountController::class, 'destroy']);
+
+    Route::get('users/{user}/profile', [ProfileController::class, 'showPublic']); // po želji public bez auth
+
+    Route::get('/leaderboard', [LeaderboardController::class, 'index']);
 
     Route::get('/user', function (Request $request) {
         return $request->user();
     });
 });
+Route::post('/v1/sessions/{session}/confirm/{token}', [SessionReviewController::class, 'confirmByToken']);

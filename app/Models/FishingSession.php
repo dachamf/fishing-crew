@@ -99,4 +99,14 @@ class FishingSession extends Model
             ->map(fn($p) => ['id'=>$p->id, 'url'=>$p->url])
             ->all();
     }
+
+    public function confirmations() {
+        return $this->hasMany(SessionConfirmation::class, 'session_id');
+    }
+    public function pendingConfirmations() {
+        return $this->confirmations()->where('status','pending');
+    }
+    public function isFinal(): bool {
+        return !is_null($this->finalized_at) && !is_null($this->final_result);
+    }
 }

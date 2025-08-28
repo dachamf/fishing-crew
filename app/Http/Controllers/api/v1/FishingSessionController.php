@@ -53,6 +53,9 @@ class FishingSessionController extends Controller
         $include = collect(explode(',', (string)$r->query('include','')))
             ->map(fn($i)=>trim($i))->filter()->values();
 
+        $allowed = ['catches','catches.user','event','photos'];
+        $include = $include->filter(fn($rel) => in_array($rel, $allowed))->values();
+
         $with = [];
 
         // photos (limit 3)
@@ -102,11 +105,12 @@ class FishingSessionController extends Controller
     public function show(FishingSession $session) {
         $this->authorize('view', $session);
 
-        // NEW: podrži iste include-ove i ovde
         $include = collect(explode(',', (string) request()->query('include', '')))
             ->map(fn ($i) => trim($i))
-            ->filter()
-            ->values();
+            ->filter();
+
+        $allowed = ['catches','catches.user','event','photos','reviews','reviews.reviewer'];
+        $include = $include->filter(fn($rel) => in_array($rel, $allowed))->values();
 
         $base = [
             'user:id,name',
