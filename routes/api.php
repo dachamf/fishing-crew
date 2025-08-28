@@ -18,6 +18,7 @@ use App\Http\Controllers\api\v1\ProfileController;
 use App\Http\Controllers\api\v1\SessionCatchController;
 use App\Http\Controllers\api\v1\SessionReviewController;
 use App\Http\Controllers\api\v1\SpeciesController;
+use App\Http\Controllers\api\v1\StatsController;
 use App\Http\Controllers\Auth\MeController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -85,6 +86,7 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
         Route::post('/catches/{catch}/confirm', [CatchesConfirmationController::class, 'store']);
 
         Route::get('/sessions/assigned-to-me', [SessionReviewController::class,'assignedToMe']);
+        Route::get('/stats/season', [StatsController::class, 'mySeason']);
         Route::apiResource('sessions', FishingSessionController::class)->only(['index','show','store','update','destroy']);
         Route::post('sessions/{session}/close', [FishingSessionController::class, 'close']);
         Route::post('sessions/{session}/catches/stack', [SessionCatchController::class, 'upsert']);

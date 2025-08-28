@@ -2,16 +2,13 @@
 namespace App\Http\Controllers\api\v1;
 
 use App\Http\Controllers\Controller;
-use App\Models\CatchConfirmation;
 use App\Models\FishingCatch;
 use App\Models\FishingSession;
 use App\Models\SessionReview;
 use App\Models\User;
-use App\Notifications\CatchConfirmationRequested;
 use App\Notifications\SessionConfirmationsRequested;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class FishingSessionController extends Controller
@@ -27,59 +24,61 @@ class FishingSessionController extends Controller
                 'user:id,name',
                 'user.profile:id,user_id,display_name,avatar_path',
             ]);
-        $has = $r->query('has_catches'); // "1" | "true" | "any" | "mine"
-        if ($has === 'mine') {
-            if ($uid = optional($r->user())->id) {
-                $q->whereHas('catches', fn($qq) => $qq->where('user_id', $uid));
-            }
-        } elseif ($r->boolean('has_catches') || $has === 'any' || $has === '1' || $has === 'true') {
-            $q->has('catches');
+
+        // user_id=me alias
+        if ($r->filled('user_id')) {
+            $uid = $r->user_id === 'me' || $r->user_id === 'self'
+                ? $r->user()->id
+                : (int) $r->user_id;
+            $q->where('user_id', $uid);
         }
 
         if ($r->filled('group_id'))    $q->where('group_id', (int)$r->group_id);
-        if ($r->filled('user_id'))     $q->where('user_id', (int)$r->user_id);
         if ($r->filled('status'))      $q->where('status', $r->status);
         if ($r->filled('season_year')) $q->where('season_year', (int)$r->season_year);
+
         if ($r->filled('from') || $r->filled('to')) {
             $from = $r->filled('from') ? \Carbon\Carbon::parse($r->from) : null;
             $to   = $r->filled('to')   ? \Carbon\Carbon::parse($r->to)   : null;
-            $q->between($from, $to);
+            $q->between($from,$to);
         }
 
-        if ($s = trim((string) $r->query('search', ''))) {
+        if ($s = trim((string) $r->query('search',''))) {
             $q->where(function ($w) use ($s) {
-                $w->where('title', 'like', "%{$s}%");
+                $w->where('title','like',"%{$s}%");
             });
         }
 
-        // NEW: include param sa white-listom i limitom fotki (max 3)
-        $include = collect(explode(',', (string) $r->query('include', '')))
-            ->map(fn ($i) => trim($i))
-            ->filter()
-            ->values();
+        // include=photos,catches,catches.user,event
+        $include = collect(explode(',', (string)$r->query('include','')))
+            ->map(fn($i)=>trim($i))->filter()->values();
 
-        $allowed = ['photos', 'catches', 'catches.user', 'event'];
         $with = [];
 
-        if ($include->contains('catches.user')) {
-            $with['catches'] = fn ($qq) => $qq->orderByDesc('caught_at')->orderByDesc('id')
-                ->with(['user:id,name', 'user.profile:id,user_id,display_name,avatar_path']);
-        } elseif ($include->contains('catches')) {
-            $with['catches'] = fn ($qq) => $qq->orderByDesc('caught_at')->orderByDesc('id');
+        // photos (limit 3)
+        if ($include->contains('photos')) {
+            $with['catchPhotos'] = fn($qq) => $qq->orderByDesc('id')->limit(3);
         }
+
+        if ($include->contains('catches.user')) {
+            $with['catches'] = fn($qq) => $qq->orderByDesc('caught_at')->orderByDesc('id')
+                ->with(['user:id,name','user.profile:id,user_id,display_name,avatar_path']);
+        } elseif ($include->contains('catches')) {
+            $with['catches'] = fn($qq) => $qq->orderByDesc('caught_at')->orderByDesc('id');
+        }
+
         if ($include->contains('event')) {
             $with[] = 'event:id,title,start_at';
         }
 
-        if (!empty($with)) {
-            $q->with($with);
-        }
+        if (!empty($with)) $q->with($with);
 
         $q->latest('started_at')->latest('id');
 
         $perPage = min(100, (int) $r->query('per_page', 20));
         return response()->json($q->paginate($perPage));
     }
+
 
     /**
      * Display the specified fishing session resource with optional related data.
