@@ -13,6 +13,7 @@ use App\Http\Controllers\api\v1\EventAttendeeController;
 use App\Http\Controllers\api\v1\EventsController;
 use App\Http\Controllers\api\v1\FishingSessionController;
 use App\Http\Controllers\api\v1\GroupsController;
+use App\Http\Controllers\api\v1\LeaderboardController;
 use App\Http\Controllers\api\v1\ProfileController;
 use App\Http\Controllers\api\v1\SessionCatchController;
 use App\Http\Controllers\api\v1\SessionReviewController;
@@ -103,6 +104,7 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
 
         Route::get('users/{user}/profile', [ProfileController::class, 'showPublic']); // po želji public bez auth
 
+        Route::get('/leaderboard', [LeaderboardController::class, 'index']);
     });
 
     Route::get('/user', function (Request $request) {

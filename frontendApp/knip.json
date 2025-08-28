@@ -1,0 +1,18 @@
+{
+  "$schema": "https://unpkg.com/knip@^5/schema.json",
+  "ignore": [".nuxt/**", ".output/**", "dist/**", "node_modules/**"],
+  "entry": [
+    "app.vue",
+    "error.vue",
+    "nuxt.config.{ts,js,mjs,cjs}",
+    "plugins/**/*.{ts,js,mjs,cjs}",
+    "components/**/*.{vue,ts,js}",
+    "composables/**/*.{ts,js}",
+    "pages/**/*.vue",
+    "layouts/**/*.vue",
+    "middleware/**/*.{ts,js}"
+  ],
+  "project": ["**/*.{ts,js,vue}", "!node_modules", "!.nuxt", "!dist"],
+  "nuxt": true,
+  "vue": true
+}

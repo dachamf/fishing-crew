@@ -1,32 +1,45 @@
-<script setup lang="ts">
+<script lang="ts" setup>
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/vue";
 
-const props = defineProps<{ activity: any[]; weight: any[]; biggest: any[] }>();
+import type { LeaderboardItem } from "~/types/api";
+
+const props = defineProps<{
+  activity: LeaderboardItem[]; // npr. po sessions_total (ili pieces_total)
+  weight: LeaderboardItem[]; // po weight_total
+  biggest: LeaderboardItem[]; // po biggest
+}>();
 </script>
 
 <template>
   <TabGroup>
     <TabList class="tabs tabs-bordered mb-4">
       <Tab v-slot="{ selected }" as="template">
-        <button class="tab" :class="[selected && 'tab-active']">
+        <button :class="[selected && 'tab-active']" class="tab">
           Aktivnost
         </button>
       </Tab>
       <Tab v-slot="{ selected }" as="template">
-        <button class="tab" :class="[selected && 'tab-active']">
+        <button :class="[selected && 'tab-active']" class="tab">
           Ukupna težina
         </button>
       </Tab>
       <Tab v-slot="{ selected }" as="template">
-        <button class="tab" :class="[selected && 'tab-active']">
+        <button :class="[selected && 'tab-active']" class="tab">
           Najveći primerak
         </button>
       </Tab>
     </TabList>
+
     <TabPanels>
-      <TabPanel><slot name="activity" :rows="props.activity" /></TabPanel>
-      <TabPanel><slot name="weight" :rows="props.weight" /></TabPanel>
-      <TabPanel><slot name="biggest" :rows="props.biggest" /></TabPanel>
+      <TabPanel>
+        <slot :rows="props.activity" name="activity" />
+      </TabPanel>
+      <TabPanel>
+        <slot :rows="props.weight" name="weight" />
+      </TabPanel>
+      <TabPanel>
+        <slot :rows="props.biggest" name="biggest" />
+      </TabPanel>
     </TabPanels>
   </TabGroup>
 </template>

@@ -73,7 +73,7 @@ export type UserLite = {
   id: ID;
   name: string;
   display_name?: string;
-  avatar_url?: string;
+  avatar_url?: string | null;
   profile?: UserProfileLite | null;
 };
 
@@ -236,4 +236,30 @@ export type GroupMember = {
 
 export type CloseAndNominatePayload = {
   reviewer_ids: number[];
+};
+
+export type LeaderboardItem = {
+  rank: number;
+  user: {
+    id: number;
+    name?: string;
+    display_name?: string;
+    avatar_url?: string | null;
+  } | null;
+  catches_count: number;
+  pieces_total: number;
+  weight_total: number;
+  biggest: number;
+  sessions_total: number;
+  avg_piece_kg: number;
+};
+
+export type LeaderboardResponse = {
+  items: LeaderboardItem[];
+  meta: {
+    total: number;
+    page: number;
+    per_page: number;
+    order_by: string;
+  };
 };
