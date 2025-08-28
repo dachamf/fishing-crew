@@ -4,56 +4,71 @@ namespace App\Http\Controllers\api\v1;
 
 use App\Http\Controllers\Controller;
 use App\Models\FishingCatch;
+use App\Models\FishingSession;
+use App\Models\Group;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class LeaderboardController extends Controller
 {
     // GET /v1/leaderboard?group_id=G&year=Y&limit=5&include=user
-    public function index(Request $r)
+    public function index(Request $r, ?\App\Models\Group $group = null)
     {
-        $gid   = (int) $r->query('group_id');
+        $gid   = $group?->id ?? (int) $r->query('group_id');
         $year  = (int) $r->query('year', now()->year);
         $limit = min(50, (int) $r->query('limit', 5));
 
-        // metrika: total_weight + broj ulova + biggest_single
-        $q = FishingCatch::query()
-            ->select([
-                'fishing_catches.user_id',
-                DB::raw('SUM(COALESCE(fishing_catches.total_weight_kg, fishing_catches.weight_kg)) AS total_weight_kg'),
-                DB::raw('COUNT(*) AS catches_count'),
-                DB::raw('MAX(COALESCE(fishing_catches.weight_kg, 0)) AS biggest_single_kg'),
-            ])
-            ->join('fishing_sessions as s', 's.id', '=', 'fishing_catches.session_id')
+        $catchTable   = (new FishingCatch)->getTable();      // npr. "catches"
+        $sessionTable = (new FishingSession)->getTable();    // npr. "fishing_sessions"
+
+        // TOP: zbir po korisniku (ukupna težina), broj ulova i najveći pojedinačni ulov
+        $top = DB::table("$catchTable as c")
+            ->join("$sessionTable as s", 's.id', '=', 'c.session_id')
             ->when($gid, fn($qq) => $qq->where('s.group_id', $gid))
             ->whereYear('s.started_at', $year)
-            ->groupBy('fishing_catches.user_id')
-            ->orderByDesc('total_weight_kg');
+            ->selectRaw("
+            s.user_id AS user_id,
+            SUM(COALESCE(c.total_weight_kg, 0)) AS total_weight_kg,
+            COUNT(*) AS catches_count,
+            MAX(COALESCE(c.total_weight_kg, 0)) AS biggest_single_kg
+        ")
+            ->groupBy('s.user_id')
+            ->orderByDesc('total_weight_kg')
+            ->limit($limit)
+            ->get();
 
-        // ONLY_FULL_GROUP_BY safe: selektujemo i grupišemo striktno po navedenim poljima
+        // Učitaj korisnike (za mini-LB prikaz)
+        $users = User::whereIn('id', $top->pluck('user_id'))
+            ->with('profile:id,user_id,display_name,avatar_path')
+            ->get()->keyBy('id');
 
-        $rows = $q->limit($limit)->get();
+        $top->transform(function ($row) use ($users) {
+            $row->user = $users[$row->user_id] ?? null;
+            return $row;
+        });
 
-        if (str_contains((string)$r->query('include',''), 'user')) {
-            $rows->load(['user:id,name', 'user.profile:id,user_id,display_name,avatar_path']);
-        }
-
-        // biggest overall (po pojedinačnom ulovu)
-        $biggest = FishingCatch::query()
-            ->select(['id','user_id','session_id',
-                DB::raw('COALESCE(weight_kg, total_weight_kg) as weight_kg')])
-            ->join('fishing_sessions as s', 's.id','=','fishing_catches.session_id')
+        // BIGGEST: najteži pojedinačni ulov (alias kao weight_kg radi FE kompatibilnosti)
+        $biggest = DB::table("$catchTable as c")
+            ->join("$sessionTable as s", 's.id', '=', 'c.session_id')
             ->when($gid, fn($qq) => $qq->where('s.group_id', $gid))
             ->whereYear('s.started_at', $year)
-            ->orderByDesc(DB::raw('COALESCE(weight_kg, total_weight_kg)'))
+            ->selectRaw("
+            c.id, c.session_id,
+            s.user_id AS user_id,
+            COALESCE(c.total_weight_kg, 0) AS weight_kg
+        ")
+            ->orderByDesc(DB::raw('COALESCE(c.total_weight_kg, 0)'))
             ->first();
 
         if ($biggest) {
-            $biggest->load(['user:id,name', 'user.profile:id,user_id,display_name,avatar_path']);
+            $biggestUser = $users[$biggest->user_id]
+                ?? User::with('profile:id,user_id,display_name,avatar_path')->find($biggest->user_id);
+            $biggest->user = $biggestUser;
         }
 
         return response()->json([
-            'top'     => $rows,
+            'top'     => $top,
             'biggest' => $biggest,
         ]);
     }

@@ -296,3 +296,20 @@ export type Biggest = {
   weight_kg: number;
   user?: UserLite;
 };
+
+export type CatchItem = {
+  id: number;
+  session_id: number | null;
+  group_id: number;
+  user_id: number;
+  species?: { id: number; name_sr: string; name_latin?: string };
+  species_id?: number | null;
+  count: number;
+  total_weight_kg?: number | null;
+  biggest_single_kg?: number | null;
+  caught_at?: string | null;
+  note?: string | null;
+  status: "pending" | "approved" | "rejected";
+  photos?: string[];
+  session?: any;
+};
