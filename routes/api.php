@@ -5,6 +5,7 @@ use App\Http\Controllers\api\Auth\LoginController;
 use App\Http\Controllers\api\Auth\LogoutController;
 use App\Http\Controllers\api\Auth\RegisterController;
 use App\Http\Controllers\api\v1\AccountController;
+use App\Http\Controllers\api\v1\AchievementsController;
 use App\Http\Controllers\api\v1\ActivityController;
 use App\Http\Controllers\api\v1\CatchesConfirmationController;
 use App\Http\Controllers\api\v1\CatchesController;
@@ -88,6 +89,9 @@ Route::middleware(['auth:sanctum', 'verified'])->prefix('v1')->group(function ()
 
     Route::get('/sessions/assigned-to-me', [SessionReviewController::class, 'assignedToMe']);
     Route::get('/stats/season', [StatsController::class, 'mySeason']);
+
+    Route::get('/stats/species-top', [StatsController::class, 'speciesTop']);
+
     Route::apiResource('sessions', FishingSessionController::class)->only(['index', 'show', 'store', 'update', 'destroy']);
     Route::post('sessions/{session}/close', [FishingSessionController::class, 'close']);
     Route::post('sessions/{session}/catches/stack', [SessionCatchController::class, 'upsert']);
@@ -113,6 +117,8 @@ Route::middleware(['auth:sanctum', 'verified'])->prefix('v1')->group(function ()
     Route::get('/leaderboard', [LeaderboardController::class, 'index']);
 
     Route::get('/activity', [ActivityController::class, 'index']);
+
+    Route::get('/achievements', [AchievementsController::class, 'index']);
 
     Route::get('/user', function (Request $request) {
         return $request->user();

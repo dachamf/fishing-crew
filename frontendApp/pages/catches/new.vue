@@ -7,7 +7,6 @@ defineOptions({ name: "CatchCreatePage" });
 
 const { $api } = useNuxtApp() as any;
 const router = useRouter();
-
 const { success, error, info } = useToast();
 
 /** Me + default group */
@@ -16,13 +15,30 @@ const { data: me } = useAsyncData("me:new", async () => (await $api.get("/v1/me"
   immediate: true,
 });
 
-/** Session picker (otvorena ili nova) */
+/** Session picker (jedan izvor istine) */
 const { openFirst } = useMySessions();
+const sessionId = ref<ID | null>(openFirst.value?.id ?? null);
 
-const pickedSessionId = ref<ID | null>(openFirst.value?.id ?? null);
+/** Koordinate sesije (uvek prisutne u UI, autosave kad postoji sessionId) */
+const sessionCoords = ref<{ lng: number | null; lat: number | null }>({ lng: null, lat: null });
+
 watch(openFirst, (v) => {
-  if (!pickedSessionId.value && v?.id)
-    pickedSessionId.value = v.id;
+  if (!sessionId.value && v?.id)
+    sessionId.value = v.id;
+});
+
+// kad se promeni sessionId → učitaj postojeće koordinate (ako postoje)
+watch(sessionId, async (id) => {
+  if (!id)
+    return;
+  try {
+    const { data } = await $api.get(`/v1/sessions/${id}`, { withCredentials: true });
+    sessionCoords.value = {
+      lng: data?.longitude ?? null,
+      lat: data?.latitude ?? null,
+    };
+  }
+  catch {}
 });
 
 /** Species */
@@ -31,21 +47,19 @@ const pickedSpecies = ref<{ id?: number; label?: string } | null>(null);
 
 /** Files (max 3) */
 const files = ref<File[]>([]);
-
 function onPick(e: Event) {
   const input = e.target as HTMLInputElement;
   const chosen = Array.from(input.files || []);
   files.value = chosen.slice(0, 3);
-  input.value = ""; // reset
+  input.value = "";
 }
-
 function objectURL(f: File | Blob) {
   return (window.URL || (window as any).webkitURL).createObjectURL(f);
 }
 
-/** Form */
+/** Forma */
 const form = reactive<NewCatchPayload>({
-  group_id: undefined as unknown as ID, // postavi dole
+  group_id: undefined as unknown as ID,
   species: undefined,
   species_id: undefined,
   species_name: undefined,
@@ -71,17 +85,14 @@ watch(
   { immediate: true },
 );
 
-watch(pickedSessionId, (id) => {
+watch(sessionId, (id) => {
   form.session_id = id ?? null;
 });
 
-/** Submit */
-const saving = ref(false);
-
-async function uploadPhotosForCatch(catchId: ID, sessionId: ID | null) {
+/** Upload fotki */
+async function uploadPhotosForCatch(catchId: ID, sid: ID | null) {
   if (!files.value.length)
     return;
-  // pokušaj /catches/:id/photos
   for (const f of files.value) {
     const fd = new FormData();
     fd.append("file", f);
@@ -92,25 +103,25 @@ async function uploadPhotosForCatch(catchId: ID, sessionId: ID | null) {
     }
     catch (e: any) {
       error(toErrorMessage(e?.message));
-      if (sessionId) {
-        await $api.post(`/v1/sessions/${sessionId}/photos`, fd, {
+      if (sid) {
+        await $api.post(`/v1/sessions/${sid}/photos`, fd, {
           headers: { "Content-Type": "multipart/form-data" },
         });
-      }
-      else {
-        // nema sesije → preskoči
       }
     }
   }
 }
 
+/** Submit */
+const saving = ref(false);
+
 async function onSubmit() {
   if (!form.group_id)
     return info("Izaberi grupu");
-  if (!pickedSessionId.value)
+  if (!sessionId.value)
     return info("Izaberi ili kreiraj sesiju");
 
-  // species prioritet: id -> species string -> species_name
+  // species: id -> label -> name
   if (pickedSpecies.value?.id) {
     form.species_id = pickedSpecies.value.id;
     form.species = undefined;
@@ -126,13 +137,16 @@ async function onSubmit() {
   try {
     const payload: NewCatchPayload = {
       ...form,
-      session_id: pickedSessionId.value,
+      session_id: sessionId.value,
       caught_at: datetimeLocalToISO(form.caught_at),
     };
+
     const res = await $api.post("/v1/catches", payload);
     const created = res.data;
-    await uploadPhotosForCatch(created.id, pickedSessionId.value);
-    router.push(`/catches/${created.id}`);
+
+    await uploadPhotosForCatch(created.id, sessionId.value);
+    await router.push(`/catches/${created.id}`);
+    success("Ulov uspešno kreiran. Dodajte fotografije (max 3) i kliknite na ulov za njega.");
   }
   catch (e: any) {
     console.error(e);
@@ -140,7 +154,6 @@ async function onSubmit() {
   }
   finally {
     saving.value = false;
-    success("Ulov uspešno kreiran. Dodajte fotografije (max 3) i kliknite na ulov za njega.");
   }
 }
 </script>
@@ -158,7 +171,7 @@ async function onSubmit() {
 
     <div class="card bg-base-100 shadow">
       <div class="card-body grid md:grid-cols-2 gap-6">
-        <!-- Leva kolona -->
+        <!-- Levo -->
         <div class="space-y-4">
           <div>
             <label class="label">Grupa</label>
@@ -172,8 +185,9 @@ async function onSubmit() {
               </option>
             </select>
           </div>
-          <!--   Sessija   -->
-          <SessionQuickAdd v-model:session-id="pickedSessionId" :group-id="form.group_id" />
+
+          <!-- SessionQuickAdd je jedini izvor istine za kreiranje/odabir sesije -->
+          <SessionQuickAdd v-model:session-id="sessionId" :group-id="form.group_id" />
 
           <div>
             <label class="label">Vrsta</label>
@@ -248,10 +262,7 @@ async function onSubmit() {
               rows="3"
             />
           </div>
-        </div>
 
-        <!-- Desna kolona -->
-        <div class="space-y-4">
           <div>
             <label class="label">Vreme ulova</label>
             <input
@@ -276,6 +287,7 @@ async function onSubmit() {
                 :key="i"
                 :src="objectURL(f)"
                 class="h-20 w-28 rounded-lg object-cover border border-base-300"
+                alt=""
               >
             </div>
           </div>
@@ -289,6 +301,17 @@ async function onSubmit() {
               Sačuvaj ulov
             </button>
           </div>
+        </div>
+
+        <!-- Desno: Lokacija sesije (uvek prisutna; autosave kada sessionId postoji) -->
+        <div class="h-full">
+          <SessionLocationCard
+            v-model="sessionCoords"
+            :session-id="sessionId || undefined"
+            :editable="true"
+            :auto-save="true"
+            title="Lokacija sesije"
+          />
         </div>
       </div>
     </div>

@@ -409,5 +409,13 @@ function onCloseSession() {
         view-all-to="/leaderboard"
       />
     </div>
+
+    <div class="grid gap-6 md:grid-cols-2">
+      <HomeLastSessionsMapCard
+        class="md:col-span-2"
+        :limit="10"
+        :height="320"
+      />
+    </div>
   </div>
 </template>
