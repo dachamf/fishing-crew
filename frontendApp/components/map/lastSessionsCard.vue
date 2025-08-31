@@ -1,8 +1,5 @@
 <script setup lang="ts">
-type Props = {
-  title?: string;
-  limit?: number;
-};
+type Props = { title?: string; limit?: number };
 const props = withDefaults(defineProps<Props>(), {
   title: "Mapa poslednjih sesija",
   limit: 10,

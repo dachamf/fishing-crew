@@ -68,6 +68,9 @@ const {
   },
 );
 
+const hintLat = ref<number | null>(null);
+const hintLng = ref<number | null>(null);
+
 // Dialog za zatvaranje
 const showClose = ref(false);
 
@@ -390,6 +393,9 @@ function onCloseSession() {
 
     <!-- Phase 2 blok -->
     <div class="grid gap-6 md:grid-cols-2">
+      <HomeWeatherHintCard :hint-lat="hintLat" :hint-lng="hintLng" />
+
+      <HomeAdminMiniPanel :group-id="defaultGroupId || undefined" />
       <EventsUpcomingEventsCard
         :group-id="defaultGroupId || undefined"
         title="Predstojeći događaji"
