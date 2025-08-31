@@ -25,6 +25,10 @@ class FishingSessionController extends Controller
                 'user.profile:id,user_id,display_name,avatar_path',
             ]);
 
+        if ((string)$r->query('whereHasCatches','') === '1') {
+            $q->whereHas('catches');
+        }
+
         // user_id=me alias
         if ($r->filled('user_id')) {
             $uid = $r->user_id === 'me' || $r->user_id === 'self'
@@ -74,11 +78,22 @@ class FishingSessionController extends Controller
             $with[] = 'event:id,title,start_at';
         }
 
-        if (!empty($with)) $q->with($with);
+        $only = collect(explode(',', (string)$r->query('only','')))
+            ->map(fn($i)=>trim($i))->filter()->values();
+
+        if ($only->isNotEmpty()) {
+            $select = ['id'];
+            if ($only->contains('coords')) { $select[] = 'latitude'; $select[] = 'longitude'; }
+            if ($only->contains('title'))  { $select[] = 'title'; $select[] = 'started_at'; }
+            if ($only->contains('status')) { $select[] = 'status'; }
+            if ($only->contains('group_id')) { $select[] = 'group_id'; }
+            $q->select(array_values(array_unique($select)));
+        }
 
         $q->latest('started_at')->latest('id');
 
-        $perPage = min(100, (int) $r->query('per_page', 20));
+        $perPage = min(100, (int) ($r->query('limit', $r->query('per_page', 20))));
+
         return response()->json($q->paginate($perPage));
     }
 

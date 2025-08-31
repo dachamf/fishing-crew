@@ -313,3 +313,30 @@ export type CatchItem = {
   photos?: string[];
   session?: any;
 };
+
+export type MapSession = {
+  id: number;
+  title?: string;
+  started_at?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+};
+
+export type SpeciesRow = {
+  label: string;
+  cnt: number;
+  total_kg: number;
+};
+
+export type Badge = {
+  code: string;
+  title: string;
+  desc?: string;
+  unlocked: boolean;
+  value?: number;
+};
+
+export type Coords = {
+  lng: number | null;
+  lat: number | null;
+};
