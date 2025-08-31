@@ -1,5 +1,23 @@
 export type ThemeMode = "light" | "dark" | "system";
 export type CatchStatus = "pending" | "approved" | "rejected";
+export type SpeciesRow = { label: string; cnt: number; total_kg: number };
+export type Role = "owner" | "mod" | "member" | string;
+export type Coords = { lat: number | null; lng: number | null };
+export type MapSession = {
+  id: number;
+  title?: string;
+  started_at?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+};
+
+export type Badge = {
+  code: string;
+  title: string;
+  desc?: string;
+  unlocked: boolean;
+  value?: number;
+};
 
 export type ConfirmationStatus = "pending" | "approved" | "rejected" | "changes_requested";
 
@@ -314,29 +332,18 @@ export type CatchItem = {
   session?: any;
 };
 
-export type MapSession = {
-  id: number;
-  title?: string;
-  started_at?: string;
-  latitude?: number | null;
-  longitude?: number | null;
-};
-
-export type SpeciesRow = {
-  label: string;
-  cnt: number;
-  total_kg: number;
-};
-
-export type Badge = {
-  code: string;
-  title: string;
-  desc?: string;
-  unlocked: boolean;
-  value?: number;
-};
-
-export type Coords = {
-  lng: number | null;
-  lat: number | null;
+export type WeatherSummary = {
+  temp_c?: number | null;
+  temp_min_c?: number | null;
+  temp_max_c?: number | null;
+  wind_kph?: number | null;
+  wind_gust_kph?: number | null;
+  wind_dir?: string | null;
+  precip_mm?: number | null;
+  condition?: string | null;
+  icon_url?: string | null;
+  icon_name?: string | null;
+  when_iso?: string | null;
+  source?: string | null;
+  is_day?: boolean | null;
 };

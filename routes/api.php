@@ -21,6 +21,7 @@ use App\Http\Controllers\api\v1\SessionCatchController;
 use App\Http\Controllers\api\v1\SessionReviewController;
 use App\Http\Controllers\api\v1\SpeciesController;
 use App\Http\Controllers\api\v1\StatsController;
+use App\Http\Controllers\api\v1\WeatherController;
 use App\Http\Controllers\Auth\MeController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -40,9 +41,9 @@ Route::prefix('auth')->group(function () {
 
 Route::middleware(['auth:sanctum', 'verified'])->prefix('v1')->group(function () {
 
-    Route::middleware('auth:sanctum')->group(function () {
-        Route::get('/me', MeController::class);
-    });
+    Route::get('/me', MeController::class);
+    Route::get('/me/roles', [MeController::class, 'roles']);
+    Route::get('/weather/summary', [WeatherController::class, 'summary']);
 
     Route::apiResource('groups', GroupsController::class);
     Route::get('groups/{group}/members', [GroupsController::class, 'members']);
