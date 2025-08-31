@@ -390,17 +390,17 @@ function onCloseSession() {
 
     <!-- Phase 2 blok -->
     <div class="grid gap-6 md:grid-cols-2">
-      <Events-UpcomingEventsCard
+      <EventsUpcomingEventsCard
         :group-id="defaultGroupId || undefined"
         title="Predstojeći događaji"
         view-all-to="/events"
       />
-      <Activity-RecentActivityCard
+      <ActivityRecentActivityCard
         :group-id="defaultGroupId || undefined"
         title="Nedavna aktivnost"
         view-all-to="/activity"
       />
-      <Leaderboard-MiniLeaderboardCard
+      <LeaderboardMiniLeaderboardCard
         v-if="defaultGroupId"
         :group-id="defaultGroupId"
         :year="currentYear"
@@ -408,8 +408,17 @@ function onCloseSession() {
         title="Mini leaderboard"
         view-all-to="/leaderboard"
       />
+      <StatsSpeciesTrendsCard
+        v-if="defaultGroupId"
+        :group-id="defaultGroupId"
+        :year="currentYear"
+      />
+      <AchievementsBadgesCard />
     </div>
 
+    <div class="grid gap-6 md:grid-cols-2">
+      <h1>Svee</h1>
+    </div>
     <div class="grid gap-6 md:grid-cols-2">
       <HomeLastSessionsMapCard
         class="md:col-span-2"
