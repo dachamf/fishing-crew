@@ -1,27 +1,21 @@
 <script setup lang="ts">
-type Props = {
-  title?: string;
+import type { HomeActivityItem } from "~/types/api";
+
+const props = defineProps<{
+  items?: HomeActivityItem[];
   groupId?: number;
-  limit?: number;
+  title?: string;
   viewAllTo?: string;
-};
-const props = withDefaults(defineProps<Props>(), {
-  title: "Recent activity",
-  limit: 10,
-  viewAllTo: "/activity",
-});
+}>();
+const usePrefetched = computed(() => Array.isArray(props.items));
 
-const { items, loading, fetchFeed } = useActivityFeed();
-
-onMounted(() => {
-  fetchFeed(props.groupId, props.limit);
-});
-watch(
-  () => props.groupId,
-  gid => fetchFeed(gid, props.limit),
+const { data: internal, pending: _pending } = useAsyncData(
+  () => `activity:${props.groupId ?? "none"}`,
+  async () => (usePrefetched.value ? props.items : []),
+  { server: false, watch: [() => props.groupId] },
 );
 
-function icon(t: string) {
+function icon(t: HomeActivityItem["type"] | string) {
   if (t === "catch_added")
     return "🎣";
   if (t === "session_opened")
@@ -33,47 +27,72 @@ function icon(t: string) {
   return "•";
 }
 
-const hasData = computed(() => !loading.value && items.value.length > 0);
+const items = computed(() => (usePrefetched.value ? props.items || [] : internal.value || []));
 </script>
 
 <template>
-  <div class="card bg-base-100 shadow-lg">
+  <div class="card bg-base-100 shadow">
     <div class="card-body">
-      <div class="flex items-center justify-between">
+      <div class="flex items-center justify-between gap-3">
         <h2 class="card-title">
-          {{ title }}
+          {{ title || 'Nedavna aktivnost' }}
         </h2>
-        <NuxtLink :to="viewAllTo" class="link link-primary">
+        <NuxtLink
+          v-if="viewAllTo"
+          :to="viewAllTo"
+          class="link link-primary text-sm"
+        >
           Vidi sve
         </NuxtLink>
       </div>
 
-      <div v-if="loading" class="space-y-3">
-        <div class="animate-pulse h-5 bg-base-300 rounded" />
-        <div class="animate-pulse h-5 bg-base-300 rounded" />
-        <div class="animate-pulse h-5 bg-base-300 rounded" />
+      <div v-if="!usePrefetched && _pending" class="space-y-2">
+        <div class="skeleton h-5 w-full" />
+        <div class="skeleton h-5 w-4/5" />
+        <div class="skeleton h-5 w-3/5" />
       </div>
 
-      <div v-else-if="!hasData" class="text-sm opacity-70">
-        Još uvek nema aktivnosti.
-      </div>
-
-      <ul v-else class="timeline timeline-vertical">
-        <li v-for="f in items" :key="`${f.type}:${f.id}`">
-          <div class="timeline-start">
-            {{ icon(f.type) }}
-          </div>
-          <div class="timeline-middle" />
-          <div class="timeline-end timeline-box">
-            <NuxtLink :to="f.url" class="link font-medium">
-              {{ f.title }}
-            </NuxtLink>
-            <div class="text-xs opacity-60">
-              {{ new Date(f.at).toLocaleString('sr-RS') }}
+      <ul v-else-if="(items?.length || 0) > 0" class="mt-2 space-y-2">
+        <li
+          v-for="a in items"
+          :key="a.id"
+          class="flex items-center justify-between gap-3"
+        >
+          <div class="flex items-center gap-2 min-w-0">
+            <span class="emoji-bullet" :aria-label="a.type ?? undefined">
+              {{ icon(a.type || '') }}
+            </span>
+            <div class="truncate">
+              <div class="text-sm">
+                {{ a.type || 'aktivnost' }}
+                <span v-if="a.ref_id" class="opacity-70">#{{ a.ref_id }}</span>
+              </div>
+              <div class="text-xs opacity-70">
+                {{ a.created_at ? new Date(a.created_at).toLocaleString('sr-RS') : '—' }}
+              </div>
             </div>
           </div>
+          <NuxtLink
+            v-if="a.meta?.url"
+            :to="a.meta.url"
+            class="btn btn-ghost btn-xs"
+          >
+            Otvori
+          </NuxtLink>
         </li>
       </ul>
+
+      <div v-else class="opacity-70 text-sm">
+        Nema aktivnosti u skorije vreme.
+      </div>
     </div>
   </div>
 </template>
+
+<style scoped>
+.emoji-bullet {
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji", sans-serif;
+  font-size: 18px;
+  line-height: 1;
+}
+</style>

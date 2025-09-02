@@ -129,6 +129,7 @@ export type SpeciesItem = {
 export type PhotoLite = {
   id: ID;
   url: string;
+  ord?: number | null;
 };
 
 /** Event (lite) */
@@ -347,3 +348,114 @@ export type WeatherSummary = {
   source?: string | null;
   is_day?: boolean | null;
 };
+
+export type HomeMe = {
+  id: number;
+  name?: string | null;
+  display_name?: string | null;
+  avatar_url?: string | null;
+  roles?: string[];
+};
+
+export type HomeOpenSession = {
+  id: number;
+  title?: string | null;
+  started_at?: string | null;
+  catches_count?: number;
+  photos?: PhotoLite[];
+  latitude?: number | null; // BE dopuna u secOpenSession
+  longitude?: number | null; // —
+};
+
+export type HomeAssignedItem = {
+  id: number;
+  title?: string | null;
+  started_at?: string | null;
+  catches_count?: number;
+  user?: {
+    id: number;
+    name?: string | null;
+    display_name?: string | null;
+    avatar_url?: string | null;
+  };
+};
+export type HomeAssigned = { items: HomeAssignedItem[]; meta: { total: number } };
+
+export type HomeSeasonStats = {
+  sessions: number;
+  catches: number;
+  total_weight_kg: number;
+  biggest_single_kg: number;
+};
+
+export type HomeEvent = {
+  id: number;
+  title?: string | null;
+  start_at?: string | null;
+  my_rsvp?: {
+    status: Rsvp;
+  } | null;
+};
+export type ActivityType
+  = | "catch_added"
+    | "session_opened"
+    | "session_approved"
+    | "session_rejected";
+export type HomeActivityItem = {
+  id: number;
+  type: ActivityType;
+  ref_id?: number | null;
+  user_id?: number | null;
+  created_at?: string | null;
+  meta?: { url?: string } | null;
+};
+
+export type HomeMiniLeaderboardRow = {
+  user: {
+    id: number;
+    name?: string | null;
+    display_name?: string | null;
+    avatar_url?: string | null;
+  };
+  catches_count: number;
+  total_weight_kg: number;
+  biggest_single_kg: number;
+};
+export type HomeMiniLeaderboard = {
+  weightTop: HomeMiniLeaderboardRow[];
+  biggestTop: HomeMiniLeaderboardRow[];
+};
+
+export type HomeMapPoint = {
+  id: number;
+  title?: string | null;
+  latitude: number;
+  longitude: number;
+  started_at?: string | null;
+};
+
+export type HomeSpeciesTrend = { label: string; cnt: number; total_kg: number };
+
+export type HomeAchievement = {
+  id: number;
+  key?: string;
+  title?: string;
+  unlocked_at?: string | null;
+  meta?: Record<string, any>;
+};
+
+export type HomeAdmin = { canManage: boolean; shortcuts: { label: string; href: string }[] };
+
+export type HomePayload = Partial<{
+  me: HomeMe;
+  open_session: HomeOpenSession | null;
+  assigned: HomeAssigned;
+  season_stats: HomeSeasonStats;
+  events: HomeEvent[];
+  activity: HomeActivityItem[];
+  mini_leaderboard: HomeMiniLeaderboard;
+  map: HomeMapPoint[];
+  species_trends: HomeSpeciesTrend[];
+  achievements: HomeAchievement[];
+  admin: HomeAdmin;
+}>;

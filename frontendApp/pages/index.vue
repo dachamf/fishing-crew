@@ -1,5 +1,7 @@
 <script lang="ts" setup>
-import type { ID, Me } from "~/types/api";
+import type { ID } from "~/types/api";
+
+import { useHome } from "~/composables/useHome";
 
 defineOptions({ name: "HomePage" });
 
@@ -7,83 +9,53 @@ const { $api } = useNuxtApp() as any;
 const router = useRouter();
 const toast = useToast();
 
-// Me
-const { data: me } = await useAsyncData<Me>(
-  "me:home",
+const currentYear = new Date().getFullYear();
+
+// me za defaultGroupId (može i iz /v1/home.me, ali ovo već imaš)
+const { data: meRaw } = await useAsyncData(
+  "me:forGroup",
   async () => (await $api.get("/v1/me")).data,
   { server: false },
 );
+const defaultGroupId = computed<ID | null>(() => meRaw.value?.groups?.[0]?.id ?? null);
 
-// Open session (koristi postojeći composable)
-const { openFirst, startNew, loading: sessLoading } = useMySessions();
-
-// Assigned-to-me (mini lista)
-const { assignedToMe } = useSessionReview();
+// JEDAN agregatni poziv
 const {
-  data: assigned,
-  pending: assignedLoading,
-  refresh: refreshAssigned,
-} = await useAsyncData<any>(
-  "assigned:home",
-  async () => {
-    const { items, meta } = await assignedToMe(1, 5);
-    return { items: items ?? [], meta };
-  },
-  { server: false },
-);
+  data: home,
+  pending: homeLoading,
+  error: homeError,
+  refresh: refreshHome,
+} = useHome({ groupId: defaultGroupId.value, year: currentYear });
 
-// Season snapshot
-type SeasonStats = {
-  sessions: number;
-  catches: number;
-  total_weight_kg: number;
-  biggest_single_kg: number;
-  catches_unapproved: number;
-  total_weight_kg_unapproved: number;
-  biggest_single_kg_unapproved: number;
-};
-const currentYear = new Date().getFullYear();
-const defaultGroupId = computed<ID | null>(() => me.value?.groups?.[0]?.id ?? null);
+// Derivati
+const me = computed(() => home.value?.me);
+const openSession = computed(() => home.value?.open_session ?? null);
+const assigned = computed(() => home.value?.assigned ?? { items: [], meta: { total: 0 } });
+const stats = computed(() => home.value?.season_stats ?? null);
 
-const {
-  data: stats,
-  pending: statsLoading,
-  error: statsError,
-} = await useAsyncData<SeasonStats | null>(
-  // 🔑 dinamički ključ — izbegava kolizije i forsira refetch kad se groupId promeni
-  () => `season:home:${defaultGroupId.value ?? "none"}`,
-  async () => {
-    if (!defaultGroupId.value)
-      return null;
-    const res = await $api.get("/v1/stats/season", {
-      params: { group_id: defaultGroupId.value, year: currentYear },
-    });
-    return res.data ?? null;
-  },
-  {
-    server: false,
-    // ✅ koristi getter — sigurnije nego prosleđivanje computed-a direktno
-    watch: [() => defaultGroupId.value],
-    // optional: immediate je ionako default true
-  },
-);
+// Start/Resume (i dalje koristiš postojeći composable zbog startNew)
+const { startNew, loading: sessLoading } = useMySessions();
 
 const hintLat = ref<number | null>(null);
 const hintLng = ref<number | null>(null);
+watch(
+  openSession,
+  (s) => {
+    hintLat.value = (s?.latitude ?? null) as any;
+    hintLng.value = (s?.longitude ?? null) as any;
+  },
+  { immediate: true },
+);
 
-// Dialog za zatvaranje
 const showClose = ref(false);
 
-// CTA: start or resume
 async function onStartOrResume() {
-  if (openFirst.value?.id) {
-    router.push(`/sessions/${openFirst.value.id}`);
+  if (openSession.value?.id) {
+    await router.push(`/sessions/${openSession.value.id}`);
     return;
   }
-  if (!defaultGroupId.value) {
-    toast.info("Dodaj se u grupu da bi pokrenuo sesiju.");
-    return;
-  }
+  if (!defaultGroupId.value)
+    return toast.info("Dodaj se u grupu da bi pokrenuo sesiju.");
   try {
     const s = await startNew(defaultGroupId.value);
     await router.push(`/sessions/${s.id}`);
@@ -92,21 +64,23 @@ async function onStartOrResume() {
     toast.error(e?.response?.data?.message || "Greška pri pokretanju sesije");
   }
 }
-
 function onNewCatch() {
   router.push("/catches/new");
 }
-
 function onCloseSession() {
-  if (!openFirst.value?.id)
-    return;
-  showClose.value = true;
+  if (openSession.value?.id)
+    showClose.value = true;
+}
+
+function onClosedHome() {
+  showClose.value = false;
+  refreshHome(); // ili refreshAssigned() ako to želiš
 }
 </script>
 
 <template>
   <div class="container mx-auto p-4 space-y-6">
-    <!-- Greeting + quick actions -->
+    <!-- Greeting + CTA -->
     <div class="card bg-base-100 shadow">
       <div class="card-body">
         <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
@@ -115,23 +89,22 @@ function onCloseSession() {
               Dobrodošao nazad
             </div>
             <h1 class="text-2xl font-semibold">
-              {{ me?.profile?.display_name || me?.name || '...' }}
+              {{ me?.display_name || me?.name || '...' }}
             </h1>
           </div>
-
           <div class="join">
             <button class="btn join-item" @click="onNewCatch">
               + Novi ulov
             </button>
             <button
-              :class="{ loading: sessLoading }"
+              :class="{ loading: sessLoading || homeLoading }"
               class="btn btn-primary join-item"
               @click="onStartOrResume"
             >
-              {{ openFirst?.id ? 'Nastavi sesiju' : 'Pokreni sesiju' }}
+              {{ openSession?.id ? 'Nastavi sesiju' : 'Pokreni sesiju' }}
             </button>
             <button
-              v-if="openFirst?.id"
+              v-if="openSession?.id"
               class="btn btn-warning join-item"
               @click="onCloseSession"
             >
@@ -142,12 +115,12 @@ function onCloseSession() {
       </div>
     </div>
 
-    <!-- Grid: Active session + Needs my decision + Snapshot -->
+    <!-- Grid: Active + Assigned + Snapshot -->
     <div class="grid md:grid-cols-3 gap-6">
       <!-- Active session -->
       <div class="md:col-span-2 card bg-base-100 shadow">
         <div class="card-body">
-          <template v-if="sessLoading">
+          <template v-if="homeLoading">
             <div class="skeleton h-6 w-48 mb-2" />
             <div class="grid grid-cols-3 gap-2">
               <div class="skeleton h-24" />
@@ -155,22 +128,22 @@ function onCloseSession() {
               <div class="skeleton h-24" />
             </div>
           </template>
-
-          <template v-else-if="openFirst?.id">
+          <template v-else-if="openSession?.id">
             <h2 class="text-xl font-semibold">
-              Aktivna sesija — {{ openFirst.title || `#${openFirst.id}` }}
+              Aktivna sesija — {{ openSession.title || `#${openSession.id}` }}
             </h2>
             <div class="opacity-70 text-sm">
               Početak:
               {{
-                openFirst.started_at ? new Date(openFirst.started_at).toLocaleString('sr-RS') : '—'
+                openSession.started_at
+                  ? new Date(openSession.started_at).toLocaleString('sr-RS')
+                  : '—'
               }}
-              • Ulova: {{ openFirst.catches_count ?? 0 }}
+              • Ulova: {{ openSession.catches_count ?? 0 }}
             </div>
-
-            <div v-if="(openFirst.photos?.length || 0) > 0" class="mt-3 grid grid-cols-3 gap-2">
+            <div v-if="(openSession.photos?.length || 0) > 0" class="mt-3 grid grid-cols-3 gap-2">
               <div
-                v-for="(p, i) in openFirst.photos.slice(0, 3)"
+                v-for="(p, i) in openSession.photos!.slice(0, 3)"
                 :key="i"
                 class="aspect-video rounded-xl overflow-hidden border border-base-300"
               >
@@ -181,9 +154,8 @@ function onCloseSession() {
                 >
               </div>
             </div>
-
             <div class="mt-3 join">
-              <NuxtLink :to="`/sessions/${openFirst.id}`" class="btn join-item">
+              <NuxtLink :to="`/sessions/${openSession.id}`" class="btn join-item">
                 Otvori sesiju
               </NuxtLink>
               <button class="btn btn-primary join-item" @click="onNewCatch">
@@ -194,7 +166,6 @@ function onCloseSession() {
               </button>
             </div>
           </template>
-
           <template v-else>
             <h2 class="text-xl font-semibold">
               Nema aktivne sesije
@@ -204,7 +175,7 @@ function onCloseSession() {
             </div>
             <div class="mt-3">
               <button
-                :class="{ loading: sessLoading }"
+                :class="{ loading: sessLoading || homeLoading }"
                 class="btn btn-primary"
                 @click="onStartOrResume"
               >
@@ -226,15 +197,14 @@ function onCloseSession() {
               Vidi sve
             </NuxtLink>
           </div>
-
-          <template v-if="assignedLoading">
+          <template v-if="homeLoading">
             <div class="space-y-2">
               <div class="skeleton h-5 w-full" />
               <div class="skeleton h-5 w-4/5" />
               <div class="skeleton h-5 w-3/5" />
             </div>
           </template>
-          <template v-else-if="(assigned?.items?.length || 0) > 0">
+          <template v-else-if="(assigned.items?.length || 0) > 0">
             <ul class="mt-1 space-y-2">
               <li
                 v-for="s in assigned.items"
@@ -251,8 +221,8 @@ function onCloseSession() {
                   </NuxtLink>
                   <div class="text-xs opacity-70">
                     Počela:
-                    {{ s.started_at ? new Date(s.started_at).toLocaleString('sr-RS') : '—' }}
-                    • Ulova: {{ s.catches_count ?? '—' }}
+                    {{ s.started_at ? new Date(s.started_at).toLocaleString('sr-RS') : '—' }} •
+                    Ulova: {{ s.catches_count ?? '—' }}
                   </div>
                 </div>
                 <NuxtLink :to="`/sessions/${s.id}`" class="btn btn-ghost btn-xs">
@@ -268,14 +238,14 @@ function onCloseSession() {
           </template>
         </div>
       </div>
+
       <!-- Snapshot -->
       <div class="card bg-base-100 shadow md:col-span-3">
         <div class="card-body">
           <h2 class="text-lg font-semibold">
             Moja sezona ({{ currentYear }})
           </h2>
-
-          <template v-if="statsLoading">
+          <template v-if="homeLoading">
             <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
               <div class="skeleton h-16" />
               <div class="skeleton h-16" />
@@ -283,27 +253,22 @@ function onCloseSession() {
               <div class="skeleton h-16" />
             </div>
           </template>
-
-          <template v-else-if="statsError">
+          <template v-else-if="homeError">
             <div class="alert alert-error">
               Greška pri učitavanju statistike.
             </div>
           </template>
-
           <template v-else>
             <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
               <div class="stat bg-base-200 rounded-box">
                 <div class="stat-title">
-                  Ukupno izlazaka na vodu (sesija)
+                  Izlasci (sesije)
                 </div>
-                <div v-if="stats?.sessions" class="stat-value text-primary">
+                <div class="stat-value text-primary">
                   {{ stats?.sessions ?? 0 }}
                 </div>
               </div>
-              <div
-                v-if="stats?.catches != null && stats.catches > 0"
-                class="stat bg-base-200 rounded-box"
-              >
+              <div v-if="(stats?.catches ?? 0) > 0" class="stat bg-base-200 rounded-box">
                 <div class="stat-title">
                   Ulov potvrđen
                 </div>
@@ -311,10 +276,7 @@ function onCloseSession() {
                   {{ stats?.catches ?? 0 }}
                 </div>
               </div>
-              <div
-                v-if="stats?.total_weight_kg != null && stats.total_weight_kg > 0"
-                class="stat bg-base-200 rounded-box"
-              >
+              <div v-if="(stats?.total_weight_kg ?? 0) > 0" class="stat bg-base-200 rounded-box">
                 <div class="stat-title">
                   Ukupno (kg)
                 </div>
@@ -322,54 +284,12 @@ function onCloseSession() {
                   {{ Number(stats?.total_weight_kg || 0).toFixed(2) }}
                 </div>
               </div>
-              <div
-                v-if="stats?.biggest_single_kg != null && stats.biggest_single_kg > 0"
-                class="stat bg-base-200 rounded-box"
-              >
+              <div v-if="(stats?.biggest_single_kg ?? 0) > 0" class="stat bg-base-200 rounded-box">
                 <div class="stat-title">
                   Najveća (kg)
                 </div>
                 <div class="stat-value text-primary">
                   {{ Number(stats?.biggest_single_kg || 0).toFixed(2) }}
-                </div>
-              </div>
-
-              <div
-                v-if="stats?.catches_unapproved != null && stats.catches_unapproved > 0"
-                class="stat bg-base-200 rounded-box"
-              >
-                <div class="stat-title text-warning">
-                  Ulov nepotvrđen
-                </div>
-                <div class="stat-value text-primary">
-                  {{ stats?.catches_unapproved ?? 0 }}
-                </div>
-              </div>
-              <div
-                v-if="
-                  stats?.total_weight_kg_unapproved != null && stats.total_weight_kg_unapproved > 0
-                "
-                class="stat bg-base-200 rounded-box"
-              >
-                <div class="stat-title text-warning">
-                  Ukupno (kg)
-                </div>
-                <div class="stat-value text-primary">
-                  {{ Number(stats?.total_weight_kg_unapproved || 0).toFixed(2) }}
-                </div>
-              </div>
-              <div
-                v-if="
-                  stats?.biggest_single_kg_unapproved != null
-                    && stats.biggest_single_kg_unapproved > 0
-                "
-                class="stat bg-base-200 rounded-box"
-              >
-                <div class="stat-title text-warning">
-                  Najveća (kg)
-                </div>
-                <div class="stat-value text-primary">
-                  {{ Number(stats?.biggest_single_kg_unapproved || 0).toFixed(2) }}
                 </div>
               </div>
             </div>
@@ -382,32 +302,33 @@ function onCloseSession() {
     <SessionCloseDialog
       v-model="showClose"
       :group-id="defaultGroupId || undefined"
-      :session-id="openFirst?.id || 0"
-      @closed="
-        () => {
-          showClose = false
-          refreshAssigned()
-        }
-      "
+      :session-id="openSession?.id || 0"
+      @closed="onClosedHome"
     />
 
-    <!-- Phase 2 blok -->
+    <!-- Phase 2/3/4 kartice — sada preloaded -->
     <div class="grid gap-6 md:grid-cols-2">
       <HomeWeatherHintCard :hint-lat="hintLat" :hint-lng="hintLng" />
-
-      <HomeAdminMiniPanel :group-id="defaultGroupId || undefined" />
+      <HomeAdminMiniPanel
+        :group-id="defaultGroupId || undefined"
+        :can-manage-prefetched="home?.admin?.canManage"
+        :shortcuts-prefetched="home?.admin?.shortcuts"
+      />
       <EventsUpcomingEventsCard
+        :items="home?.events || []"
         :group-id="defaultGroupId || undefined"
         title="Predstojeći događaji"
         view-all-to="/events"
       />
       <ActivityRecentActivityCard
+        :items="home?.activity || []"
         :group-id="defaultGroupId || undefined"
         title="Nedavna aktivnost"
         view-all-to="/activity"
       />
       <LeaderboardMiniLeaderboardCard
         v-if="defaultGroupId"
+        :data="home?.mini_leaderboard"
         :group-id="defaultGroupId"
         :year="currentYear"
         :limit="5"
@@ -416,18 +337,17 @@ function onCloseSession() {
       />
       <StatsSpeciesTrendsCard
         v-if="defaultGroupId"
+        :trends="home?.species_trends || []"
         :group-id="defaultGroupId"
         :year="currentYear"
       />
-      <AchievementsBadgesCard />
+      <AchievementsBadgesCard :items="home?.achievements || []" />
     </div>
 
     <div class="grid gap-6 md:grid-cols-2">
-      <h1>Svee</h1>
-    </div>
-    <div class="grid gap-6 md:grid-cols-2">
       <HomeLastSessionsMapCard
         class="md:col-span-2"
+        :sessions="home?.map || []"
         :limit="10"
         :height="320"
       />
