@@ -59,8 +59,8 @@ const items = computed(() => (usePrefetched.value ? props.items || [] : internal
           class="flex items-center justify-between gap-3"
         >
           <div class="flex items-center gap-2 min-w-0">
-            <span class="emoji-bullet" :aria-label="a.type">
-              {{ icon(a.type) }}
+            <span class="emoji-bullet" :aria-label="a.type ?? undefined">
+              {{ icon(a.type || '') }}
             </span>
             <div class="truncate">
               <div class="text-sm">

@@ -396,14 +396,18 @@ export type HomeEvent = {
     status: Rsvp;
   } | null;
 };
-
+export type ActivityType
+  = | "catch_added"
+    | "session_opened"
+    | "session_approved"
+    | "session_rejected";
 export type HomeActivityItem = {
   id: number;
-  type?: string | null;
+  type: ActivityType;
   ref_id?: number | null;
   user_id?: number | null;
   created_at?: string | null;
-  meta?: Record<string, any>;
+  meta?: { url?: string } | null;
 };
 
 export type HomeMiniLeaderboardRow = {
