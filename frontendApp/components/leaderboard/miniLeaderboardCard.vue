@@ -1,104 +1,98 @@
 <script setup lang="ts">
-type Props = {
-  title?: string;
-  groupId: number;
+import type { HomeMiniLeaderboard } from "~/types/api";
+
+defineProps<{
+  data?: HomeMiniLeaderboard;
+  groupId?: number;
   year?: number;
   limit?: number;
+  title?: string;
   viewAllTo?: string;
-};
-const props = withDefaults(defineProps<Props>(), {
-  title: "Leaderboard (Top 5)",
-  year: new Date().getFullYear(),
-  limit: 5,
-  viewAllTo: "/leaderboard",
-});
-
-const { top, biggest, loading, fetchLB } = useMiniLeaderboard();
-
-onMounted(() => {
-  fetchLB(props.groupId, props.year, props.limit);
-});
-watch(
-  () => [props.groupId, props.year, props.limit],
-  () => fetchLB(props.groupId, props.year, props.limit),
-);
-
-const hasTop = computed(() => !loading.value && top.value.length > 0);
-
-function displayName(r: any) {
-  return r.user?.profile?.display_name || r.user?.name || `User #${r.user_id}`;
-}
+}>();
 </script>
 
 <template>
-  <div class="card bg-base-100 shadow-lg">
+  <div class="card bg-base-100 shadow">
     <div class="card-body">
       <div class="flex items-center justify-between">
         <h2 class="card-title">
-          {{ title }}
+          {{ title || 'Mini leaderboard' }}
         </h2>
-        <NuxtLink :to="viewAllTo" class="link link-primary">
+        <NuxtLink
+          v-if="viewAllTo"
+          :to="viewAllTo"
+          class="link link-primary text-sm"
+        >
           Vidi sve
         </NuxtLink>
       </div>
 
-      <div v-if="loading" class="space-y-2">
-        <div class="animate-pulse h-6 bg-base-300 rounded" />
-        <div class="animate-pulse h-6 bg-base-300 rounded" />
-        <div class="animate-pulse h-6 bg-base-300 rounded" />
+      <div v-if="!data" class="grid grid-cols-2 gap-4">
+        <div class="space-y-2">
+          <div class="skeleton h-5 w-full" />
+          <div class="skeleton h-5 w-4/5" />
+          <div class="skeleton h-5 w-3/5" />
+        </div>
+        <div class="space-y-2">
+          <div class="skeleton h-5 w-full" />
+          <div class="skeleton h-5 w-4/5" />
+          <div class="skeleton h-5 w-3/5" />
+        </div>
       </div>
 
-      <div v-else-if="!hasTop" class="text-sm opacity-70">
-        Nema podataka za ovu godinu.
-      </div>
-
-      <div v-else class="space-y-4">
-        <div class="overflow-x-auto">
-          <table class="table table-zebra">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Korisnik</th>
-                <th class="text-right">
-                  Ukupno (kg)
-                </th>
-                <th class="text-right">
-                  Ulovâ
-                </th>
-                <th class="text-right">
-                  Najveći (kg)
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="(r, i) in top" :key="r.user_id">
-                <td>{{ i + 1 }}</td>
-                <td class="truncate">
-                  {{ displayName(r) }}
-                </td>
-                <td class="text-right">
-                  {{ (r.total_weight_kg ?? 0).toFixed(2) }}
-                </td>
-                <td class="text-right">
-                  {{ r.catches_count ?? 0 }}
-                </td>
-                <td class="text-right">
-                  {{ (r.biggest_single_kg ?? 0).toFixed(2) }}
-                </td>
-              </tr>
-            </tbody>
-          </table>
+      <div v-else class="grid md:grid-cols-2 gap-6">
+        <!-- Total weight -->
+        <div>
+          <h3 class="font-medium mb-2">
+            Top po ukupnoj težini
+          </h3>
+          <ol class="space-y-2">
+            <li
+              v-for="(row, i) in data.weightTop || []"
+              :key="row.user.id"
+              class="flex items-center justify-between"
+            >
+              <div class="flex items-center gap-2 min-w-0">
+                <span class="badge badge-ghost">{{ i + 1 }}</span>
+                <div class="avatar">
+                  <div class="w-7 rounded-full border border-base-300 overflow-hidden">
+                    <img :src="row.user.avatar_url || '/icons/icon-64.png'" alt="">
+                  </div>
+                </div>
+                <span class="truncate">{{
+                  row.user.display_name || row.user.name || `#${row.user.id}`
+                }}</span>
+              </div>
+              <span class="font-medium">{{ Number(row.total_weight_kg || 0).toFixed(2) }} kg</span>
+            </li>
+          </ol>
         </div>
 
-        <div v-if="biggest" class="alert">
-          <span>
-            Najveći pojedinačni ulov:
-            <strong class="mx-1">{{ (biggest.weight_kg ?? 0).toFixed(2) }} kg</strong>
-            — {{ displayName(biggest) }}
-          </span>
-          <NuxtLink :to="`/sessions/${biggest.session_id}`" class="link ml-2">
-            Vidi sesiju
-          </NuxtLink>
+        <!-- Biggest single -->
+        <div>
+          <h3 class="font-medium mb-2">
+            Najveća pojedinačna
+          </h3>
+          <ol class="space-y-2">
+            <li
+              v-for="(row, i) in data.biggestTop || []"
+              :key="row.user.id"
+              class="flex items-center justify-between"
+            >
+              <div class="flex items-center gap-2 min-w-0">
+                <span class="badge badge-ghost">{{ i + 1 }}</span>
+                <div class="avatar">
+                  <div class="w-7 rounded-full border border-base-300 overflow-hidden">
+                    <img :src="row.user.avatar_url || '/icons/icon-64.png'" alt="">
+                  </div>
+                </div>
+                <span class="truncate">{{
+                  row.user.display_name || row.user.name || `#${row.user.id}`
+                }}</span>
+              </div>
+              <span class="font-medium">{{ Number(row.biggest_single_kg || 0).toFixed(2) }} kg</span>
+            </li>
+          </ol>
         </div>
       </div>
     </div>

@@ -136,10 +136,10 @@ const biggestRows = computed(() =>
         :weight="weightRows"
       >
         <!-- Aktivnost (po broju sesija) -->
-        <template #activity="{ rows }">
+        <template #activity="{ rows: rowsActivity }">
           <div class="grid md:grid-cols-3 gap-3">
             <div
-              v-for="(r, idx) in rows.slice(0, 3)"
+              v-for="(r, idx) in rowsActivity.slice(0, 3)"
               :key="r.user?.id"
               class="card bg-base-100 shadow"
             >
@@ -180,7 +180,7 @@ const biggestRows = computed(() =>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="(r, idx) in rows" :key="r.user?.id ?? idx">
+                <tr v-for="(r, idx) in rowsActivity" :key="r.user?.id ?? idx">
                   <td class="w-12">
                     {{ idx + 1 }}
                   </td>
@@ -210,10 +210,10 @@ const biggestRows = computed(() =>
         </template>
 
         <!-- Ukupna težina -->
-        <template #weight="{ rows }">
+        <template #weight="{ rows: rowsWeight }">
           <div class="grid md:grid-cols-3 gap-3">
             <div
-              v-for="(r, idx) in rows.slice(0, 3)"
+              v-for="(r, idx) in rowsWeight.slice(0, 3)"
               :key="r.user?.id"
               class="card bg-base-100 shadow"
             >
@@ -254,7 +254,7 @@ const biggestRows = computed(() =>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="(r, idx) in rows" :key="r.user?.id ?? idx">
+                <tr v-for="(r, idx) in rowsWeight" :key="r.user?.id ?? idx">
                   <td class="w-12">
                     {{ idx + 1 }}
                   </td>
@@ -284,10 +284,10 @@ const biggestRows = computed(() =>
         </template>
 
         <!-- Najveći primerak -->
-        <template #biggest="{ rows }">
+        <template #biggest="{ rows: rowsBiggest }">
           <div class="grid md:grid-cols-3 gap-3">
             <div
-              v-for="(r, idx) in rows.slice(0, 3)"
+              v-for="(r, idx) in rowsBiggest.slice(0, 3)"
               :key="r.user?.id"
               class="card bg-base-100 shadow"
             >
@@ -328,7 +328,7 @@ const biggestRows = computed(() =>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="(r, idx) in rows" :key="r.user?.id ?? idx">
+                <tr v-for="(r, idx) in rowsBiggest" :key="r.user?.id ?? idx">
                   <td class="w-12">
                     {{ idx + 1 }}
                   </td>
