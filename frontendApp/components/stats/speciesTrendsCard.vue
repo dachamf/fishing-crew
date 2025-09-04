@@ -65,6 +65,10 @@ watch(
     await fetchTop(props.groupId, props.year, props.limit);
   },
 );
+useSWR(() => fetchTop(props.groupId, props.year, props.limit), {
+  intervalMs: 90000,
+  enabled: true,
+});
 </script>
 
 <template>

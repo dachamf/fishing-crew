@@ -64,6 +64,7 @@ const _shortcuts = computed(() => {
           v-for="s in _shortcuts"
           :key="s.href"
           :to="s.href"
+          :aria-label="`Otvori: ${s.label}`"
           class="btn btn-sm whitespace-nowrap"
         >
           <!-- (opciono) font emoji fallback -->
