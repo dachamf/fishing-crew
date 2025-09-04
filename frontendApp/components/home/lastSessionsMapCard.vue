@@ -36,20 +36,19 @@ function fitToMarkers() {
   const map = mapRef.value;
   if (!map)
     return;
+
   const pts = sessionsWithCoords.value
     .map(s => [Number(s.longitude), Number(s.latitude)] as [number, number])
-    .filter((p): p is [number, number] => Number.isFinite(p[0]) && Number.isFinite(p[1]));
-  if (pts.length === 0)
+    .filter(([lng, lat]) => Number.isFinite(lng) && Number.isFinite(lat));
+
+  if (!pts.length)
     return;
 
   let minLng = Infinity;
   let minLat = Infinity;
   let maxLng = -Infinity;
   let maxLat = -Infinity;
-
-  for (const p of pts) {
-    const lng = p[0];
-    const lat = p[1];
+  for (const [lng, lat] of pts) {
     if (lng < minLng)
       minLng = lng;
     if (lng > maxLng)
@@ -69,99 +68,102 @@ function fitToMarkers() {
     );
   }
   catch {
-    /* ignore */
+    /* noop */
   }
 }
+
 function openSession(id: number) {
   router.push(`/sessions/${id}`);
 }
 
 onMounted(async () => {
   await fetchLastWithCoords(props.limit);
-  if (sessionsWithCoords.value.length === 0) {
-    // fallback centar ostaje; bez fit-a
-  }
 });
 
 watch(items, () => fitToMarkers());
 watch(styleUrl, () => requestAnimationFrame(() => mapRef.value?.resize()));
+
+// opciono: blagi SWR refresh dok je tab aktivan
+useSWR(() => fetchLastWithCoords(props.limit), { intervalMs: 60000, enabled: true });
 </script>
 
 <template>
-  <div class="card bg-base-100 shadow-lg w-full">
-    <div class="card-body">
-      <h2 class="card-title flex items-center justify-between">
-        <span>{{ title }}</span>
-        <span v-if="!loading" class="badge badge-ghost">
-          {{ sessionsWithCoords.length }} lokacija
-        </span>
-      </h2>
-
-      <!-- skeleton -->
-      <div
-        v-if="loading"
-        class="w-full rounded bg-base-300 animate-pulse"
-        :style="{ height: typeof height === 'number' ? `${height}px` : height }"
-      />
-
-      <!-- empty state -->
-      <div v-else-if="sessionsWithCoords.length === 0" class="text-sm opacity-70">
-        Nema sesija sa koordinatama. Dodaj lokaciju tokom kreiranja ulova ili
-        <NuxtLink class="link" to="/catches/new">
-          dodaj sada
-        </NuxtLink>.
-      </div>
-
-      <!-- mapa -->
-      <ClientOnly v-else>
-        <div
-          class="relative w-full"
-          :style="{ height: typeof height === 'number' ? `${height}px` : height }"
-        >
-          <MglMap
-            v-model:center="center"
-            v-model:zoom="zoom"
-            class="absolute inset-0"
-            :map-style="styleUrl"
-            @map:load="onLoad"
+  <!-- ✅ koristi loading iz composable-a -->
+  <UiSkeletonCard :loading="loading">
+    <div class="card bg-base-100 shadow-lg w-full">
+      <div class="card-body">
+        <h2 class="card-title flex items-center justify-between">
+          <span>{{ title }}</span>
+          <span
+            v-if="!loading"
+            class="badge badge-ghost"
+            aria-label="Broj lokacija"
           >
-            <MglNavigationControl />
-            <MglMarker
-              v-for="s in sessionsWithCoords"
-              :key="s.id"
-              :coordinates="[Number(s.longitude), Number(s.latitude)]"
-              class-name="z-40"
-            >
-              <template #marker>
-                <button
-                  class="hover:cursor-pointer active:scale-95 transition"
-                  :aria-label="`Otvori sesiju #${s.id}`"
-                  @click="openSession(s.id)"
-                >
-                  <Icon
-                    name="tabler:map-pin-filled"
-                    size="28"
-                    class="text-primary drop-shadow"
-                  />
-                </button>
-              </template>
-            </MglMarker>
-          </MglMap>
+            {{ sessionsWithCoords.length }} lokacija
+          </span>
+        </h2>
 
-          <div class="pointer-events-none absolute left-2 top-2 z-10 flex gap-2">
-            <span class="badge badge-ghost pointer-events-auto">Klik na pin → detalj</span>
-          </div>
-        </div>
+        <!-- ✅ prazno stanje -->
+        <UiEmptyState
+          v-if="!loading && sessionsWithCoords.length === 0"
+          title="Nema sesija na mapi"
+          desc="Započni sesiju i zabeleži lokaciju."
+          cta-text="Pokreni sesiju"
+          to="/catches/new"
+          icon="tabler:map"
+        />
 
-        <template #placeholder>
+        <!-- ✅ mapa -->
+        <ClientOnly v-else>
           <div
-            class="w-full grid place-items-center text-sm opacity-70"
+            class="relative w-full"
             :style="{ height: typeof height === 'number' ? `${height}px` : height }"
           >
-            Učitavanje mape…
+            <MglMap
+              v-model:center="center"
+              v-model:zoom="zoom"
+              class="absolute inset-0"
+              :map-style="styleUrl"
+              @map:load="onLoad"
+            >
+              <MglNavigationControl />
+              <MglMarker
+                v-for="s in sessionsWithCoords"
+                :key="s.id"
+                :coordinates="[Number(s.longitude), Number(s.latitude)]"
+                class-name="z-40"
+              >
+                <template #marker>
+                  <button
+                    class="hover:cursor-pointer active:scale-95 transition"
+                    :aria-label="`Otvori sesiju #${s.id}`"
+                    @click="openSession(s.id)"
+                  >
+                    <Icon
+                      name="tabler:map-pin-filled"
+                      size="28"
+                      class="text-primary drop-shadow"
+                    />
+                  </button>
+                </template>
+              </MglMarker>
+            </MglMap>
+
+            <div class="pointer-events-none absolute left-2 top-2 z-10 flex gap-2">
+              <span class="badge badge-ghost pointer-events-auto">Klik na pin → detalj</span>
+            </div>
           </div>
-        </template>
-      </ClientOnly>
+
+          <template #placeholder>
+            <div
+              class="w-full grid place-items-center text-sm opacity-70"
+              :style="{ height: typeof height === 'number' ? `${height}px` : height }"
+            >
+              Učitavanje mape…
+            </div>
+          </template>
+        </ClientOnly>
+      </div>
     </div>
-  </div>
+  </UiSkeletonCard>
 </template>

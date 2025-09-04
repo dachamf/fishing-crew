@@ -1,51 +1,57 @@
 <script setup lang="ts">
-import type { HomeAchievement } from "~/types/api";
+const props = defineProps<{ items?: any[] }>();
+const usePrefetched = computed(() => Array.isArray(props.items));
+const { $api } = useNuxtApp() as any;
 
-const props = defineProps<{ items?: HomeAchievement[] }>();
-const items = computed(() => props.items ?? []);
+const {
+  data,
+  pending: _pending,
+  refresh,
+} = await useAsyncData<any[]>(
+  "achievements:me",
+  async () => {
+    if (usePrefetched.value)
+      return props.items!;
+    const { data } = await $api.get("/v1/achievements", { params: { scope: "me" } });
+    return data ?? [];
+  },
+  { server: false },
+);
+useSWR(() => refresh(), { intervalMs: 120000, enabled: () => !usePrefetched.value });
+const rows = computed(() => data.value ?? []);
 </script>
 
 <template>
-  <div class="card bg-base-100 shadow">
-    <div class="card-body">
-      <h2 class="card-title">
-        Bedževi
-      </h2>
+  <UiSkeletonCard :loading="!usePrefetched && _pending">
+    <h2 class="card-title">
+      Bedževi
+    </h2>
 
-      <div v-if="items === undefined" class="grid grid-cols-3 gap-3">
-        <div class="skeleton h-20" />
-        <div class="skeleton h-20" />
-        <div class="skeleton h-20" />
-      </div>
-
+    <div v-if="rows.length" class="grid sm:grid-cols-3 gap-2">
       <div
-        v-else-if="(items?.length || 0) > 0"
-        class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3"
+        v-for="b in rows"
+        :key="b.key"
+        class="p-3 rounded-box border"
+        :class="b.unlocked_at ? 'border-success' : 'border-base-300 opacity-70'"
+        :aria-label="(b.title || 'Badge') + (b.unlocked_at ? ' otključan' : ' zaključan')"
       >
-        <div
-          v-for="b in items"
-          :key="b.id || b.key"
-          class="border border-base-300 rounded-xl p-3 flex items-center gap-3"
-          :class="b.unlocked_at ? 'bg-base-100' : 'bg-base-200 opacity-80'"
-          :title="b.title || b.key"
-        >
-          <Icon :name="b.unlocked_at ? 'tabler:award' : 'tabler:lock'" size="24" />
-          <div class="min-w-0">
-            <div class="font-medium truncate">
-              {{ b.title || b.key || 'Bedž' }}
-            </div>
-            <div class="text-xs opacity-70">
-              {{
-                b.unlocked_at ? new Date(b.unlocked_at).toLocaleDateString('sr-RS') : 'Zaključano'
-              }}
-            </div>
-          </div>
+        <div class="font-medium">
+          {{ b.title }}
+        </div>
+        <div class="text-sm opacity-80">
+          {{ b.meta?.desc }}
+        </div>
+        <div v-if="b.meta?.value != null" class="mt-1 text-xs">
+          Vrednost: <b>{{ b.meta.value }}</b>
         </div>
       </div>
-
-      <div v-else class="opacity-70 text-sm">
-        Još uvek nema bedževa.
-      </div>
     </div>
-  </div>
+
+    <UiEmptyState
+      v-else
+      title="Još nema bedževa"
+      desc="Ispuni uslove da otključaš prve bedževe."
+      icon="tabler:award"
+    />
+  </UiSkeletonCard>
 </template>

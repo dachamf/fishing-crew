@@ -434,7 +434,11 @@ export type HomeMapPoint = {
   started_at?: string | null;
 };
 
-export type HomeSpeciesTrend = { label: string; cnt: number; total_kg: number };
+export type HomeSpeciesTrend = {
+  label: string;
+  cnt: number;
+  total_kg: number;
+};
 
 export type HomeAchievement = {
   id: number;
@@ -444,7 +448,13 @@ export type HomeAchievement = {
   meta?: Record<string, any>;
 };
 
-export type HomeAdmin = { canManage: boolean; shortcuts: { label: string; href: string }[] };
+export type HomeAdmin = {
+  canManage: boolean;
+  shortcuts: {
+    label: string;
+    href: string;
+  }[];
+};
 
 export type HomePayload = Partial<{
   me: HomeMe;
@@ -459,3 +469,8 @@ export type HomePayload = Partial<{
   achievements: HomeAchievement[];
   admin: HomeAdmin;
 }>;
+
+export type UseSWROptions = {
+  intervalMs?: number; // npr. 30_000
+  enabled?: boolean | (() => boolean); // dinamički on/off
+};

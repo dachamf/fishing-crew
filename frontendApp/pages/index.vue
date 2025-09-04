@@ -76,6 +76,11 @@ function onClosedHome() {
   showClose.value = false;
   refreshHome(); // ili refreshAssigned() ako to želiš
 }
+
+useSWR(() => refreshHome(), {
+  intervalMs: 45000,
+  enabled: () => true,
+});
 </script>
 
 <template>
