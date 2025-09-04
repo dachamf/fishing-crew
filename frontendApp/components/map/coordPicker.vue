@@ -17,6 +17,11 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: "update:coords", v: { lng: number | null; lat: number | null }): void;
 }>();
+
+useHead({
+  link: [{ rel: "preconnect", href: "https://tiles.openfreemap.org", crossorigin: "" }],
+});
+
 const { mode } = useTheme();
 const styleUrl = computed(() => {
   return mode.value === "dark"

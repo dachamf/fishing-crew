@@ -5,6 +5,10 @@ const props = withDefaults(defineProps<Props>(), {
   limit: 10,
 });
 
+useHead({
+  link: [{ rel: "preconnect", href: "https://tiles.openfreemap.org", crossorigin: "" }],
+});
+
 // Axios-based composable koji već imamo
 const { items, loading, fetchLastWithCoords } = useMapSessions();
 

@@ -304,7 +304,7 @@ useSWR(() => refreshHome(), {
     </div>
 
     <!-- Close session dialog -->
-    <SessionCloseDialog
+    <LazySessionCloseDialog
       v-model="showClose"
       :group-id="defaultGroupId || undefined"
       :session-id="openSession?.id || 0"
@@ -313,25 +313,25 @@ useSWR(() => refreshHome(), {
 
     <!-- Phase 2/3/4 kartice — sada preloaded -->
     <div class="grid gap-6 md:grid-cols-2">
-      <HomeWeatherHintCard :hint-lat="hintLat" :hint-lng="hintLng" />
-      <HomeAdminMiniPanel
+      <LazyHomeWeatherHintCard :hint-lat="hintLat" :hint-lng="hintLng" />
+      <LazyHomeAdminMiniPanel
         :group-id="defaultGroupId || undefined"
         :can-manage-prefetched="home?.admin?.canManage"
         :shortcuts-prefetched="home?.admin?.shortcuts"
       />
-      <EventsUpcomingEventsCard
+      <LazyEventsUpcomingEventsCard
         :items="home?.events || []"
         :group-id="defaultGroupId || undefined"
         title="Predstojeći događaji"
         view-all-to="/events"
       />
-      <ActivityRecentActivityCard
+      <LazyActivityRecentActivityCard
         :items="home?.activity || []"
         :group-id="defaultGroupId || undefined"
         title="Nedavna aktivnost"
         view-all-to="/activity"
       />
-      <LeaderboardMiniLeaderboardCard
+      <LazyLeaderboardMiniLeaderboardCard
         v-if="defaultGroupId"
         :data="home?.mini_leaderboard"
         :group-id="defaultGroupId"
@@ -340,7 +340,7 @@ useSWR(() => refreshHome(), {
         title="Mini leaderboard"
         view-all-to="/leaderboard"
       />
-      <StatsSpeciesTrendsCard
+      <LazyStatsSpeciesTrendsCard
         v-if="defaultGroupId"
         :trends="home?.species_trends || []"
         :group-id="defaultGroupId"
@@ -350,7 +350,7 @@ useSWR(() => refreshHome(), {
     </div>
 
     <div class="grid gap-6 md:grid-cols-2">
-      <HomeLastSessionsMapCard
+      <LazyHomeLastSessionsMapCard
         class="md:col-span-2"
         :sessions="home?.map || []"
         :limit="10"

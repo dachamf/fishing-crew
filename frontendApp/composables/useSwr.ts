@@ -1,21 +1,32 @@
 import type { UseSWROptions } from "~/types/api";
 
 export function useSWR(refreshFn: () => unknown | Promise<unknown>, opts: UseSWROptions = {}) {
-  const getEnabled
-    = typeof opts.enabled === "function"
-      ? (opts.enabled as () => boolean)
-      : () => opts.enabled ?? true;
-
+  const isClient = typeof window !== "undefined";
   const interval = opts.intervalMs ?? 30_000;
-  let timer: number | null = null;
+
+  // Normalizuj enabled u computed getter
+  const getEnabled = computed<boolean>(() => {
+    const e = opts.enabled;
+    return typeof e === "function" ? (e as () => boolean)() : (e ?? true);
+  });
+
+  let timer: ReturnType<typeof setInterval> | null = null;
 
   const run = async () => {
-    if (!getEnabled())
+    // Guard 1: feature flag
+    if (!getEnabled.value)
       return;
-    if (typeof document !== "undefined" && document.visibilityState !== "visible")
+
+    // Guard 2: samo na klijentu
+    if (!isClient)
       return;
-    if (typeof navigator !== "undefined" && "onLine" in navigator && !(navigator as any).onLine)
+
+    // Guard 3: ne radi u pozadini / offline
+    if (document.visibilityState !== "visible")
       return;
+    if ("onLine" in navigator && !navigator.onLine)
+      return;
+
     try {
       await refreshFn();
     }
@@ -25,45 +36,58 @@ export function useSWR(refreshFn: () => unknown | Promise<unknown>, opts: UseSWR
   };
 
   const stop = () => {
-    if (timer != null) {
+    if (timer) {
       clearInterval(timer);
       timer = null;
     }
   };
+
   const start = () => {
+    if (!isClient)
+      return;
     stop();
-    void run(); // prvi tick odmah
-    timer = window.setInterval(run, interval) as unknown as number;
+    void run(); // odmah jedan tick
+    timer = setInterval(run, interval);
   };
 
-  const onVis = () => {
-    if (document.visibilityState === "visible")
+  // Event handler-i samo na klijentu
+  if (isClient) {
+    const onVis = () => {
+      if (document.visibilityState === "visible")
+        void run();
+    };
+    const onFocus = () => {
       void run();
-  };
-  const onFocus = () => {
-    void run();
-  };
-  const onOnline = () => {
-    void run();
-  };
+    };
+    const onOnline = () => {
+      void run();
+    };
 
-  if (getEnabled())
-    start();
+    onMounted(() => {
+      if (getEnabled.value)
+        start();
+      document.addEventListener("visibilitychange", onVis);
+      window.addEventListener("focus", onFocus);
+      window.addEventListener("online", onOnline);
+    });
 
-  document.addEventListener("visibilitychange", onVis);
-  window.addEventListener("focus", onFocus);
-  window.addEventListener("online", onOnline);
+    onBeforeUnmount(() => {
+      stop();
+      document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("online", onOnline);
+    });
 
-  onBeforeUnmount(() => {
-    stop();
-    document.removeEventListener("visibilitychange", onVis);
-    window.removeEventListener("focus", onFocus);
-    window.removeEventListener("online", onOnline);
-  });
+    // Reaguj kad se enabled menja
+    watch(getEnabled, (en) => {
+      en ? start() : stop();
+    });
+  }
 
   return {
     start,
     stop,
     isActive: () => timer != null,
+    tick: () => run(),
   };
 }

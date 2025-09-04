@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { HomeMiniLeaderboard, HomeMiniLeaderboardRow, LeaderboardItem } from "~/types/api";
 
+import { useVisible } from "~/composables/useVisible";
+
 type PrefetchedMini = { items: LeaderboardItem[] } | HomeMiniLeaderboard;
 
 const props = defineProps<{
@@ -62,6 +64,8 @@ useSWR(() => refresh(), {
 const rows = computed(() => data.value?.items ?? []);
 const pre = computed(() => (props.data as any) || {});
 
+const { el, visible } = useVisible();
+
 // type guards + helperi koji “ujednačavaju” nazive polja
 function isHomeRow(r: any): r is HomeMiniLeaderboardRow {
   return "total_weight_kg" in (r || {}) || "biggest_single_kg" in (r || {});
@@ -101,78 +105,99 @@ const topByBiggest = computed<Array<LeaderboardItem | HomeMiniLeaderboardRow>>((
 </script>
 
 <template>
-  <UiSkeletonCard :loading="!hasPrefetched && _pending">
-    <div class="flex items-center justify-between">
-      <h2 class="card-title">
-        {{ title || 'Mini leaderboard' }}
-      </h2>
-      <NuxtLink
-        v-if="viewAllTo"
-        :to="viewAllTo"
-        class="link link-primary text-sm"
-        aria-label="Otvori leaderboard"
-      >
-        Vidi sve
-      </NuxtLink>
-    </div>
-
-    <div v-if="topByWeight.length || topByBiggest.length" class="grid gap-4">
-      <!-- Top ukupna težina -->
-      <div v-if="topByWeight.length">
-        <div class="font-semibold mb-2">
-          Top ukupna težina
-        </div>
-        <ul class="space-y-2">
-          <li
-            v-for="(r, i) in topByWeight"
-            :key="userOf(r)?.id ?? i"
-            class="flex items-center justify-between"
-          >
-            <div class="flex items-center gap-2 min-w-0">
-              <div class="avatar">
-                <div class="w-7 rounded-full overflow-hidden border border-base-300">
-                  <img :src="avatarOf(userOf(r))" alt="">
-                </div>
-              </div>
-              <span class="truncate">{{ displayName(userOf(r)) }}</span>
-            </div>
-            <span class="badge">{{ kg(weightOf(r)) }}</span>
-          </li>
-        </ul>
+  <div ref="el">
+    <UiSkeletonCard :loading="!hasPrefetched && _pending && !visible">
+      <div class="flex items-center justify-between">
+        <h2 class="card-title">
+          {{ title || 'Mini leaderboard' }}
+        </h2>
+        <NuxtLink
+          v-if="viewAllTo"
+          :to="viewAllTo"
+          class="link link-primary text-sm"
+          aria-label="Otvori leaderboard"
+        >
+          Vidi sve
+        </NuxtLink>
       </div>
 
-      <!-- Najveći primerak -->
-      <div v-if="topByBiggest.length">
-        <div class="font-semibold mb-2">
-          Najveći primerak
-        </div>
-        <ul class="space-y-2">
-          <li
-            v-for="(r, i) in topByBiggest"
-            :key="userOf(r)?.id ?? i"
-            class="flex items-center justify-between"
-          >
-            <div class="flex items-center gap-2 min-w-0">
-              <div class="avatar">
-                <div class="w-7 rounded-full overflow-hidden border border-base-300">
-                  <img :src="avatarOf(userOf(r))" alt="">
+      <div v-if="topByWeight.length || topByBiggest.length" class="grid gap-4">
+        <!-- Top ukupna težina -->
+        <div v-if="topByWeight.length">
+          <div class="font-semibold mb-2">
+            Top ukupna težina
+          </div>
+          <ul class="space-y-2">
+            <li
+              v-for="(r, i) in topByWeight"
+              :key="userOf(r)?.id ?? i"
+              class="flex items-center justify-between"
+            >
+              <div class="flex items-center gap-2 min-w-0">
+                <div class="avatar">
+                  <div class="w-7 rounded-full overflow-hidden border border-base-300">
+                    <img :src="avatarOf(userOf(r))" alt="">
+                    <NuxtImg
+                      :src="avatarOf(userOf(r))"
+                      width="64"
+                      height="64"
+                      sizes="64px md:64px"
+                      format="webp"
+                      loading="lazy"
+                      decoding="async"
+                      alt=""
+                    />
+                  </div>
                 </div>
+                <span class="truncate">{{ displayName(userOf(r)) }}</span>
               </div>
-              <span class="truncate">{{ displayName(userOf(r)) }}</span>
-            </div>
-            <span class="badge">{{ kg(biggestOf(r)) }}</span>
-          </li>
-        </ul>
-      </div>
-    </div>
+              <span class="badge">{{ kg(weightOf(r)) }}</span>
+            </li>
+          </ul>
+        </div>
 
-    <UiEmptyState
-      v-else
-      title="Nema poretka"
-      desc="Još nema dovoljno podataka za rang listu."
-      to="/catches/new"
-      cta-text="+ Dodaj ulov"
-      icon="tabler:trophy"
-    />
-  </UiSkeletonCard>
+        <!-- Najveći primerak -->
+        <div v-if="topByBiggest.length">
+          <div class="font-semibold mb-2">
+            Najveći primerak
+          </div>
+          <ul class="space-y-2">
+            <li
+              v-for="(r, i) in topByBiggest"
+              :key="userOf(r)?.id ?? i"
+              class="flex items-center justify-between"
+            >
+              <div class="flex items-center gap-2 min-w-0">
+                <div class="avatar">
+                  <div class="w-7 rounded-full overflow-hidden border border-base-300">
+                    <NuxtImg
+                      :src="avatarOf(userOf(r))"
+                      width="64"
+                      height="64"
+                      sizes="64px md:64px"
+                      format="webp"
+                      loading="lazy"
+                      decoding="async"
+                      alt=""
+                    />
+                  </div>
+                </div>
+                <span class="truncate">{{ displayName(userOf(r)) }}</span>
+              </div>
+              <span class="badge">{{ kg(biggestOf(r)) }}</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <UiEmptyState
+        v-else
+        title="Nema poretka"
+        desc="Još nema dovoljno podataka za rang listu."
+        to="/catches/new"
+        cta-text="+ Dodaj ulov"
+        icon="tabler:trophy"
+      />
+    </UiSkeletonCard>
+  </div>
 </template>
