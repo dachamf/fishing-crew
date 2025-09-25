@@ -16,10 +16,7 @@ use Illuminate\Validation\ValidationException;
 
 class SessionReviewController extends Controller
 {
-
-    public function __construct(private SessionReviewService $svc)
-    {
-    }
+    public function __construct(private SessionReviewService $svc) {}
 
     /**
      * Handles the nomination of users for a specific fishing session.
@@ -36,16 +33,20 @@ class SessionReviewController extends Controller
      * @throws AuthorizationException If the user is not authorized to perform the action.
      * @throws ValidationException If the validation of request data fails.
      */
-    public function nominate(Request $request, FishingSession $session)
+    public function nominate(Request $request, FishingSession $session): JsonResponse
     {
         $this->authorize('nominate', $session);
 
         $data = $request->validate([
-            'nominees' => 'required|array|min:1',
+            'nominees'   => 'required|array|min:1',
             'nominees.*' => 'integer|exists:users,id',
         ]);
 
-        $this->svc->nominate($session, $data['nominees'], fn($s,$c) => config('app.frontend_url')."/sessions/{$s->id}?token={$c->token}");
+        $this->svc->nominate(
+            $session,
+            $data['nominees'],
+            fn($s, $c) => rtrim(config('app.frontend_url'), '/')."/sessions/{$s->id}?token={$c->token}"
+        );
 
         return response()->json(['ok' => true]);
     }
@@ -65,12 +66,12 @@ class SessionReviewController extends Controller
      * @throws ValidationException If the validation of the input data fails.
      * @throws ModelNotFoundException If the session confirmation record cannot be found.
      */
-    public function confirm(Request $request, FishingSession $session)
+    public function confirm(Request $request, FishingSession $session): JsonResponse
     {
         $this->authorize('confirm', $session);
 
         $data = $request->validate([
-            'decision' => ['required', Rule::in(['approved','rejected'])],
+            'decision' => ['required', Rule::in(['approved', 'rejected'])],
         ]);
 
         $conf = SessionConfirmation::where('session_id', $session->id)
@@ -81,38 +82,49 @@ class SessionReviewController extends Controller
         return response()->json(['status' => $conf->fresh()->status]);
     }
 
-    public function review(Request $r, FishingSession $session) {
+    /**
+     * Handles the review process for a fishing session.
+     *
+     * This method validates the review data, updates the session review with the provided status and note,
+     * notifies the owner about the update, and finalizes the status of the related fishing catches based on
+     * the aggregated review statuses. Notifications for finalization are optional and depend on configuration.
+     *
+     * @param Request $r The HTTP request instance containing review data.
+     * @param FishingSession $session The fishing session being reviewed.
+     *
+     * @return JsonResponse The JSON-formatted response containing the updated session with its reviews.
+     */
+    public function review(Request $r, FishingSession $session): JsonResponse
+    {
         $data = $r->validate([
-            'status' => ['required','in:approved,rejected'],
-            'note'   => ['nullable','string','max:500'],
+            'status' => ['required', 'in:approved,rejected'],
+            'note'   => ['nullable', 'string', 'max:500'],
         ]);
 
-        // samo nominovani može da glasa
-        $rev = SessionReview::where('session_id',$session->id)
-            ->where('reviewer_id',$r->user()->id)
+        // legacy review flow (session_reviews tabela)
+        $rev = SessionReview::where('session_id', $session->id)
+            ->where('reviewer_id', $r->user()->id)
             ->firstOrFail();
 
-        $rev->update(['status'=>$data['status'],'note'=>$data['note'] ?? null]);
+        $rev->update(['status' => $data['status'], 'note' => $data['note'] ?? null]);
 
-        // obavesti vlasnika SVAKI PUT kad neko glasa
-        $owner = $session->user()->first();
-        $who   = $r->user();
-        if ($owner) {
-            $owner->notify(new \App\Notifications\OwnerSessionReviewUpdated($session, $rev, $who));
+        // per-action owner notify (legacy)
+        if ($owner = $session->user()->first()) {
+            $owner->notify(new \App\Notifications\OwnerSessionReviewUpdated($session, $rev, $r->user()));
         }
 
-        // finalizacija sesije (mass update ulova) kad se steknu uslovi
+        // finalization (legacy session_reviews logika)
         $statuses = $session->reviews()->pluck('status');
 
         $finalMailEnabled = (bool) env('FC_OWNER_FINAL_SUMMARY_MAIL', false);
 
         if ($statuses->contains('rejected')) {
-            FishingCatch::where('session_id',$session->id)->update(['status'=>'rejected']);
+            FishingCatch::where('session_id', $session->id)->update(['status' => 'rejected']);
             if ($finalMailEnabled && $owner) {
                 $owner->notify(new \App\Notifications\OwnerSessionFinalized($session, 'rejected'));
             }
-        } elseif ($statuses->count() > 0 && $statuses->every(fn($s)=>$s==='approved')) {
-            FishingCatch::where('session_id',$session->id)->update(['status'=>'approved']);
+        } elseif ($statuses->count() > 0 && $statuses->every(fn($s) => $s === 'approved')) {
+            FishingCatch::where('session_id', $session->id)->update(['status' => 'approved']);
             if ($finalMailEnabled && $owner) {
                 $owner->notify(new \App\Notifications\OwnerSessionFinalized($session, 'approved'));
             }
@@ -136,7 +148,7 @@ class SessionReviewController extends Controller
      * @throws ValidationException If the validation of the input data fails.
      * @throws ModelNotFoundException If the session confirmation record cannot be found using the token.
      */
-    public function confirmByToken(Request $request, FishingSession $session, string $token)
+    public function confirmByToken(Request $request, FishingSession $session, string $token): JsonResponse
     {
         $data = $request->validate([
             'decision' => ['required', Rule::in(['approved','rejected'])],
@@ -151,25 +163,41 @@ class SessionReviewController extends Controller
     }
 
     /**
-     * @param FishingSession $session
-     * @return JsonResponse
+     * Finalizes the provided fishing session.
+     *
+     * This method ensures the user is authorized to finalize the session, invokes the service to handle
+     * potential finalization logic, and returns a JSON response with updated session information, including
+     * the final result and timestamp of finalization.
+     *
+     * @param FishingSession $session The fishing session to be finalized.
+     *
+     * @return JsonResponse The JSON-formatted response containing the session's final result and finalization timestamp.
      */
-    public function finalize(FishingSession $session)
+    public function finalize(FishingSession $session): JsonResponse
     {
         $this->authorize('finalize', $session);
-        app(SessionReviewService::class)->maybeFinalize($session);
-        return response()->json(['final_result' => $session->fresh()->final_result, 'finalized_at' => $session->fresh()->finalized_at]);
+        $this->svc->maybeFinalize($session);
+        $fresh = $session->fresh();
+        return response()->json([
+            'final_result' => $fresh->final_result,
+            'finalized_at' => $fresh->finalized_at,
+        ]);
     }
 
     /**
-     * Retrieve fishing sessions assigned to the currently authenticated user for review.
-     * Filters sessions where the user is the reviewer and the review status is pending.
-     * Includes count of catches and specific related user details.
+     * Retrieves fishing sessions assigned to the authenticated user for review or confirmation.
      *
-     * @param Request $r The incoming HTTP request containing user authentication data.
-     * @return JsonResponse A paginated JSON response with the fishing session data.
+     * This method queries fishing sessions where the authenticated user has pending confirmation statuses,
+     * includes the count of related catches, and eager loads user-related data (profile and name) as well as
+     * detailed confirmation records belonging to the user. The results are paginated and sorted by the most
+     * recent session start date and ID.
+     *
+     * @param Request $r The HTTP request instance, used to identify the authenticated user.
+     *
+     * @return JsonResponse The paginated list of fishing sessions assigned to the user in JSON format.
      */
-    public function assignedToMe(Request $r) {
+    public function assignedToMe(Request $r): JsonResponse
+    {
         $q = FishingSession::query()
             ->whereHas('confirmations', fn($c) =>
             $c->where('nominee_user_id', $r->user()->id)->where('status', 'pending')
@@ -178,7 +206,6 @@ class SessionReviewController extends Controller
             ->with([
                 'user:id,name',
                 'user.profile:id,user_id,display_name,avatar_path',
-                // po želji prikači i moje pending potvrde
                 'confirmations' => fn($qq) => $qq
                     ->select('id','session_id','nominee_user_id','status','decided_at','created_at','updated_at')
                     ->where('nominee_user_id', $r->user()->id),
@@ -189,13 +216,16 @@ class SessionReviewController extends Controller
     }
 
     /**
-     * Retrieve the count of fishing sessions assigned to the currently authenticated user for review.
-     * Filters sessions where the user is the reviewer and the review status is pending.
+     * Retrieves the count of pending confirmations assigned to the authenticated user.
      *
-     * @param Request $r The incoming HTTP request containing user authentication data.
-     * @return JsonResponse A JSON response with the count of pending fishing sessions.
+     * This method calculates the total number of fishing session confirmations that are in a pending
+     * state and assigned to the currently authenticated user based on their ID.
+     *
+     * @param Request $r The HTTP request instance containing the authenticated user information.
+     *
+     * @return JsonResponse The JSON-formatted response containing the total count of pending confirmations.
      */
-    public function assignedCount(Request $r)
+    public function assignedCount(Request $r): JsonResponse
     {
         $total = FishingSession::query()
             ->whereHas('confirmations', fn($c) =>
@@ -205,6 +235,4 @@ class SessionReviewController extends Controller
 
         return response()->json(['total_pending' => $total]);
     }
-
-
 }

@@ -2,72 +2,123 @@
 
 namespace App\Services;
 
-use App\Mail\SessionFinalizedMail;
-use App\Mail\SessionReviewActionMail;
-use App\Mail\SessionReviewRequestMail;
 use App\Models\FishingSession;
 use App\Models\SessionConfirmation;
+use App\Notifications\OwnerSessionConfirmationUpdated;
+use App\Notifications\OwnerSessionFinalized;
+use App\Notifications\SessionConfirmationsRequested; // postoji u tvom repo-u
+use App\Notifications\SessionReviewTokenLink;        // NOVO (vidi ispod)
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
 class SessionReviewService
 {
+    /**
+     * @param  FishingSession $session
+     * @param  array<int> $nomineeUserIds
+     * @param  callable(FishingSession, SessionConfirmation):string|null $reviewUrlBuilder
+     */
     public function nominate(FishingSession $session, array $nomineeUserIds, ?callable $reviewUrlBuilder = null): void
     {
         foreach ($nomineeUserIds as $uid) {
-            $conf = SessionConfirmation::firstOrCreate([
-                'session_id' => $session->id,
-                'nominee_user_id' => $uid,
-            ], [
-                'status' => 'pending',
-                'token' => Str::random(48),
-            ]);
+            $conf = SessionConfirmation::firstOrCreate(
+                ['session_id' => $session->id, 'nominee_user_id' => $uid],
+                ['status' => 'pending', 'token' => Str::random(48)],
+            );
 
-            if ($conf->wasRecentlyCreated) {
-                $url = $reviewUrlBuilder ? $reviewUrlBuilder($session, $conf) : url("/sessions/{$session->id}/review?token={$conf->token}");
-                Mail::to($conf->nominee)->queue(new SessionReviewRequestMail($session, $conf, $url));
+            if (!$conf->wasRecentlyCreated) {
+                continue;
             }
+
+            // Token URL ka FE (approve/reject bez login-a)
+            $url = $reviewUrlBuilder
+                ? $reviewUrlBuilder($session, $conf)
+                : rtrim(config('app.frontend_url'), '/')."/sessions/{$session->id}?token={$conf->token}";
+
+            // Light lista ulova (za email preview)
+            $items = $session->catches()
+                ->get(['id','species','species_name','count','total_weight_kg','caught_at'])
+                ->map(fn($c) => [
+                    'id'               => $c->id,
+                    'species'          => $c->species_label ?? $c->species ?? $c->species_name ?? '-',
+                    'count'            => $c->count,
+                    'total_weight_kg'  => $c->total_weight_kg,
+                    'caught_at'        => $c->caught_at,
+                ])->all();
+
+            // Pošalji postojeću notifikaciju sa listom...
+            $conf->nominee?->notify(new SessionConfirmationsRequested($session, $items));
+            // ... + poseban token link (da bude sigurno u mailu)
+            $conf->nominee?->notify(new SessionReviewTokenLink($session, $url));
         }
     }
 
+    /**
+     * @param FishingSession $session
+     * @param SessionConfirmation $conf
+     * @param string $decision
+     * @param $actor
+     * @param bool $silent
+     * @return void
+     */
     public function confirm(
         FishingSession $session,
         SessionConfirmation $conf,
         string $decision,
-        $actor, bool
-    $silent = false
+        $actor,
+        bool $silent = false
     ): void
     {
-        if ($conf->status !== 'pending') return;
+        if ($conf->status !== 'pending') {
+            return;
+        }
 
         $conf->update([
-            'status' => $decision, // 'approved' | 'rejected'
+            'status'     => $decision, // 'approved' | 'rejected'
             'decided_at' => now(),
         ]);
-        $url = url("/sessions/{$session->id}/");
-        if (!$silent) {
-            Mail::to($session->user)->queue(new SessionReviewActionMail(
+
+        if (!$silent && $session->user) {
+            $url = rtrim(config('app.frontend_url'), '/')."/sessions/{$session->id}";
+            $session->user->notify(new OwnerSessionConfirmationUpdated(
                 $session,
                 $actor,
                 $decision,
-                $url,
+                $url
             ));
         }
 
         $this->maybeFinalize($session);
     }
 
+    /**
+     * Finalizes the given fishing session based on its confirmations.
+     *
+     * This method evaluates the confirmations of the fishing session. If there are no confirmations,
+     * no finalization is performed. If there are pending confirmations, the method waits for them to settle.
+     *
+     * Once all confirmations are finalized, the method determines the final result as either 'approved'
+     * or 'rejected' based on the status of the confirmations. The status of associated catches is updated,
+     * and the session is finalized with the determined result. Finally, a notification is sent to the session's
+     * user if available.
+     *
+     * @param FishingSession $session The fishing session to potentially finalize.
+     *
+     * @return void
+     */
     public function maybeFinalize(FishingSession $session): void
     {
         $session->load('confirmations');
 
-        if ($session->confirmations()->count() === 0) return; // ništa za finalizaciju
+        // ništa za finalizaciju
+        if ($session->confirmations()->count() === 0) return;
 
-        $pending = $session->confirmations->where('status', 'pending')->count();
-        if ($pending > 0) return;
+        // čekamo dok ne nestane pending
+        if ($session->confirmations->where('status', 'pending')->count() > 0) return;
 
-        $final = $session->confirmations->contains(fn($c) => $c->status === 'rejected') ? 'rejected' : 'approved';
+        $final = $session->confirmations->contains(fn($c) => $c->status === 'rejected')
+            ? 'rejected'
+            : 'approved';
 
         DB::transaction(function () use ($session, $final) {
             // bulk update ulova
@@ -79,7 +130,10 @@ class SessionReviewService
                 'final_result' => $final,
             ])->save();
         });
-        $url = url("/sessions/{$session->id}/");
-        Mail::to($session->user)->queue(new SessionFinalizedMail($session, $url));
+
+        if ($session->user) {
+            $url = rtrim(config('app.frontend_url'), '/')."/sessions/{$session->id}";
+            $session->user->notify(new OwnerSessionFinalized($session, $final, $url));
+        }
     }
 }

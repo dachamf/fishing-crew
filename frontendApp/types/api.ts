@@ -197,6 +197,7 @@ export type FishingSessionLite = {
 
   finalized_at?: ISODate | null;
   final_result?: "approved" | "rejected" | null;
+  catches_count?: number;
 
   user?: UserLite;
   group?: GroupLite;
