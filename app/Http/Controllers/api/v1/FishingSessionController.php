@@ -53,11 +53,11 @@ class FishingSessionController extends Controller
             });
         }
 
-        // include=photos,catches,catches.user,event
+        // include=photos,catches,catches.user,event,confirmations,confirmations.nominee
         $include = collect(explode(',', (string)$r->query('include','')))
             ->map(fn($i)=>trim($i))->filter()->values();
 
-        $allowed = ['catches','catches.user','event','photos'];
+        $allowed = ['catches','catches.user','event','photos','confirmations','confirmations.nominee'];
         $include = $include->filter(fn($rel) => in_array($rel, $allowed))->values();
 
         $with = [];
@@ -78,6 +78,18 @@ class FishingSessionController extends Controller
             $with[] = 'event:id,title,start_at';
         }
 
+        // confirmations (BEZ token kolone u payloadu)
+        if ($include->contains('confirmations.nominee')) {
+            $with['confirmations'] = function ($qq) {
+                $qq->select('id','session_id','nominee_user_id','status','decided_at','created_at','updated_at')
+                    ->with(['nominee:id,name','nominee.profile:id,user_id,display_name,avatar_path']);
+            };
+        } elseif ($include->contains('confirmations')) {
+            $with['confirmations'] = function ($qq) {
+                $qq->select('id','session_id','nominee_user_id','status','decided_at','created_at','updated_at');
+            };
+        }
+
         $only = collect(explode(',', (string)$r->query('only','')))
             ->map(fn($i)=>trim($i))->filter()->values();
 
@@ -94,28 +106,12 @@ class FishingSessionController extends Controller
 
         $perPage = min(100, (int) ($r->query('limit', $r->query('per_page', 20))));
 
-        return response()->json($q->paginate($perPage));
+        return response()->json($q->with($with)->paginate($perPage));
     }
 
 
     /**
      * Display the specified fishing session resource with optional related data.
-     *
-     * This method authorizes the viewing of a specific fishing session and processes
-     * the `include` query parameter to dynamically load related resources.
-     *
-     * Supported `include` query parameters:
-     * - `catches.user`: Includes related catches with user details and user profiles.
-     * - `catches`: Includes related catches ordered by `caught_at` and `id`.
-     * - `event`: Includes event details such as `id`, `title`, and `start_at`.
-     *
-     * Base relationships always loaded:
-     * - `user:id,name`
-     * - `user.profile:id,user_id,display_name,avatar_path`
-     *
-     * @param FishingSession $session The fishing session instance to display.
-     * @return JsonResponse JSON response containing the session data
-     *                                      with the requested relationships.
      */
     public function show(FishingSession $session) {
         $this->authorize('view', $session);
@@ -124,7 +120,11 @@ class FishingSessionController extends Controller
             ->map(fn ($i) => trim($i))
             ->filter();
 
-        $allowed = ['catches','catches.user','event','photos','reviews','reviews.reviewer'];
+        $allowed = [
+            'catches','catches.user','event','photos',
+            'reviews','reviews.reviewer',
+            'confirmations','confirmations.nominee',
+        ];
         $include = $include->filter(fn($rel) => in_array($rel, $allowed))->values();
 
         $base = [
@@ -150,6 +150,18 @@ class FishingSessionController extends Controller
             $with[] = 'reviews';
         }
 
+        // confirmations (BEZ token-a)
+        if ($include->contains('confirmations.nominee')) {
+            $with['confirmations'] = function ($qq) {
+                $qq->select('id','session_id','nominee_user_id','status','decided_at','created_at','updated_at')
+                    ->with(['nominee:id,name','nominee.profile:id,user_id,display_name,avatar_path']);
+            };
+        } elseif ($include->contains('confirmations')) {
+            $with['confirmations'] = function ($qq) {
+                $qq->select('id','session_id','nominee_user_id','status','decided_at','created_at','updated_at');
+            };
+        }
+
         $session->load(array_merge($base, $with));
 
         return response()->json($session);
@@ -157,15 +169,6 @@ class FishingSessionController extends Controller
 
     /**
      * Handles the creation of a new fishing session for a user.
-     *
-     * Validates incoming request data, checks if the user already has
-     * an open session, and creates a new session if none exist.
-     * Returns a conflict response if a session is already open.
-     *
-     * @param Request $r The HTTP request instance.
-     *
-     * @return JsonResponse A JSON response containing the newly created session
-     *                                       data or an error message.
      */
     public function store(Request $r) {
         // 1) zabrani više od jedne OPEN sesije
@@ -246,16 +249,6 @@ class FishingSessionController extends Controller
 
     /**
      * Closes an open fishing session for a user.
-     *
-     * Authorizes the request for the provided session, updates the session's status
-     * to 'closed', sets the ending timestamp if it is not already set, and saves the changes.
-     * Returns a JSON response containing a success message and the updated session data.
-     *
-     * @param Request $r The HTTP request instance.
-     * @param FishingSession $session The fishing session to be closed.
-     *
-     * @return JsonResponse A JSON response with a success message
-     *                                       and the fresh session data.
      */
     public function close(Request $r, FishingSession $session) {
         $this->authorize('update', $session);
@@ -265,7 +258,6 @@ class FishingSessionController extends Controller
         ]);
         return response()->json(['message'=>'Session closed','session'=>$session->fresh()]);
     }
-
 
     /**
      * @param Request $r
@@ -339,7 +331,7 @@ class FishingSessionController extends Controller
         foreach ($createdByReviewer as $uid => $list) {
             $reviewer = \App\Models\User::find($uid);
             if ($reviewer && !empty($list)) {
-                $reviewer->notify(new \App\Notifications\SessionConfirmationsRequested($session, $list));
+                $reviewer->notify(new SessionConfirmationsRequested($session, $list));
             }
         }
 
@@ -350,8 +342,6 @@ class FishingSessionController extends Controller
         ]);
 
     }
-
-
 
     /**
      * @param FishingSession $session

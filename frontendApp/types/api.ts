@@ -232,6 +232,7 @@ export type SessionListParams = {
 export type FishingSession = {
   catches?: FishingCatch[];
   reviews?: SessionReview[];
+  confirmations?: SessionConfirmation[]; // ⬅️ NEW
 } & FishingSessionLite;
 
 /** /v1/me payload */
@@ -473,4 +474,15 @@ export type HomePayload = Partial<{
 export type UseSWROptions = {
   intervalMs?: number; // npr. 30_000
   enabled?: boolean | (() => boolean); // dinamički on/off
+};
+
+export type SessionConfirmation = {
+  id: ID;
+  session_id: ID;
+  nominee_user_id: ID;
+  status: ConfirmationStatus; // koristi postojeći union ("pending" | "approved" | "rejected" | "changes_requested")
+  decided_at?: ISODate | null;
+  nominee?: UserLite;
+  created_at?: ISODate;
+  updated_at?: ISODate;
 };

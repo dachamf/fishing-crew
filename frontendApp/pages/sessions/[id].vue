@@ -1,15 +1,29 @@
 <script lang="ts" setup>
-import type { FishingSession, SessionReview, SessionReviewStatus, UserLite } from "~/types/api";
+import type {
+  FishingSession,
+  SessionConfirmation,
+  SessionReview,
+  SessionReviewStatus,
+  UserLite,
+} from "~/types/api";
 
 defineOptions({ name: "SessionDetailPage" });
 
 const route = useRoute();
+const router = useRouter(); // ⬅️ NEW
 const id = Number(route.params.id);
 const { $api } = useNuxtApp() as any;
 const toast = useToast();
-const { review } = useSessionReview();
+const { review, confirmByToken } = useSessionReview(); // ⬅️ UPDATED (dodali confirmByToken)
 
 const coords = ref<{ lng: number | null; lat: number | null }>({ lng: null, lat: null });
+
+/** ⬅️ NEW: token iz query stringa (za potvrdu bez login-a) */
+const token = computed(() => {
+  const t = route.query.token;
+  return typeof t === "string" && t.length ? t : undefined;
+});
+const tokenLoading = ref(false);
 
 // Učitaj me (radi identifikacije da li sam reviewer)
 const { data: me } = await useAsyncData<UserLite>(
@@ -24,13 +38,35 @@ const { data, pending, error, refresh } = await useAsyncData<FishingSession>(
   async () => {
     const res = await $api.get(`/v1/sessions/${id}`, {
       params: {
-        include: "catches.user,photos,reviews.reviewer,user",
-      }, // dodaj šta još želiš
+        include: "catches.user,photos,reviews.reviewer,user,confirmations.nominee",
+      },
     });
     return res.data as FishingSession;
   },
   { watch: [() => id] },
 );
+
+async function tokenDecision(decision: "approved" | "rejected") {
+  if (!token.value) {
+    return;
+  }
+  tokenLoading.value = true;
+  try {
+    await confirmByToken(id, token.value, decision);
+    toast.success(decision === "approved" ? "Odobreno." : "Odbijeno.");
+    // ukloni token iz URL-a da se panel ne prikazuje ponovo
+    const nextQuery = { ...route.query };
+    delete (nextQuery as any).token;
+    await router.replace({ query: nextQuery });
+    await refresh();
+  }
+  catch (e: any) {
+    toast.error(e?.response?.data?.message || "Greška");
+  }
+  finally {
+    tokenLoading.value = false;
+  }
+}
 
 // Helpers
 const myId = computed(() => me.value?.id);
@@ -39,6 +75,10 @@ const myReview = computed<SessionReview | null>(() => {
   const uid = myId.value;
   return (reviews.value.find(r => r.reviewer_id === uid) ?? null) as SessionReview | null;
 });
+
+const confirmations = computed<SessionConfirmation[]>(
+  () => (data.value?.confirmations ?? []) as SessionConfirmation[],
+);
 
 const sessionOverall = computed<SessionReviewStatus>(() => {
   const list = reviews.value;
@@ -146,6 +186,38 @@ const canEditLocation = computed(() => {
         <li>Detalj</li>
       </ul>
     </div>
+
+    <!-- ⬅️ NEW: Token panel (Approve/Reject bez login-a) -->
+    <div
+      v-if="$route.query.token"
+      class="alert bg-base-100 border border-base-300 rounded-xl shadow flex flex-col gap-2"
+    >
+      <div class="font-semibold">
+        Potvrda sesije
+      </div>
+      <p class="opacity-75 text-sm">
+        Ovaj link omogućava potvrdu sesije kao nominovani recenzent.
+      </p>
+      <div class="join">
+        <button
+          class="btn btn-success join-item"
+          :class="{ loading: tokenLoading }"
+          :disabled="tokenLoading"
+          @click="tokenDecision('approved')"
+        >
+          ✅ Odobri
+        </button>
+        <button
+          class="btn btn-error join-item"
+          :class="{ loading: tokenLoading }"
+          :disabled="tokenLoading"
+          @click="tokenDecision('rejected')"
+        >
+          ❌ Odbij
+        </button>
+      </div>
+    </div>
+
     <div class="card bg-base-100 shadow rounded-xl h-full">
       <div class="card-body grid md:grid-cols-2 gap-6">
         <!--        Levo je sesija -->
@@ -162,7 +234,8 @@ const canEditLocation = computed(() => {
                 {{ data?.title || 'Fishing sesija' }}
                 <span :class="statusClass(sessionOverall)" class="badge">{{ sessionOverall }}</span>
               </h1>
-              <!-- MOJA ODLUKA (samo ako sam nominovan i pending) -->
+
+              <!-- MOJA ODLUKA (legacy review mehanizam – ostaje) -->
               <div v-if="myReview && myReview.status === 'pending'" class="card bg-base-100 shadow">
                 <div class="card-body space-y-2">
                   <h2 class="text-lg font-semibold">
@@ -275,6 +348,58 @@ const canEditLocation = computed(() => {
                 </div>
               </div>
 
+              <!-- POTVRDE (session-level confirmations, read-only) -->
+              <div class="card bg-base-100 shadow mt-3">
+                <div class="card-body space-y-3">
+                  <div class="flex items-center justify-between">
+                    <h2 class="text-lg font-semibold">
+                      Potvrde (session-level)
+                    </h2>
+                    <span :class="statusClass(sessionOverall)" class="badge">{{
+                      sessionOverall
+                    }}</span>
+                  </div>
+                  <ul class="space-y-2">
+                    <li
+                      v-for="c in confirmations"
+                      :key="c.id"
+                      class="flex items-center justify-between gap-3"
+                    >
+                      <div class="flex items-center gap-2">
+                        <div class="avatar">
+                          <div class="w-7 rounded-full border border-base-300">
+                            <img
+                              :src="
+                                c.nominee?.avatar_url
+                                  || c.nominee?.profile?.avatar_url
+                                  || '/icons/icon-64.png'
+                              "
+                              alt=""
+                            >
+                          </div>
+                        </div>
+                        <div class="leading-tight">
+                          <div class="font-medium text-sm">
+                            {{
+                              c.nominee?.display_name || c.nominee?.name || `#${c.nominee_user_id}`
+                            }}
+                          </div>
+                          <div v-if="c.decided_at" class="text-xs opacity-70">
+                            {{ new Date(c.decided_at).toLocaleString('sr-RS') }}
+                          </div>
+                        </div>
+                      </div>
+                      <span :class="statusClass(c.status as any)" class="badge capitalize">
+                        {{ c.status }}
+                      </span>
+                    </li>
+                    <li v-if="!confirmations.length" class="opacity-70">
+                      Nema potvrda za ovu sesiju.
+                    </li>
+                  </ul>
+                </div>
+              </div>
+
               <div class="opacity-75 flex flex-wrap mt-1">
                 <FishingCatchesTimeBadge :iso="data?.started_at" :with-time="true" />
                 <span v-if="data?.location_name" class="badge badge-ghost">{{
@@ -347,7 +472,7 @@ const canEditLocation = computed(() => {
                 <tr v-for="row in data?.catches || []" :key="row.id">
                   <td>{{ row.species_label || row.species || row.species_name || '-' }}</td>
                   <td class="text-right">
-                    {{ row.count }}
+                    {{ Number(row.count || 0) }}
                   </td>
                   <td class="text-right">
                     {{ Number(row.total_weight_kg || 0).toFixed(1) }}
@@ -387,6 +512,7 @@ const canEditLocation = computed(() => {
             </table>
           </div>
         </div>
+
         <SessionLocationCard
           v-if="data?.id"
           v-model="coords"
