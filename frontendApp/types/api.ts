@@ -195,6 +195,9 @@ export type FishingSessionLite = {
   season_year?: number;
   water_body?: string;
 
+  finalized_at?: ISODate | null;
+  final_result?: "approved" | "rejected" | null;
+
   user?: UserLite;
   group?: GroupLite;
   event?: EventLite;

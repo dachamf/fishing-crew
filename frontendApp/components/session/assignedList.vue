@@ -10,7 +10,7 @@ const emit = defineEmits<{
   (e: "page", page: number): void;
 }>();
 
-const { assignedToMe, review } = useSessionReview();
+const { assignedToMe, confirmAuth } = useSessionReview();
 const toast = useToast();
 
 const loading = ref(true);
@@ -60,7 +60,7 @@ function openReject(id: ID) {
 async function approve(id: ID) {
   approvingId.value = id;
   try {
-    await review(id, "approved", note.value || undefined);
+    await confirmAuth(id, "approved"); // ⬅️ umesto review(id, "approved", note)
     toast.success("Sesija odobrena");
     await load(meta.value?.current_page || 1);
   }
@@ -79,7 +79,7 @@ async function confirmReject() {
     return;
   rejectingId.value = id;
   try {
-    await review(id, "rejected", note.value || undefined);
+    await confirmAuth(id, "rejected"); // ⬅️ umesto review(id, "rejected", note)
     toast.success("Sesija odbijena");
     await load(meta.value?.current_page || 1);
   }

@@ -171,14 +171,40 @@ class SessionReviewController extends Controller
      */
     public function assignedToMe(Request $r) {
         $q = FishingSession::query()
-            ->whereHas('reviews', fn($x)=>$x->where('reviewer_id',$r->user()->id)->where('status','pending'))
+            ->whereHas('confirmations', fn($c) =>
+            $c->where('nominee_user_id', $r->user()->id)->where('status', 'pending')
+            )
             ->withCount('catches')
             ->with([
                 'user:id,name',
-                'user.profile:id,user_id,display_name,avatar_path'
+                'user.profile:id,user_id,display_name,avatar_path',
+                // po želji prikači i moje pending potvrde
+                'confirmations' => fn($qq) => $qq
+                    ->select('id','session_id','nominee_user_id','status','decided_at','created_at','updated_at')
+                    ->where('nominee_user_id', $r->user()->id),
             ])
             ->latest('started_at')->latest('id');
 
         return response()->json($q->paginate(20));
     }
+
+    /**
+     * Retrieve the count of fishing sessions assigned to the currently authenticated user for review.
+     * Filters sessions where the user is the reviewer and the review status is pending.
+     *
+     * @param Request $r The incoming HTTP request containing user authentication data.
+     * @return JsonResponse A JSON response with the count of pending fishing sessions.
+     */
+    public function assignedCount(Request $r)
+    {
+        $total = FishingSession::query()
+            ->whereHas('confirmations', fn($c) =>
+            $c->where('nominee_user_id', $r->user()->id)->where('status', 'pending')
+            )
+            ->count();
+
+        return response()->json(['total_pending' => $total]);
+    }
+
+
 }

@@ -27,6 +27,7 @@ class FishingSession extends Model
         'longitude' => 'float',
         'started_at' => 'datetime',
         'ended_at' => 'datetime',
+        'finalized_at' => 'datetime',
     ];
 
     protected $appends = ['photos'];

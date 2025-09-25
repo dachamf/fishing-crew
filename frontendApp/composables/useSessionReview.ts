@@ -1,6 +1,7 @@
 export function useSessionReview() {
   const { $api } = useNuxtApp() as any;
 
+  // LEGACY – ostaje zbog starog UI
   const review = (sessionId: number, status: "approved" | "rejected", note?: string) =>
     $api.post(`/v1/sessions/${sessionId}/review`, { status, note });
 
@@ -14,13 +15,18 @@ export function useSessionReview() {
     return { items, meta };
   };
 
-  /** NEW: potvrda preko tokena (bez login-a) */
+  // NEW: potvrda kao ulogovani nominovani (bez tokena)
+  const confirmAuth = (sessionId: number, decision: "approved" | "rejected") =>
+    $api.post(`/v1/sessions/${sessionId}/confirm`, { decision });
+
+  // Već dodato ranije (token-flow)
   const confirmByToken = (sessionId: number, token: string, decision: "approved" | "rejected") =>
     $api.post(`/v1/sessions/${sessionId}/confirm/${token}`, { decision });
 
   return {
     review,
     assignedToMe,
-    confirmByToken, // ⬅️ export
+    confirmAuth, // ⬅️ NEW
+    confirmByToken,
   };
 }

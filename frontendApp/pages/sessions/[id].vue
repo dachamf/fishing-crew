@@ -14,7 +14,7 @@ const router = useRouter(); // ⬅️ NEW
 const id = Number(route.params.id);
 const { $api } = useNuxtApp() as any;
 const toast = useToast();
-const { review, confirmByToken } = useSessionReview(); // ⬅️ UPDATED (dodali confirmByToken)
+const { review, confirmByToken, confirmAuth } = useSessionReview(); // ⬅️ UPDATED (dodali confirmByToken)
 
 const coords = ref<{ lng: number | null; lat: number | null }>({ lng: null, lat: null });
 
@@ -80,7 +80,16 @@ const confirmations = computed<SessionConfirmation[]>(
   () => (data.value?.confirmations ?? []) as SessionConfirmation[],
 );
 
+const finalResult = computed(
+  () => data.value?.final_result as "approved" | "rejected" | null | undefined,
+);
+const isFinal = computed(() => !!finalResult.value || !!data.value?.finalized_at);
+
 const sessionOverall = computed<SessionReviewStatus>(() => {
+  if (finalResult.value === "approved")
+    return "approved";
+  if (finalResult.value === "rejected")
+    return "rejected";
   const list = reviews.value;
   if (!list.length)
     return "pending";
@@ -89,6 +98,11 @@ const sessionOverall = computed<SessionReviewStatus>(() => {
   if (list.every(r => r.status === "approved"))
     return "approved";
   return "pending";
+});
+
+const myConfirmation = computed<SessionConfirmation | null>(() => {
+  const uid = myId.value;
+  return (data.value?.confirmations || []).find(c => c.nominee_user_id === uid) || null;
 });
 
 // UI state
@@ -189,7 +203,7 @@ const canEditLocation = computed(() => {
 
     <!-- ⬅️ NEW: Token panel (Approve/Reject bez login-a) -->
     <div
-      v-if="$route.query.token"
+      v-if="$route.query.token && !isFinal"
       class="alert bg-base-100 border border-base-300 rounded-xl shadow flex flex-col gap-2"
     >
       <div class="font-semibold">
@@ -235,8 +249,36 @@ const canEditLocation = computed(() => {
                 <span :class="statusClass(sessionOverall)" class="badge">{{ sessionOverall }}</span>
               </h1>
 
+              <div
+                v-if="myConfirmation && myConfirmation.status === 'pending'"
+                class="card bg-base-100 shadow mb-3"
+              >
+                <div class="card-body space-y-2">
+                  <h2 class="text-lg font-semibold">
+                    Moja odluka (session-level)
+                  </h2>
+                  <div class="join">
+                    <button
+                      class="btn btn-success join-item"
+                      @click="confirmAuth(id, 'approved').then(refresh)"
+                    >
+                      Odobri
+                    </button>
+                    <button
+                      class="btn btn-error join-item"
+                      @click="confirmAuth(id, 'rejected').then(refresh)"
+                    >
+                      Odbij
+                    </button>
+                  </div>
+                </div>
+              </div>
+
               <!-- MOJA ODLUKA (legacy review mehanizam – ostaje) -->
-              <div v-if="myReview && myReview.status === 'pending'" class="card bg-base-100 shadow">
+              <div
+                v-if="!isFinal && myReview && myReview.status === 'pending'"
+                class="card bg-base-100 shadow"
+              >
                 <div class="card-body space-y-2">
                   <h2 class="text-lg font-semibold">
                     Moja odluka za sesiju
@@ -408,6 +450,9 @@ const canEditLocation = computed(() => {
                 <span v-if="data?.group?.name" class="badge badge-ghost">{{
                   data.group.name
                 }}</span>
+                <span v-if="data?.finalized_at" class="badge badge-ghost">
+                  Finalizovano: {{ new Date(data.finalized_at).toLocaleString('sr-RS') }}
+                </span>
               </div>
             </div>
             <div class="flex items-center gap-2">

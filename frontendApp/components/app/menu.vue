@@ -257,7 +257,7 @@ watch(
               </button>
             </div>
           </div>
-
+          <NavAssignedBell />
           <!-- Dropdown sa top 5 sesija -->
           <div
             class="mt-3 dropdown-content w-80 card card-compact bg-base-100 shadow z-50"
