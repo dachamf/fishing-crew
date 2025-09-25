@@ -17,6 +17,7 @@ const emit = defineEmits<{
 
 const { $api } = useNuxtApp();
 const saving = ref(false);
+const savingName = ref(false);
 const lastSaved = ref<Coords | null>(null);
 const isEditable = computed(() => props.editable ?? true);
 const pickerHeight = computed<string>(() =>
@@ -84,6 +85,37 @@ async function saveIfSession() {
   if (!autoSave.value)
     useToast().success("Lokacija sačuvana ✓");
 }
+
+async function fillLocationName() {
+  if (!props.sessionId || coords.value.lat == null || coords.value.lng == null)
+    return;
+  savingName.value = true;
+  try {
+    const { data } = await $api.get("/v1/geocode/reverse", {
+      params: { lat: coords.value.lat, lng: coords.value.lng, lang: "sr" },
+      withCredentials: true,
+    });
+    const name = data?.display_name || null;
+    if (name) {
+      await $api.patch(
+        `/v1/sessions/${props.sessionId}`,
+        { location_name: name },
+        { withCredentials: true },
+      );
+      useToast().success("Naziv lokacije sačuvan ✓");
+      emit("saved", coords.value);
+    }
+    else {
+      useToast().info("Nije pronađen naziv za ovu poziciju.");
+    }
+  }
+  catch (e: any) {
+    useToast().error(e?.response?.data?.message ?? "Greška pri geokodiranju");
+  }
+  finally {
+    savingName.value = false;
+  }
+}
 </script>
 
 <template>
@@ -127,13 +159,22 @@ async function saveIfSession() {
       </div>
 
       <div v-if="sessionId && !autoSave" class="pt-2">
-        <button
-          class="btn btn-primary"
-          :disabled="saving"
-          @click="saveIfSession"
-        >
-          {{ saving ? 'Čuvam…' : 'Sačuvaj lokaciju' }}
-        </button>
+        <div class="flex items-center gap-2">
+          <button
+            class="btn btn-ghost btn-sm"
+            :disabled="saving || savingName"
+            @click="saveIfSession"
+          >
+            {{ saving ? 'Čuvam…' : 'Sačuvaj lokaciju' }}
+          </button>
+          <button
+            class="btn btn-outline btn-sm"
+            :disabled="savingName"
+            @click="fillLocationName"
+          >
+            {{ savingName ? 'Upisujem…' : '✨ Upiši naziv' }}
+          </button>
+        </div>
       </div>
     </div>
   </div>

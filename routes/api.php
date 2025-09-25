@@ -14,9 +14,11 @@ use App\Http\Controllers\api\v1\CatchReviewController;
 use App\Http\Controllers\api\v1\EventAttendeeController;
 use App\Http\Controllers\api\v1\EventsController;
 use App\Http\Controllers\api\v1\FishingSessionController;
+use App\Http\Controllers\api\v1\GeoController;
 use App\Http\Controllers\api\v1\GroupsController;
 use App\Http\Controllers\api\v1\HomeController;
 use App\Http\Controllers\api\v1\LeaderboardController;
+use App\Http\Controllers\api\v1\NotificationsController;
 use App\Http\Controllers\api\v1\ProfileController;
 use App\Http\Controllers\api\v1\SessionCatchController;
 use App\Http\Controllers\api\v1\SessionReviewController;
@@ -43,6 +45,8 @@ Route::prefix('auth')->group(function () {
 Route::middleware(['auth:sanctum', 'verified'])->prefix('v1')->group(function () {
 
     Route::get('/home', [HomeController::class, 'show']);
+    Route::get('/geocode/reverse', [GeoController::class, 'reverse'])->middleware('throttle:30,1');
+    Route::get('/notifications/unread-count', [NotificationsController::class, 'unreadCount']);
 
     Route::get('/me', MeController::class);
     Route::get('/me/roles', [MeController::class, 'roles']);

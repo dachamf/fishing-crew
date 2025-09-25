@@ -340,13 +340,13 @@ useSWR(() => refreshHome(), {
         title="Mini leaderboard"
         view-all-to="/leaderboard"
       />
+      <AchievementsBadgesCard :items="home?.achievements || []" />
       <LazyStatsSpeciesTrendsCard
         v-if="defaultGroupId"
         :trends="home?.species_trends || []"
         :group-id="defaultGroupId"
         :year="currentYear"
       />
-      <AchievementsBadgesCard :items="home?.achievements || []" />
     </div>
 
     <div class="grid gap-6 md:grid-cols-2">

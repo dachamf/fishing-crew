@@ -219,6 +219,7 @@ class FishingSessionController extends Controller
             'title'      => ['nullable','string','max:100'],
             'latitude'   => ['nullable','numeric','between:-90,90'],
             'longitude'  => ['nullable','numeric','between:-180,180'],
+            'location_name' => ['nullable','string','max:160'],
             'started_at' => ['nullable','date'],
             'ended_at'   => ['nullable','date'],
             'status'     => ['nullable', Rule::in(['open','closed'])],

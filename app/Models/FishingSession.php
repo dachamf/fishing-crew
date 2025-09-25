@@ -16,6 +16,7 @@ class FishingSession extends Model
         'title',
         'latitude',
         'longitude',
+        'location_name',
         'started_at',
         'ended_at',
         'status',

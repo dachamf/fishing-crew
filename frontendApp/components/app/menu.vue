@@ -6,6 +6,8 @@ const auth = useAuth();
 const { profile, loadMe, avatarBuster } = useProfile();
 const { success, error } = useToast();
 
+const { unread } = useNotifications();
+
 // +++ Assigned to me bell + preview + counter +++
 const { assignedToMe } = useSessionReview();
 
@@ -16,10 +18,7 @@ const router = useRouter();
 const open = ref(false);
 
 const assignedPreview = ref<{ items: any[]; meta: any } | null>(null);
-const assignedCount = computed(
-  () => assignedPreview.value?.meta?.total ?? assignedPreview.value?.items?.length ?? 0,
-);
-
+computed(() => assignedPreview.value?.meta?.total ?? assignedPreview.value?.items?.length ?? 0);
 async function loadAssignedPreview() {
   if (!auth.user.value) {
     return;
@@ -249,15 +248,13 @@ watch(
             tabindex="0"
           >
             <div class="indicator">
-              <Icon class="w-6 h-6" name="tabler:bell" />
-              <!-- brojka preko zvonca; sakrij ako je 0 -->
-              <span
-                v-if="assignedCount > 0"
-                :title="`${assignedCount} sesija čeka tvoju odluku`"
-                class="indicator-item badge badge-error badge-xs"
-              >
-                {{ Math.min(99, assignedCount) }}
-              </span>
+              <button class="btn btn-ghost btn-circle" aria-label="Obaveštenja">
+                <Icon name="tabler:bell" size="20" />
+                <span
+                  v-if="unread > 0"
+                  class="badge badge-primary badge-sm absolute -right-1 -top-1"
+                >{{ unread }}</span>
+              </button>
             </div>
           </div>
 
