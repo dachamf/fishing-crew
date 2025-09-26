@@ -576,7 +576,7 @@ class HomeController extends Controller
         return [
             'canManage' => $canManage,
             'shortcuts' => $canManage ? [
-                ['label' => 'Članovi', 'href' => $group ? "/groups/{$group}/members" : "/groups"],
+                ['label' => 'Članovi', 'href' => $group ? "/groups/{$group}" : "/groups"],
                 ['label' => 'Događaji', 'href' => "/events"],
                 ['label' => 'Odobrenja', 'href' => "/sessions/assigned-to-me"],
             ] : [],

@@ -241,9 +241,9 @@ useSWR(() => refreshHome(), {
           </template>
         </div>
       </div>
-
       <!-- Snapshot -->
       <LazyHomeSeasonSessionsTable
+        class="md:col-span-3"
         :year="currentYear"
         :group-id="defaultGroupId || undefined"
         :per-page="10"

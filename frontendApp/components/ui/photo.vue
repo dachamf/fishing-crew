@@ -1,16 +1,26 @@
 <script lang="ts" setup>
-defineOptions({ name: "UiPhoto" });
+// Prihvatamo i undefined vrednosti u urls, jer BE šalje partial varijante.
+type StringDict = Record<string, string | undefined>;
+
+export type PhotoLike = {
+  id?: number | string;
+  url?: string | null;
+  urls?: StringDict | null;
+  ord?: number | null;
+  // dopuštamo dodatna polja
+  [k: string]: any;
+};
 
 const props = withDefaults(
   defineProps<{
-    /** Alternativa: prosledi ceo objekat { url, urls } */
+    /** Može da stigne iz BE kao PhotoLite */
     photo?: PhotoLike | null;
-    /** Ili prosledi posebno src + urls */
+    /** Fallback/primary src ako nema urls */
     src?: string | null;
-    urls?: VariantMap | null;
-
+    /** Eksplicitne varijante preko props-a (npr. { sm, md, lg }) */
+    urls?: StringDict | null;
     alt?: string;
-    /** npr. "(max-width: 768px) 90vw, 33vw" */
+    /** npr. "(max-width: 768px) 90vw, 50vw" */
     sizes?: string;
     loading?: "lazy" | "eager";
     decoding?: "async" | "sync" | "auto";
@@ -28,21 +38,26 @@ const props = withDefaults(
     fetchPriority: "auto",
   },
 );
-type VariantMap = Partial<Record<"sm" | "md" | "lg" | string, string>>;
-type PhotoLike = { url?: string | null; urls?: VariantMap | null };
 
-// Normalizacija izvora
-const normSrc = computed(() => props.src ?? props.photo?.url ?? "");
-const normUrls = computed<VariantMap | null>(() => props.urls ?? props.photo?.urls ?? null);
+// Spoji urls iz photo + props.urls
+const mergedUrls = computed<StringDict>(() => ({
+  ...(props.photo?.urls ?? {}),
+  ...(props.urls ?? {}),
+}));
 
-// Najbolji fallback src (ako nema srcset-a)
-const bestSrc = computed(
-  () => normUrls.value?.md || normUrls.value?.lg || normUrls.value?.sm || normSrc.value || "",
-);
+function pickFirst(...keys: string[]) {
+  for (const k of keys) {
+    const v = mergedUrls.value[k];
+    if (v)
+      return v;
+  }
+  return undefined;
+}
 
-// srcset iz varijanti
+const bestSrc = computed(() => pickFirst("md", "lg", "sm") || props.photo?.url || props.src || "");
+
 const srcsetVal = computed(() => {
-  const u = normUrls.value || {};
+  const u = mergedUrls.value;
   const parts: string[] = [];
   if (u.sm)
     parts.push(`${u.sm} 320w`);
@@ -50,7 +65,7 @@ const srcsetVal = computed(() => {
     parts.push(`${u.md} 800w`);
   if (u.lg)
     parts.push(`${u.lg} 1600w`);
-  return parts.length ? parts.join(", ") : undefined;
+  return parts.join(", ");
 });
 </script>
 

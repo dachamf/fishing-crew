@@ -7,11 +7,13 @@ import type {
   UserLite,
 } from "~/types/api";
 
+import { useRelativeTime } from "~/composables/useRelativeTime";
+
 defineOptions({ name: "SessionDetailPage" });
 
 const route = useRoute();
 const router = useRouter(); // ⬅️ NEW
-const id = Number(route.params.id);
+const id = computed(() => Number(route.params.id));
 const { $api } = useNuxtApp() as any;
 const toast = useToast();
 const { review, confirmByToken, confirmAuth } = useSessionReview(); // ⬅️ UPDATED (dodali confirmByToken)
@@ -34,16 +36,16 @@ const { data: me } = await useAsyncData<UserLite>(
 
 // Učitaj sesiju + reviews.reviewer (+ eventualno catches ako prikazuješ)
 const { data, pending, error, refresh } = await useAsyncData<FishingSession>(
-  () => `session:${id}`,
+  () => `session:${id.value}`,
   async () => {
-    const res = await $api.get(`/v1/sessions/${id}`, {
+    const res = await $api.get(`/v1/sessions/${id.value}`, {
       params: {
         include: "catches.user,photos,reviews.reviewer,user,confirmations.nominee",
       },
     });
     return res.data as FishingSession;
   },
-  { watch: [() => id] },
+  { watch: [id] },
 );
 
 async function tokenDecision(decision: "approved" | "rejected") {
@@ -52,7 +54,7 @@ async function tokenDecision(decision: "approved" | "rejected") {
   }
   tokenLoading.value = true;
   try {
-    await confirmByToken(id, token.value, decision);
+    await confirmByToken(id.value, token.value, decision);
     toast.success(decision === "approved" ? "Odobreno." : "Odbijeno.");
     // ukloni token iz URL-a da se panel ne prikazuje ponovo
     const nextQuery = { ...route.query };
@@ -84,6 +86,7 @@ const finalResult = computed(
   () => data.value?.final_result as "approved" | "rejected" | null | undefined,
 );
 const isFinal = computed(() => !!finalResult.value || !!data.value?.finalized_at);
+const timeago = useRelativeTime();
 
 const sessionOverall = computed<SessionReviewStatus>(() => {
   if (finalResult.value === "approved")
@@ -150,15 +153,6 @@ async function confirmReject() {
     rejecting.value = false;
     rejectOpen.value = false;
   }
-}
-
-// Badge klasa helper
-function statusClass(s: SessionReviewStatus) {
-  return {
-    "badge-warning": s === "pending",
-    "badge-success": s === "approved",
-    "badge-error": s === "rejected",
-  };
 }
 
 const closeOpen = ref(false);
@@ -244,9 +238,9 @@ const canEditLocation = computed(() => {
         <div v-else>
           <div class="flex items-start justify-between">
             <div>
-              <h1 class="text-2xl font-semibold flex gap-2">
+              <h1 class="text-2xl font-semibold flex items-center gap-2">
                 {{ data?.title || 'Fishing sesija' }}
-                <span :class="statusClass(sessionOverall)" class="badge">{{ sessionOverall }}</span>
+                <StatusBadge :status="sessionOverall" />
               </h1>
 
               <div
@@ -285,9 +279,7 @@ const canEditLocation = computed(() => {
                   </h2>
                   <p class="opacity-70 text-sm">
                     Tvoja nominacija:
-                    <span :class="statusClass(myReview.status)" class="badge">{{
-                      myReview.status
-                    }}</span>
+                    <StatusBadge :status="myReview.status" />
                   </p>
 
                   <label class="label-text">Napomena (opciono)</label>
@@ -344,9 +336,7 @@ const canEditLocation = computed(() => {
                     <h2 class="text-lg font-semibold">
                       Glasovi recenzenata
                     </h2>
-                    <span :class="statusClass(sessionOverall)" class="badge">{{
-                      sessionOverall
-                    }}</span>
+                    <StatusBadge :status="sessionOverall" />
                   </div>
 
                   <ul class="space-y-2">
@@ -379,9 +369,7 @@ const canEditLocation = computed(() => {
                           </div>
                         </div>
                       </div>
-                      <span :class="statusClass(r.status)" class="badge capitalize">{{
-                        r.status
-                      }}</span>
+                      <StatusBadge :status="r.status" class="capitalize" />
                     </li>
                     <li v-if="!reviews.length" class="opacity-70">
                       Nema nominacija za ovu sesiju.
@@ -397,9 +385,7 @@ const canEditLocation = computed(() => {
                     <h2 class="text-lg font-semibold">
                       Potvrde (session-level)
                     </h2>
-                    <span :class="statusClass(sessionOverall)" class="badge">{{
-                      sessionOverall
-                    }}</span>
+                    <StatusBadge :status="sessionOverall" />
                   </div>
                   <ul class="space-y-2">
                     <li
@@ -431,9 +417,7 @@ const canEditLocation = computed(() => {
                           </div>
                         </div>
                       </div>
-                      <span :class="statusClass(c.status as any)" class="badge capitalize">
-                        {{ c.status }}
-                      </span>
+                      <StatusBadge :status="c.status as any" class="capitalize" />
                     </li>
                     <li v-if="!confirmations.length" class="opacity-70">
                       Nema potvrda za ovu sesiju.
@@ -451,7 +435,7 @@ const canEditLocation = computed(() => {
                   data.group.name
                 }}</span>
                 <span v-if="data?.finalized_at" class="badge badge-ghost">
-                  Finalizovano: {{ new Date(data.finalized_at).toLocaleString('sr-RS') }}
+                  Finalizovano: {{ timeago(data.finalized_at as any) }}
                 </span>
               </div>
             </div>
@@ -534,18 +518,7 @@ const canEditLocation = computed(() => {
                       <span class="text-sm">{{ row.user?.display_name || row.user?.name }}</span>
                     </div>
                   </td>
-                  <td>
-                    <span
-                      :class="{
-                        'badge-warning': row.status === 'pending',
-                        'badge-success': row.status === 'approved',
-                        'badge-error': row.status === 'rejected',
-                      }"
-                      class="badge"
-                    >
-                      {{ row.status }}
-                    </span>
-                  </td>
+                  <td><StatusBadge :status="row.status" /></td>
                   <td class="text-right">
                     <NuxtLink :to="`/catches/${row.id}`" class="btn btn-ghost btn-xs">
                       Detalji ulova

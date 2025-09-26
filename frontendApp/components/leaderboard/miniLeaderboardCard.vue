@@ -30,7 +30,7 @@ const {
 } = await useAsyncData<{
   items: Array<LeaderboardItem | HomeMiniLeaderboardRow>;
 }>(
-  key,
+  key.value,
   async () => {
     const d = props.data as any;
     if (d) {
@@ -52,7 +52,7 @@ const {
     });
     return { items: (r.data?.items ?? r.data ?? []) as LeaderboardItem[] };
   },
-  { server: false, watch: [() => props.groupId, () => props.year] },
+  { server: false, watch: [() => props.groupId, () => props.year, () => hasPrefetched.value] },
 );
 
 // SWR samo kad nemamo prefetched podatke
@@ -61,8 +61,10 @@ useSWR(() => refresh(), {
   enabled: () => !hasPrefetched.value && !!props.groupId,
 });
 
-const rows = computed(() => data.value?.items ?? []);
-const pre = computed(() => (props.data as any) || {});
+const rows = computed<Array<LeaderboardItem | HomeMiniLeaderboardRow>>(() =>
+  Array.isArray(data.value?.items) ? data.value!.items : [],
+);
+const pre = computed(() => ((props.data as any) ?? {}) as Partial<HomeMiniLeaderboard>);
 
 const { el, visible } = useVisible();
 
@@ -92,12 +94,13 @@ function kg(n?: number | null) {
 }
 
 // Preferiraj precomputed top liste sa Home (weightTop/biggestTop), inače sortiraj iz rows
-const topByWeight = computed<Array<LeaderboardItem | HomeMiniLeaderboardRow>>(() => {
+const topByWeight = computed(() => {
   if (Array.isArray(pre.value.weightTop))
     return pre.value.weightTop.slice(0, props.limit ?? 5);
   return [...rows.value].sort((a, b) => weightOf(b) - weightOf(a)).slice(0, props.limit ?? 5);
 });
-const topByBiggest = computed<Array<LeaderboardItem | HomeMiniLeaderboardRow>>(() => {
+
+const topByBiggest = computed(() => {
   if (Array.isArray(pre.value.biggestTop))
     return pre.value.biggestTop.slice(0, props.limit ?? 5);
   return [...rows.value].sort((a, b) => biggestOf(b) - biggestOf(a)).slice(0, props.limit ?? 5);
@@ -136,7 +139,6 @@ const topByBiggest = computed<Array<LeaderboardItem | HomeMiniLeaderboardRow>>((
               <div class="flex items-center gap-2 min-w-0">
                 <div class="avatar">
                   <div class="w-7 rounded-full overflow-hidden border border-base-300">
-                    <img :src="avatarOf(userOf(r))" alt="">
                     <NuxtImg
                       :src="avatarOf(userOf(r))"
                       width="64"

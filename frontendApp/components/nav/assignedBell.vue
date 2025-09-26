@@ -14,6 +14,7 @@ type AssignedSession = FishingSession & { catches_count?: number };
 
 const assignedPreview = ref<{ items: AssignedSession[]; meta: any } | null>(null);
 const loading = ref(false);
+const timeago = useRelativeTime();
 
 async function loadAssignedPreview() {
   if (!auth.user.value) {
@@ -110,7 +111,7 @@ watch([() => route.fullPath, () => auth.user.value?.id], () => {
               </NuxtLink>
               <div class="text-xs opacity-70">
                 Počela:
-                {{ s.started_at ? new Date(s.started_at).toLocaleString('sr-RS') : '—' }} • Ulova:
+                {{ s.started_at ? timeago(s.started_at) : '—' }} • Ulova:
                 {{ s.catches_count ?? s.catches?.length ?? '—' }}
               </div>
             </div>

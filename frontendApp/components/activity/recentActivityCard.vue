@@ -42,6 +42,22 @@ function icon(t: HomeActivityItem["type"] | string) {
   return "•";
 }
 const items = computed(() => (usePrefetched.value ? props.items || [] : internal.value || []));
+const timeago = useRelativeTime();
+
+function label(t: HomeActivityItem["type"] | string) {
+  switch (t) {
+    case "catch_added":
+      return "Ulov dodat";
+    case "session_opened":
+      return "Sesija otvorena";
+    case "session_approved":
+      return "Sesija odobrena";
+    case "session_rejected":
+      return "Sesija odbijena";
+    default:
+      return "Aktivnost";
+  }
+}
 </script>
 
 <template>
@@ -72,11 +88,11 @@ const items = computed(() => (usePrefetched.value ? props.items || [] : internal
           }}</span>
           <div class="truncate">
             <div class="text-sm">
-              {{ a.type || 'aktivnost' }}
+              {{ label(a.type || '') }}
               <span v-if="a.ref_id" class="opacity-70">#{{ a.ref_id }}</span>
             </div>
             <div class="text-xs opacity-70">
-              {{ a.created_at ? new Date(a.created_at).toLocaleString('sr-RS') : '—' }}
+              {{ a.created_at ? timeago(a.created_at) : '—' }}
             </div>
           </div>
         </div>

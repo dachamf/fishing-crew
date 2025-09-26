@@ -113,40 +113,70 @@ class FishingSessionController extends Controller
     /**
      * Display the specified fishing session resource with optional related data.
      */
-    public function show(FishingSession $session) {
+    public function show(Request $r, FishingSession $session)
+    {
         $this->authorize('view', $session);
 
-        $allowed = ['catches','catches.user','event','photos','reviews','reviews.reviewer'];
-        $include = $include->filter(fn($rel) => in_array($rel, $allowed))->values();
+        // 1) Dozvoljeni include-ovi (dodate confirmations.*)
+        $allowed = [
+            'catches', 'catches.user',
+            'event',
+            'photos', // alias → catchPhotos
+            'reviews', 'reviews.reviewer',
+            'confirmations', 'confirmations.nominee',
+        ];
 
+        // 2) Parsiraj ?include=...
+        $include = collect(explode(',', (string) $r->query('include', '')))
+            ->map(fn ($s) => trim($s))
+            ->filter()
+            ->filter(fn ($rel) => in_array($rel, $allowed, true))
+            ->unique()
+            ->values();
+
+        // 3) Uvek učitaj vlasnika (light)
         $base = [
             'user:id,name',
             'user.profile:id,user_id,display_name,avatar_path',
         ];
 
+        // 4) Uslovne relacije
         $with = [];
+
         if ($include->contains('catches.user')) {
-            $with['catches'] = fn ($qq) => $qq->orderByDesc('caught_at')->orderByDesc('id')
-                ->with(['user:id,name', 'user.profile:id,user_id,display_name,avatar_path']);
+            $with['catches'] = fn ($qq) => $qq
+                ->orderByDesc('caught_at')->orderByDesc('id')
+                ->with([
+                    'user:id,name',
+                    'user.profile:id,user_id,display_name,avatar_path',
+                ]);
         } elseif ($include->contains('catches')) {
-            $with['catches'] = fn ($qq) => $qq->orderByDesc('caught_at')->orderByDesc('id');
+            $with['catches'] = fn ($qq) => $qq
+                ->orderByDesc('caught_at')->orderByDesc('id');
         }
+
         if ($include->contains('event')) {
-            $with[] = 'event:id,title,start_at';
+            // ograniči kolone
+            $with['event'] = fn ($qq) => $qq->select('id', 'title', 'start_at');
         }
 
         if ($include->contains('reviews.reviewer')) {
-            $with['reviews'] = fn($qq) => $qq->with(['reviewer:id,name', 'reviewer.profile:id,user_id,display_name,avatar_path']);
-        }
-        elseif ($include->contains('reviews')) {
+            $with['reviews'] = fn ($qq) => $qq->with([
+                'reviewer:id,name',
+                'reviewer.profile:id,user_id,display_name,avatar_path',
+            ]);
+        } elseif ($include->contains('reviews')) {
             $with[] = 'reviews';
         }
 
-        // confirmations (BEZ token-a)
+        // confirmations (bez tokena)
         if ($include->contains('confirmations.nominee')) {
             $with['confirmations'] = function ($qq) {
                 $qq->select('id','session_id','nominee_user_id','status','decided_at','created_at','updated_at')
-                    ->with(['nominee:id,name','nominee.profile:id,user_id,display_name,avatar_path']);
+                    ->with([
+                        'nominee:id,name',
+                        'nominee.profile:id,user_id,display_name,avatar_path',
+                    ]);
             };
         } elseif ($include->contains('confirmations')) {
             $with['confirmations'] = function ($qq) {
@@ -154,13 +184,14 @@ class FishingSessionController extends Controller
             };
         }
 
+        // alias "photos" → relacija catchPhotos; možeš ograničiti broj
         if ($include->contains('photos')) {
-            // eager-load svih (ili prvih N) fotki radi performansi;
-            // accessor 'photos' će i dalje vratiti samo 3, ali ovo sprečava dodatne upite
-            $with['catchPhotos'] = fn($qq) => $qq->orderByDesc('id')->limit(12);
+            $with['catchPhotos'] = fn ($qq) => $qq->orderByDesc('id')->limit(12);
         }
 
+        // 5) Eager-load + count
         $session->load(array_merge($base, $with));
+        $session->loadCount('catches');
 
         return response()->json($session);
     }
