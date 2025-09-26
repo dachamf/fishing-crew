@@ -23,7 +23,6 @@ const defaultGroupId = computed<ID | null>(() => meRaw.value?.groups?.[0]?.id ??
 const {
   data: home,
   pending: homeLoading,
-  error: homeError,
   refresh: refreshHome,
 } = useHome({ groupId: defaultGroupId.value, year: currentYear });
 
@@ -31,7 +30,6 @@ const {
 const me = computed(() => home.value?.me);
 const openSession = computed(() => home.value?.open_session ?? null);
 const assigned = computed(() => home.value?.assigned ?? { items: [], meta: { total: 0 } });
-const stats = computed(() => home.value?.season_stats ?? null);
 
 // Start/Resume (i dalje koristiš postojeći composable zbog startNew)
 const { startNew, loading: sessLoading } = useMySessions();
@@ -245,62 +243,11 @@ useSWR(() => refreshHome(), {
       </div>
 
       <!-- Snapshot -->
-      <div class="card bg-base-100 shadow md:col-span-3">
-        <div class="card-body">
-          <h2 class="text-lg font-semibold">
-            Moja sezona ({{ currentYear }})
-          </h2>
-          <template v-if="homeLoading">
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div class="skeleton h-16" />
-              <div class="skeleton h-16" />
-              <div class="skeleton h-16" />
-              <div class="skeleton h-16" />
-            </div>
-          </template>
-          <template v-else-if="homeError">
-            <div class="alert alert-error">
-              Greška pri učitavanju statistike.
-            </div>
-          </template>
-          <template v-else>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div class="stat bg-base-200 rounded-box">
-                <div class="stat-title">
-                  Izlasci (sesije)
-                </div>
-                <div class="stat-value text-primary">
-                  {{ stats?.sessions ?? 0 }}
-                </div>
-              </div>
-              <div v-if="(stats?.catches ?? 0) > 0" class="stat bg-base-200 rounded-box">
-                <div class="stat-title">
-                  Ulov potvrđen
-                </div>
-                <div class="stat-value text-primary">
-                  {{ stats?.catches ?? 0 }}
-                </div>
-              </div>
-              <div v-if="(stats?.total_weight_kg ?? 0) > 0" class="stat bg-base-200 rounded-box">
-                <div class="stat-title">
-                  Ukupno (kg)
-                </div>
-                <div class="stat-value text-primary">
-                  {{ Number(stats?.total_weight_kg || 0).toFixed(2) }}
-                </div>
-              </div>
-              <div v-if="(stats?.biggest_single_kg ?? 0) > 0" class="stat bg-base-200 rounded-box">
-                <div class="stat-title">
-                  Najveća (kg)
-                </div>
-                <div class="stat-value text-primary">
-                  {{ Number(stats?.biggest_single_kg || 0).toFixed(2) }}
-                </div>
-              </div>
-            </div>
-          </template>
-        </div>
-      </div>
+      <LazyHomeSeasonSessionsTable
+        :year="currentYear"
+        :group-id="defaultGroupId || undefined"
+        :per-page="10"
+      />
     </div>
 
     <!-- Close session dialog -->

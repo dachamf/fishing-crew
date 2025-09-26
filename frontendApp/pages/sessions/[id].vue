@@ -482,9 +482,9 @@ const canEditLocation = computed(() => {
               class="aspect-video rounded-xl overflow-hidden border border-base-300"
             >
               <UiPhoto
-                :src="p.url"
-                :urls="(p as any).urls"
+                :photo="p"
                 alt=""
+                class="w-full h-full object-cover"
               />
             </div>
           </div>

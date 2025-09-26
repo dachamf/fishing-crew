@@ -44,10 +44,12 @@ class ActivityController extends Controller
         $finalizedSessions = FishingSession::query()
             ->when($gid, fn($q) => $q->where('group_id', (int) $gid))
             ->whereNotNull('finalized_at')
-            ->latest('finalized_at')->limit($limit)->get();
+            ->latest('finalized_at')
+            ->limit($limit)
+            ->get(['id','user_id','title','finalized_at','final_result']);
 
         $finalized = $finalizedSessions->map(function (FishingSession $s) {
-            $type = $s->final_result === 'rejected' ? 'session_rejected' : 'session_approved';
+            $type = $s->final_result === 'approved' ? 'session_approved' : 'session_rejected';
             return [
                 'type'  => $type,
                 'id'    => $s->id,
@@ -66,15 +68,9 @@ class ActivityController extends Controller
             ->when($gid, fn($q) => $q->whereHas('session', fn($qq) => $qq->where('group_id', (int) $gid)))
             ->whereNotNull('decided_at')
             ->when(!empty($finalizedIds), fn($q) => $q->whereNotIn('session_id', $finalizedIds))
-            ->latest('decided_at')->limit($limit)->get()
-            ->map(fn($c) => [
-                'type'  => $c->status === 'rejected' ? 'session_rejected' : 'session_approved',
-                'id'    => $c->session_id,
-                'at'    => $c->decided_at,
-                'title' => 'Review odluka',
-                'by'    => ['id' => $c->nominee_user_id],
-                'url'   => "/sessions/{$c->session_id}",
-            ]);
+            ->latest('decided_at')
+            ->limit($limit)
+            ->get(['id','session_id','nominee_user_id','status','decided_at']);
 
         // merge + sort + truncate na globalni limit
         $feed = collect()

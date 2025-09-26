@@ -93,15 +93,14 @@ class FishingSession extends Model
 
     public function getPhotosAttribute(): array
     {
-        // napomena: ovo pravi 1 upit po sesiji; OK za liste do ~20 sesija
         return $this->catchPhotos()
-            ->latest('id')     // ili ->orderBy('ord')
+            ->latest('id')
             ->take(3)
             ->get()
             ->map(fn($p) => [
                 'id'   => $p->id,
-                'url'  => $p->url,   // original
-                'urls' => $p->urls,  // sm/md/lg varijante (ako postoje)
+                'url'  => $p->url,   // original/fallback
+                'urls' => $p->urls,  // sm/md/lg varijante ako postoje
                 'ord'  => $p->ord,
             ])
             ->all();

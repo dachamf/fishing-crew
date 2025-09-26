@@ -141,13 +141,16 @@ function finalClass(res?: "approved" | "rejected" | null) {
                 <NuxtLink :to="`/sessions/${s.id}`" class="text-lg font-semibold hover:underline">
                   {{ s.title || `Sesija #${s.id}` }}
                 </NuxtLink>
+
                 <span
-                  :class="finalClass(s.final_result || null)"
+                  v-if="s.finalized_at"
                   class="badge capitalize"
-                  :title="s.final_result ? 'Konačni ishod sesije' : 'Zatvorena, čeka odluke'"
+                  :class="finalClass(s.final_result)"
                 >
-                  {{ s.final_result || 'zatvorena' }}
+                  {{ s.final_result || 'finalized' }}
                 </span>
+
+                <span v-else class="badge badge-outline">zatvorena</span>
               </div>
 
               <div class="flex flex-wrap items-center gap-2 opacity-75">
