@@ -24,4 +24,5 @@ Route::middleware(['auth:sanctum', 'verified'])
     });
 
 // Token-based potvrda sesije (bez auth, ostaje van v1 grupe)
-Route::post('/v1/sessions/{session}/confirm/{token}', [\App\Http\Controllers\api\v1\SessionReviewController::class, 'confirmByToken']);
+Route::post('/v1/sessions/{session}/confirm/{token}', [\App\Http\Controllers\api\v1\SessionReviewController::class, 'confirmByToken'])
+    ->middleware('throttle:20,1');

@@ -116,15 +116,7 @@ class FishingSessionController extends Controller
     public function show(FishingSession $session) {
         $this->authorize('view', $session);
 
-        $include = collect(explode(',', (string) request()->query('include', '')))
-            ->map(fn ($i) => trim($i))
-            ->filter();
-
-        $allowed = [
-            'catches','catches.user','event','photos',
-            'reviews','reviews.reviewer',
-            'confirmations','confirmations.nominee',
-        ];
+        $allowed = ['catches','catches.user','event','photos','reviews','reviews.reviewer'];
         $include = $include->filter(fn($rel) => in_array($rel, $allowed))->values();
 
         $base = [
@@ -160,6 +152,12 @@ class FishingSessionController extends Controller
             $with['confirmations'] = function ($qq) {
                 $qq->select('id','session_id','nominee_user_id','status','decided_at','created_at','updated_at');
             };
+        }
+
+        if ($include->contains('photos')) {
+            // eager-load svih (ili prvih N) fotki radi performansi;
+            // accessor 'photos' će i dalje vratiti samo 3, ali ovo sprečava dodatne upite
+            $with['catchPhotos'] = fn($qq) => $qq->orderByDesc('id')->limit(12);
         }
 
         $session->load(array_merge($base, $with));

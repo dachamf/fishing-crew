@@ -14,17 +14,17 @@ class ProcessCatchPhoto implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    public int $tries = 2;
+    public int $timeout = 60;
+    public string $queue = 'images';
+
     public function __construct(public int $photoId) {}
 
     public function handle(PhotoProcessor $processor): void
     {
-        /** @var CatchPhoto|null $photo */
         $photo = CatchPhoto::find($this->photoId);
-        if (!$photo || !$photo->path) {
-            return;
-        }
+        if (!$photo || !$photo->path) return;
 
-        // EXIF + varijante
         $processor->generateVariants($photo);
     }
 }

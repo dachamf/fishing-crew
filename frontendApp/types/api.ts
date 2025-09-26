@@ -130,6 +130,7 @@ export type PhotoLite = {
   id: ID;
   url: string;
   ord?: number | null;
+  urls?: { sm?: string; md?: string; lg?: string; [k: string]: string | undefined };
 };
 
 /** Event (lite) */

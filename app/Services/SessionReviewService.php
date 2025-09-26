@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Events\SessionFinalized;
 use App\Models\FishingSession;
 use App\Models\SessionConfirmation;
 use App\Notifications\OwnerSessionConfirmationUpdated;
@@ -131,9 +132,15 @@ class SessionReviewService
             ])->save();
         });
 
+        try {
+            event(new SessionFinalized($session, $final)); // NEW event
+        } catch (\Throwable $e) {
+            // no-op (da ne blokira flow)
+        }
+
         if ($session->user) {
             $url = rtrim(config('app.frontend_url'), '/')."/sessions/{$session->id}";
-            $session->user->notify(new OwnerSessionFinalized($session, $final, $url));
+            $session->user->notify(new OwnerSessionFinalized($session, $final));
         }
     }
 }

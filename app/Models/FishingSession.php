@@ -98,9 +98,15 @@ class FishingSession extends Model
             ->latest('id')     // ili ->orderBy('ord')
             ->take(3)
             ->get()
-            ->map(fn($p) => ['id'=>$p->id, 'url'=>$p->url])
+            ->map(fn($p) => [
+                'id'   => $p->id,
+                'url'  => $p->url,   // original
+                'urls' => $p->urls,  // sm/md/lg varijante (ako postoje)
+                'ord'  => $p->ord,
+            ])
             ->all();
     }
+
 
     public function confirmations() {
         return $this->hasMany(SessionConfirmation::class, 'session_id');

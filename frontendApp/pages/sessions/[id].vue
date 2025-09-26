@@ -481,12 +481,11 @@ const canEditLocation = computed(() => {
               :key="idx"
               class="aspect-video rounded-xl overflow-hidden border border-base-300"
             >
-              <img
+              <UiPhoto
                 :src="p.url"
+                :urls="(p as any).urls"
                 alt=""
-                class="w-full h-full object-cover"
-                loading="lazy"
-              >
+              />
             </div>
           </div>
 

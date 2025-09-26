@@ -92,6 +92,14 @@ async function confirmReject() {
     note.value = "";
   }
 }
+
+function finalClass(res?: "approved" | "rejected" | null) {
+  return {
+    "badge-success": res === "approved",
+    "badge-error": res === "rejected",
+    "badge-ghost": !res, // safety
+  };
+}
 </script>
 
 <template>
@@ -133,8 +141,15 @@ async function confirmReject() {
                 <NuxtLink :to="`/sessions/${s.id}`" class="text-lg font-semibold hover:underline">
                   {{ s.title || `Sesija #${s.id}` }}
                 </NuxtLink>
-                <span class="badge badge-outline">zatvorena</span>
+                <span
+                  :class="finalClass(s.final_result || null)"
+                  class="badge capitalize"
+                  :title="s.final_result ? 'Konačni ishod sesije' : 'Zatvorena, čeka odluke'"
+                >
+                  {{ s.final_result || 'zatvorena' }}
+                </span>
               </div>
+
               <div class="flex flex-wrap items-center gap-2 opacity-75">
                 <span class="badge badge-ghost">Ulov(a): {{ s.catches?.length ?? '—' }}</span>
                 <span class="badge badge-ghost">
