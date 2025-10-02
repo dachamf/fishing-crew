@@ -1,6 +1,8 @@
 <script lang="ts" setup>
 import type { FishingSession } from "~/types/api";
 
+import { useRelativeTime } from "~/composables/useRelativeTime";
+
 defineOptions({ name: "NavAssignedBell" });
 
 const auth = useAuth();

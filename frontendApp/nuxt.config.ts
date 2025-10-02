@@ -44,6 +44,7 @@ export default defineNuxtConfig({
     compressPublicAssets: true, // brotli/gzip
     routeRules: {
       "/api/**": { headers: { "cache-control": "public, max-age=60" } }, // lagani cache
+      "/api-ssr/**": { headers: { "cache-control": "public, max-age=60" } },
       "/_ipx/**": { headers: { "cache-control": "public, max-age=604800, immutable" } },
     },
   },

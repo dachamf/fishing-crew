@@ -46,7 +46,7 @@ export type Kg = number;
 
 /** Status enums */
 export type SessionStatus = "open" | "closed";
-export type RSVP = "yes" | "undecided" | "no";
+export type RSVP = "yes" | "undecided" | "no" | null;
 
 /** Pagination (naš “flat” oblik) */
 export type PaginationMeta = {
@@ -299,12 +299,11 @@ export type FeedItem = {
   url: string;
 };
 
-export type Rsvp = "yes" | "undecided" | "no";
 export type EventItem = {
   id: number;
   title: string;
   start_at: string;
-  my_rsvp?: { status: Rsvp } | null;
+  my_rsvp?: { status: RSVP } | null;
 };
 
 export type Row = {
@@ -361,6 +360,7 @@ export type HomeMe = {
   display_name?: string | null;
   avatar_url?: string | null;
   roles?: string[];
+  groups?: GroupLite[];
 };
 
 export type HomeOpenSession = {
@@ -399,7 +399,7 @@ export type HomeEvent = {
   title?: string | null;
   start_at?: string | null;
   my_rsvp?: {
-    status: Rsvp;
+    status: RSVP;
   } | null;
 };
 export type ActivityType

@@ -1,4 +1,4 @@
-import type { EventItem, Rsvp } from "~/types/api";
+import type { EventItem, RSVP } from "~/types/api";
 
 export function useEvents() {
   const items = ref<EventItem[]>([]);
@@ -19,7 +19,7 @@ export function useEvents() {
     }
   }
 
-  async function rsvp(eventId: number, status: Rsvp) {
+  async function rsvp(eventId: number, status: RSVP) {
     const ev = items.value.find(e => e.id === eventId);
     const prev = structuredClone(ev?.my_rsvp ?? null);
 

@@ -1,37 +1,41 @@
 <script lang="ts" setup>
-import type { ID } from "~/types/api";
+import type { EventLite, FishingSessionLite, ID, SessionStatus } from "~/types/api";
 
-import { useHome } from "~/composables/useHome";
+import { useHydrated } from "~/composables/useHydrated";
+import { isoToDisplayLocal, isoToDisplayUTC } from "~/utils/datetime";
 
 defineOptions({ name: "HomePage" });
 
-const { $api } = useNuxtApp() as any;
 const router = useRouter();
 const toast = useToast();
 
 const currentYear = new Date().getFullYear();
 
-// me za defaultGroupId (može i iz /v1/home.me, ali ovo već imaš)
-const { data: meRaw } = await useAsyncData(
-  "me:forGroup",
-  async () => (await $api.get("/v1/me")).data,
-  { server: false },
-);
-const defaultGroupId = computed<ID | null>(() => meRaw.value?.groups?.[0]?.id ?? null);
+const hydrated = useHydrated();
 
-// JEDAN agregatni poziv
+// ✅ JEDAN agregatni poziv (SSR)
 const {
   data: home,
   pending: homeLoading,
   refresh: refreshHome,
-} = useHome({ groupId: defaultGroupId.value, year: currentYear });
+} = useHome({ groupId: null, year: currentYear });
 
 // Derivati
 const me = computed(() => home.value?.me);
+const defaultGroupId = computed<ID | null>(() => me.value?.groups?.[0]?.id ?? null);
 const openSession = computed(() => home.value?.open_session ?? null);
 const assigned = computed(() => home.value?.assigned ?? { items: [], meta: { total: 0 } });
 
-// Start/Resume (i dalje koristiš postojeći composable zbog startNew)
+const openSessionStartedAt = computed(() =>
+  hydrated.value
+    ? isoToDisplayLocal(openSession.value?.started_at)
+    : isoToDisplayUTC(openSession.value?.started_at),
+);
+
+// Stabilna "loading" grana i na SSR i na klijentu
+const isHomeLoading = computed(() => !hydrated.value || homeLoading.value);
+
+// Start/Resume
 const { startNew, loading: sessLoading } = useMySessions();
 
 const hintLat = ref<number | null>(null);
@@ -55,7 +59,8 @@ async function onStartOrResume() {
   if (!defaultGroupId.value)
     return toast.info("Dodaj se u grupu da bi pokrenuo sesiju.");
   try {
-    const s = await startNew(defaultGroupId.value);
+    // Ako API traži objekat, ovo promeni u: startNew({ group_id: defaultGroupId.value })
+    const s = await startNew(defaultGroupId.value as any);
     await router.push(`/sessions/${s.id}`);
   }
   catch (e: any) {
@@ -69,15 +74,50 @@ function onCloseSession() {
   if (openSession.value?.id)
     showClose.value = true;
 }
-
 function onClosedHome() {
   showClose.value = false;
-  refreshHome(); // ili refreshAssigned() ako to želiš
+  refreshHome();
 }
 
+type HomeMapPoint = {
+  id: ID;
+  title?: string | null;
+  latitude: number;
+  longitude: number;
+  started_at?: string | null;
+};
+
+const mapSessions = computed<FishingSessionLite[]>(() => {
+  const src = (home.value?.map as HomeMapPoint[] | undefined) ?? [];
+  return src.map(p => ({
+    id: p.id,
+    title: p.title ?? "",
+    status: "open" as SessionStatus, // <— bitno
+    latitude: p.latitude ?? null,
+    longitude: p.longitude ?? null,
+    started_at: p.started_at ?? undefined,
+  }));
+});
+
+const mode = useColorMode();
+const styleUrl = computed(() =>
+  mode.value === "dark" ? "/styles/dark.json" : "https://tiles.openfreemap.org/styles/liberty",
+);
+
+const upcomingEvents = computed<EventLite[]>(() =>
+  (home.value?.events ?? []).map(e => ({
+    id: e.id,
+    title: e.title ?? "",
+    start_at: e.start_at ?? undefined,
+    // dodaš još polja ako ih EventLite traži; po tipu je ovo dovoljno
+  })),
+);
+
+const visibility = useDocumentVisibility();
+const swrEnabled = computed(() => hydrated.value && visibility.value === "visible");
 useSWR(() => refreshHome(), {
   intervalMs: 45000,
-  enabled: () => true,
+  enabled: () => swrEnabled.value,
 });
 </script>
 
@@ -100,7 +140,7 @@ useSWR(() => refreshHome(), {
               + Novi ulov
             </button>
             <button
-              :class="{ loading: sessLoading || homeLoading }"
+              :class="{ loading: hydrated && (sessLoading || isHomeLoading) }"
               class="btn btn-primary join-item"
               @click="onStartOrResume"
             >
@@ -123,7 +163,7 @@ useSWR(() => refreshHome(), {
       <!-- Active session -->
       <div class="md:col-span-2 card bg-base-100 shadow">
         <div class="card-body">
-          <template v-if="homeLoading">
+          <template v-if="isHomeLoading">
             <div class="skeleton h-6 w-48 mb-2" />
             <div class="grid grid-cols-3 gap-2">
               <div class="skeleton h-24" />
@@ -131,19 +171,17 @@ useSWR(() => refreshHome(), {
               <div class="skeleton h-24" />
             </div>
           </template>
+
           <template v-else-if="openSession?.id">
             <h2 class="text-xl font-semibold">
               Aktivna sesija — {{ openSession.title || `#${openSession.id}` }}
             </h2>
             <div class="opacity-70 text-sm">
               Početak:
-              {{
-                openSession.started_at
-                  ? new Date(openSession.started_at).toLocaleString('sr-RS')
-                  : '—'
-              }}
+              {{ openSessionStartedAt }}
               • Ulova: {{ openSession.catches_count ?? 0 }}
             </div>
+
             <div v-if="(openSession.photos?.length || 0) > 0" class="mt-3 grid grid-cols-3 gap-2">
               <div
                 v-for="(p, i) in openSession.photos!.slice(0, 3)"
@@ -157,6 +195,7 @@ useSWR(() => refreshHome(), {
                 >
               </div>
             </div>
+
             <div class="mt-3 join">
               <NuxtLink :to="`/sessions/${openSession.id}`" class="btn join-item">
                 Otvori sesiju
@@ -169,6 +208,7 @@ useSWR(() => refreshHome(), {
               </button>
             </div>
           </template>
+
           <template v-else>
             <h2 class="text-xl font-semibold">
               Nema aktivne sesije
@@ -178,7 +218,7 @@ useSWR(() => refreshHome(), {
             </div>
             <div class="mt-3">
               <button
-                :class="{ loading: sessLoading || homeLoading }"
+                :class="{ loading: hydrated && (sessLoading || isHomeLoading) }"
                 class="btn btn-primary"
                 @click="onStartOrResume"
               >
@@ -200,13 +240,15 @@ useSWR(() => refreshHome(), {
               Vidi sve
             </NuxtLink>
           </div>
-          <template v-if="homeLoading">
+
+          <template v-if="isHomeLoading">
             <div class="space-y-2">
               <div class="skeleton h-5 w-full" />
               <div class="skeleton h-5 w-4/5" />
               <div class="skeleton h-5 w-3/5" />
             </div>
           </template>
+
           <template v-else-if="(assigned.items?.length || 0) > 0">
             <ul class="mt-1 space-y-2">
               <li
@@ -224,8 +266,10 @@ useSWR(() => refreshHome(), {
                   </NuxtLink>
                   <div class="text-xs opacity-70">
                     Počela:
-                    {{ s.started_at ? new Date(s.started_at).toLocaleString('sr-RS') : '—' }} •
-                    Ulova: {{ s.catches_count ?? '—' }}
+                    {{
+                      hydrated ? isoToDisplayLocal(s.started_at) : isoToDisplayUTC(s.started_at)
+                    }}
+                    • Ulova: {{ s.catches_count ?? '—' }}
                   </div>
                 </div>
                 <NuxtLink :to="`/sessions/${s.id}`" class="btn btn-ghost btn-xs">
@@ -234,6 +278,7 @@ useSWR(() => refreshHome(), {
               </li>
             </ul>
           </template>
+
           <template v-else>
             <div class="opacity-70 text-sm">
               Nema sesija koje čekaju tvoju odluku.
@@ -241,6 +286,7 @@ useSWR(() => refreshHome(), {
           </template>
         </div>
       </div>
+
       <!-- Snapshot -->
       <LazyHomeSeasonSessionsTable
         class="md:col-span-3"
@@ -267,7 +313,8 @@ useSWR(() => refreshHome(), {
         :shortcuts-prefetched="home?.admin?.shortcuts"
       />
       <LazyEventsUpcomingEventsCard
-        :items="home?.events || []"
+        :items="upcomingEvents"
+        :me-id="me?.id"
         :group-id="defaultGroupId || undefined"
         title="Predstojeći događaji"
         view-all-to="/events"
@@ -297,12 +344,7 @@ useSWR(() => refreshHome(), {
     </div>
 
     <div class="grid gap-6 md:grid-cols-2">
-      <LazyHomeLastSessionsMapCard
-        class="md:col-span-2"
-        :sessions="home?.map || []"
-        :limit="10"
-        :height="320"
-      />
+      <LazyHomeLastSessionsMapCard :sessions="mapSessions" :style-url="styleUrl" />
     </div>
   </div>
 </template>

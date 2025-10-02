@@ -193,12 +193,14 @@ watch(
                 >
                   Zatvori sesiju
                 </button>
-                <SessionCloseDialog
-                  v-model="closeOpen"
-                  :group-id="s.id"
-                  :session-id="s.id"
-                  @closed="onClosed"
-                />
+                <ClientOnly>
+                  <SessionCloseDialog
+                    v-model="closeOpen"
+                    :group-id="s.id"
+                    :session-id="s.id"
+                    @closed="onClosed"
+                  />
+                </ClientOnly>
               </div>
               <div class="flex flex-wrap items-center gap-2 opacity-75">
                 <FishingCatchesTimeBadge :iso="s.started_at" :with-time="true" />

@@ -6,12 +6,10 @@ import { CENTER_SERBIA } from "~/lib/constants";
 
 // v-model za koordinate { lng, lat }
 const props = defineProps<{
-  coords?: {
-    lng: number | null;
-    lat: number | null;
-  };
+  coords?: { lng: number | null; lat: number | null };
   editable?: boolean;
   height?: string;
+  recenterOnChange?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -106,10 +104,22 @@ const hasCoords = computed(() => coordsVal.value.lng !== null && coordsVal.value
 watch(
   () => [coordsVal.value.lng, coordsVal.value.lat] as const,
   ([lng, lat]) => {
-    if (!initialCentered.value && lng !== null && lat !== null) {
+    if (lng !== null && lat !== null) {
+      // uvek ažuriramo v-model:center
       center.value = [lng, lat];
-      // (opciono) zoom.value = Math.max(Number(zoom.value) || 0, 12)
-      initialCentered.value = true;
+
+      // ako želiš i “bliži” zoom pri picku, odkomentariši:
+      if (props.recenterOnChange) {
+        // zadrži postojeći zoom ako je veći, ili podigni do 12
+        zoom.value = Math.max(Number(zoom.value) || 0, 12);
+        // i osveži mapu
+        requestAnimationFrame(() => mapRef.value?.resize());
+      }
+      else {
+        // stari behavior (samo prvi put)
+        if (!initialCentered.value)
+          initialCentered.value = true;
+      }
     }
   },
   { immediate: true },
@@ -172,7 +182,7 @@ function geo() {
       </MglMap>
 
       <!-- overlay badge sada je u istom (relative) wrapperu -->
-      <div class="pointer-events-none absolute left-2 top-2 z-10 flex gap-2">
+      <div class="pointer-events-none absolute left-2 top-2 z-20 flex gap-2">
         <span v-if="hasCoords" class="badge pointer-events-auto">
           {{ Number(coordsVal.lng).toFixed(6) }}, {{ Number(coordsVal.lat).toFixed(6) }}
         </span>
@@ -191,14 +201,14 @@ function geo() {
     </template>
   </ClientOnly>
 
-  <div class="pointer-events-none absolute left-6 top-0 z-10 flex gap-2">
+  <div class="pointer-events-none absolute inset-x-0 bottom-3 z-20 flex justify-center">
     <button
       v-if="isEditable"
-      class="btn btn-xs btn-outline pointer-events-auto"
+      class="btn btn-xs btn-outline pointer-events-auto shadow-md backdrop-blur-sm bg-base-100/80"
       aria-label="Use my location"
       @click.stop.prevent="geo()"
     >
-      Izaberi trenutnu lokaciju📍
+      Izaberi trenutnu lokaciju 📍
     </button>
   </div>
 </template>

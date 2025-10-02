@@ -12,6 +12,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 
 class EventsController extends Controller
 {
@@ -78,11 +80,22 @@ class EventsController extends Controller
      * Retrieves the specified event along with its associated group data.
      *
      * @param  Event  $event  The event instance to be retrieved.
-     * @return Model The event with its loaded group relationship.
+     * @return JsonResponse The event with its loaded group relationship.
      */
-    public function show(Event $event): Model
+    public function show(Event $event)
     {
-        return $event->load('group');
+        $my = null;
+        if (Auth::check()) {
+            $my = $event->attendees()
+                ->where('users.id', Auth::id())
+                ->value('event_attendees.rsvp'); // tačan naziv pivot tabele/kolone
+        }
+
+        return response()->json([
+            'data' => array_merge($event->toArray(), [
+                'my_rsvp' => $my, // 'yes' | 'undecided' | 'no' | null
+            ]),
+        ]);
     }
 
     /**
@@ -118,28 +131,53 @@ class EventsController extends Controller
      */
     public function rsvp(Request $r, Event $event, ?Group $group = null)
     {
-        // Ako je pozvano kroz grupnu rutu, validiraj pripadnost
         if ($group && (int)$event->group_id !== (int)$group->id) {
             abort(404);
         }
 
         $this->authorize('rsvp', $event);
 
+        // Prihvati i 'status' (going|maybe|declined) i 'rsvp' (yes|undecided|no), dozvoli null za "skidanje"
         $data = $r->validate([
-            'status' => ['required', Rule::in(['going','maybe','declined'])],
+            'status' => ['sometimes','nullable', Rule::in(['going','maybe','declined'])],
+            'rsvp'   => ['sometimes','nullable', Rule::in(['yes','undecided','no'])],
         ]);
 
-        $rsvp = EventRsvp::updateOrCreate(
-            ['event_id' => $event->id, 'user_id' => $r->user()->id],
-            ['status' => $data['status']]
-        );
+        $incoming = $data['rsvp'] ?? $data['status'] ?? null;
 
-        $counts = EventRsvp::selectRaw('status, COUNT(*) c')
-            ->where('event_id', $event->id)
-            ->groupBy('status')
-            ->pluck('c','status');
+        // mapiranja
+        $toPivot = ['yes' => 'yes', 'undecided' => 'undecided', 'no' => 'no', 'going' => 'yes', 'maybe' => 'undecided', 'declined' => 'no'];
+        $toApi   = ['yes' => 'yes', 'undecided' => 'undecided', 'no' => 'no'];
 
-        return response()->json(['my_rsvp' => $rsvp, 'counts' => $counts]);
+        $normalized = $incoming ? ($toPivot[$incoming] ?? null) : null;
+
+        $userId = $r->user()->id;
+
+        if ($normalized === null) {
+            // "Skidanje" RSVP-a
+            $event->attendees()->detach($userId);
+            $my = null;
+        } else {
+            // Upsert u pivot
+            // syncWithoutDetaching radi i insert i update bez skidanja drugih
+            $event->attendees()->syncWithoutDetaching([
+                $userId => ['rsvp' => $normalized],
+            ]);
+            $my = $toApi[$normalized] ?? null;
+        }
+
+        // Brojači sa pivot-a
+        $counts = [
+            'yes'       => (int) $event->attendees()->wherePivot('rsvp','yes')->count(),
+            'undecided' => (int) $event->attendees()->wherePivot('rsvp','undecided')->count(),
+            'no'        => (int) $event->attendees()->wherePivot('rsvp','no')->count(),
+        ];
+        $counts['total'] = $counts['yes'] + $counts['undecided'] + $counts['no'];
+
+        return response()->json([
+            'my_rsvp' => $my,     // 'yes' | 'undecided' | 'no' | null
+            'counts'  => $counts,
+        ]);
     }
 
     /**

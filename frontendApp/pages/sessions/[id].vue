@@ -448,14 +448,15 @@ const canEditLocation = computed(() => {
               >
                 Zatvori sesiju
               </button>
-
-              <SessionCloseDialog
-                v-if="data?.id"
-                v-model="closeOpen"
-                :group-id="data.group?.id"
-                :session-id="data.id"
-                @closed="onClosed"
-              />
+              <ClientOnly>
+                <SessionCloseDialog
+                  v-if="data?.id"
+                  v-model="closeOpen"
+                  :group-id="data.group?.id"
+                  :session-id="data.id"
+                  @closed="onClosed"
+                />
+              </ClientOnly>
             </div>
           </div>
 

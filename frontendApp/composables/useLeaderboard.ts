@@ -7,8 +7,11 @@ export function useLeaderboard(paramsRef: Ref<Record<string, any>>) {
   const { data, pending, error, refresh } = useAsyncData<LeaderboardResponse>(
     key,
     async () => {
-      const res = await $api.get("/v1/leaderboard", { params: toRaw(paramsRef.value) });
-      return res.data;
+      const p = { include: "user", ...(toRaw(paramsRef.value) || {}) };
+      const res = await $api.get("/v1/leaderboard", { params: p });
+      const payload = res.data;
+      // normalizer: uvek vrati { items: [] }
+      return Array.isArray(payload) ? { items: payload } : (payload ?? { items: [] });
     },
     { watch: [paramsRef], server: false },
   );
@@ -17,13 +20,5 @@ export function useLeaderboard(paramsRef: Ref<Record<string, any>>) {
   const top3 = computed(() => items.value.slice(0, 3));
   const rest = computed(() => items.value.slice(3));
 
-  return {
-    data,
-    items,
-    top3,
-    rest,
-    pending,
-    error,
-    refresh,
-  };
+  return { data, items, top3, rest, pending, error, refresh };
 }

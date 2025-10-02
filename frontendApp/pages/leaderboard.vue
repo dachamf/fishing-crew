@@ -1,55 +1,84 @@
 <script lang="ts" setup>
 import type { ID, LeaderboardItem, Me } from "~/types/api";
 
-// helperi
 function displayName(u?: { display_name?: string; name?: string } | null) {
   return u?.display_name || u?.name || "—";
 }
 function avatarOf(u?: { avatar_url?: string | null } | null) {
   return u?.avatar_url || "/icons/icon-64.png";
 }
+// lepše formatiranje brojeva u sr-RS:
+const nf = new Intl.NumberFormat("sr-RS", { minimumFractionDigits: 3, maximumFractionDigits: 3 });
 function kg(n?: number | null) {
-  return `${Number(n || 0).toFixed(3)} kg`;
+  return `${nf.format(Number(n || 0))} kg`;
 }
 
-// api
 const { $api } = useNuxtApp() as any;
 
 // me -> grupe za dropdown
 const { data: me } = await useAsyncData<Me>(
   "me:leaderboard",
-  async () => {
-    const r = await $api.get("/v1/me");
-    return r.data;
-  },
+  async () => (await $api.get("/v1/me")).data,
   { server: false },
 );
 
-// query (default: prva grupa + tekuća sezona)
+// query (default: prva grupa + tekuća sezona); ako me još nije tu, postavi posle preko watch-a
 const query = reactive({
   group_id: (me.value?.groups?.[0]?.id ?? null) as ID | null,
   season_year: new Date().getFullYear(),
 });
 
+// ako me stigne posle, postavi default group_id jednom
+watch(
+  () => me.value?.groups,
+  (gs) => {
+    if (!query.group_id && Array.isArray(gs) && gs.length > 0) {
+      const first = gs[0]!;
+      query.group_id = first.id as ID;
+    }
+  },
+  { immediate: true },
+);
+
 // fetch leaderboard (jedan endpoint, FE sortira u tri liste)
-const key = computed(() => `leaderboard:${query.group_id}:${query.season_year}`);
+const key = computed(() => `leaderboard:${query.group_id ?? "none"}:${query.season_year}`);
 const { data, pending, error, refresh } = await useAsyncData<{ items: LeaderboardItem[] }>(
   key,
   async () => {
     if (!query.group_id)
       return { items: [] };
+
     const r = await $api.get("/v1/leaderboard", {
       params: { group_id: query.group_id, season_year: query.season_year },
     });
-    // očekujemo { items: LeaderboardItem[] } ili raw niz
-    const arr = r.data?.items ?? r.data ?? [];
-    return { items: arr as LeaderboardItem[] };
+
+    const raw = r.data;
+    const items = Array.isArray(raw?.items) ? raw.items : Array.isArray(raw) ? raw : [];
+
+    return { items: items as LeaderboardItem[] };
   },
   { watch: [() => query.group_id, () => query.season_year], server: false },
 );
 
-const rows = computed<LeaderboardItem[]>(() => data.value?.items ?? []);
+const hydrated = ref(false);
+onMounted(() => {
+  hydrated.value = true;
+});
 
+const refreshing = ref(false);
+async function doRefresh() {
+  try {
+    refreshing.value = true;
+    await refresh();
+  }
+  finally {
+    refreshing.value = false;
+  }
+}
+
+const rows = computed<LeaderboardItem[]>(() =>
+  Array.isArray(data.value?.items) ? data.value!.items : [],
+);
 // tri “pogleda”
 const activityRows = computed(() =>
   [...rows.value].sort((a, b) => (b.sessions_total ?? 0) - (a.sessions_total ?? 0)),
@@ -97,7 +126,12 @@ const biggestRows = computed(() =>
           >
         </div>
         <div class="flex items-end">
-          <button class="btn btn-outline w-full" @click="refresh()">
+          <button
+            class="btn btn-outline w-full"
+            :class="{ loading: refreshing }"
+            :disabled="refreshing"
+            @click="doRefresh"
+          >
             Osveži
           </button>
         </div>
@@ -105,7 +139,7 @@ const biggestRows = computed(() =>
     </div>
 
     <!-- Loading / Error -->
-    <div v-if="pending" class="grid md:grid-cols-3 gap-4">
+    <div v-if="!hydrated || pending" class="grid md:grid-cols-3 gap-4">
       <div class="card bg-base-100 shadow md:col-span-3">
         <div class="card-body">
           <div class="skeleton h-6 w-40 mb-2" />
