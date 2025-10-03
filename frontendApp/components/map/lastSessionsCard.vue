@@ -11,9 +11,9 @@ useHead({
   link: [{ rel: "preconnect", href: "https://tiles.openfreemap.org", crossorigin: "" }],
 });
 
-const mode = useColorMode();
+const { resolved } = useTheme();
 const styleUrl = computed(() =>
-  mode.value === "dark" ? "/styles/dark.json" : "https://tiles.openfreemap.org/styles/liberty",
+  resolved.value === "dark" ? "/styles/dark.json" : "https://tiles.openfreemap.org/styles/liberty",
 );
 
 // Axios-based composable koji već imamo

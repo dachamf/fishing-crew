@@ -20,9 +20,9 @@ useHead({
   link: [{ rel: "preconnect", href: "https://tiles.openfreemap.org", crossorigin: "" }],
 });
 
-const { mode } = useTheme();
+const { resolved } = useTheme();
 const styleUrl = computed(() => {
-  return mode.value === "dark"
+  return resolved.value === "dark"
     ? "/styles/dark.json"
     : "https://tiles.openfreemap.org/styles/liberty";
 });

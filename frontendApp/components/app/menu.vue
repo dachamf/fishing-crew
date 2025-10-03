@@ -188,7 +188,13 @@ watch(
           </li>
 
           <li class="mt-2">
-            <ThemeSwitch />
+            <ClientOnly>
+              <ThemeSwitch />
+              <template #fallback>
+                <!-- Stub iste visine/širine da nema skakanja layout-a -->
+                <span class="btn btn-ghost btn-circle opacity-0" aria-hidden="true" />
+              </template>
+            </ClientOnly>
           </li>
         </ul>
       </div>
@@ -228,7 +234,13 @@ watch(
         Neverifikovano
       </span>
 
-      <ThemeSwitch />
+      <ClientOnly>
+        <UiThemeSwitch />
+        <template #fallback>
+          <!-- Stub iste visine/širine da nema skakanja layout-a -->
+          <span class="btn btn-ghost btn-circle opacity-0" aria-hidden="true" />
+        </template>
+      </ClientOnly>
       <!-- Not logged in -->
       <div v-if="!auth.user.value" class="hidden lg:flex gap-2">
         <NuxtLink class="btn btn-primary btn-sm" to="/login">

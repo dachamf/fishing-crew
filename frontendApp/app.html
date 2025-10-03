@@ -1,0 +1,23 @@
+<!doctype html>
+<html {{ HTML_ATTRS }}>
+  <head {{ HEAD_ATTRS }}>
+    {{ HEAD }}
+    <script>
+      (function () {
+        try {
+          var KEY = "hfc:theme";
+          var stored = localStorage.getItem(KEY);
+          var theme = stored === "dark" || stored === "light" ? stored : null;
+          if (!theme) {
+            var isDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+            theme = isDark ? "dark" : "light";
+          }
+          document.documentElement.setAttribute("data-theme", theme);
+        } catch (_) {}
+      })();
+    </script>
+  </head>
+  <body {{ BODY_ATTRS }}>
+    {{ APP }}
+  </body>
+</html>

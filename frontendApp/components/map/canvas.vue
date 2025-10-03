@@ -164,7 +164,6 @@ watch(mapStyle, (next) => {
     <ClientOnly>
       <MglMap
         :key="mapStyle"
-        class="absolute inset-0"
         :map-style="mapStyle"
         :interactive="props.interactive"
         :double-click-zoom="props.doubleClickZoom"

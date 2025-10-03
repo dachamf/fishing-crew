@@ -15,9 +15,9 @@ const props = withDefaults(
 );
 
 // Dark / light stil za mapu
-const { mode } = useTheme();
+const { resolved } = useTheme();
 const styleUrl = computed(() =>
-  mode.value === "dark" ? "/styles/dark.json" : "https://tiles.openfreemap.org/styles/liberty",
+  resolved.value === "dark" ? "/styles/dark.json" : "https://tiles.openfreemap.org/styles/liberty",
 );
 
 const points = computed(() => props.sessions!.slice(0, props.limit));
