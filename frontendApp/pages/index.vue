@@ -22,7 +22,7 @@ const {
 
 // Derivati
 const me = computed(() => home.value?.me);
-const defaultGroupId = computed<ID | null>(() => me.value?.groups?.[0]?.id ?? null);
+const defaultGroupId = computed<ID | null>(() => (me.value as any)?.groups?.[0]?.id ?? null);
 const openSession = computed(() => home.value?.open_session ?? null);
 const assigned = computed(() => home.value?.assigned ?? { items: [], meta: { total: 0 } });
 
@@ -98,11 +98,6 @@ const mapSessions = computed<FishingSessionLite[]>(() => {
     started_at: p.started_at ?? undefined,
   }));
 });
-
-const mode = useColorMode();
-const styleUrl = computed(() =>
-  mode.value === "dark" ? "/styles/dark.json" : "https://tiles.openfreemap.org/styles/liberty",
-);
 
 const upcomingEvents = computed<EventLite[]>(() =>
   (home.value?.events ?? []).map(e => ({
@@ -266,9 +261,7 @@ useSWR(() => refreshHome(), {
                   </NuxtLink>
                   <div class="text-xs opacity-70">
                     Počela:
-                    {{
-                      hydrated ? isoToDisplayLocal(s.started_at) : isoToDisplayUTC(s.started_at)
-                    }}
+                    {{ hydrated ? isoToDisplayLocal(s.started_at) : isoToDisplayUTC(s.started_at) }}
                     • Ulova: {{ s.catches_count ?? '—' }}
                   </div>
                 </div>
@@ -344,7 +337,7 @@ useSWR(() => refreshHome(), {
     </div>
 
     <div class="grid gap-6 md:grid-cols-2">
-      <LazyHomeLastSessionsMapCard :sessions="mapSessions" :style-url="styleUrl" />
+      <LazyHomeLastSessionsMapCard :sessions="mapSessions" />
     </div>
   </div>
 </template>

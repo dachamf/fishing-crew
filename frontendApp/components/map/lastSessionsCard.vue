@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { nextTick } from "vue";
+
 type Props = { title?: string; limit?: number };
 const props = withDefaults(defineProps<Props>(), {
   title: "Mapa poslednjih sesija",
@@ -8,6 +10,11 @@ const props = withDefaults(defineProps<Props>(), {
 useHead({
   link: [{ rel: "preconnect", href: "https://tiles.openfreemap.org", crossorigin: "" }],
 });
+
+const mode = useColorMode();
+const styleUrl = computed(() =>
+  mode.value === "dark" ? "/styles/dark.json" : "https://tiles.openfreemap.org/styles/liberty",
+);
 
 // Axios-based composable koji već imamo
 const { items, loading, fetchLastWithCoords } = useMapSessions();
@@ -24,13 +31,11 @@ const hasCoords = computed(() =>
 function getMapFactories() {
   const { $mapgl, $mapbox } = useNuxtApp() as any;
 
-  // prefer tvoj plugin ako postoji
   if ($mapgl?.createMap || $mapgl?.Map)
     return { lib: "maplibre", gl: $mapgl };
   if ($mapbox?.createMap || $mapbox?.Map)
     return { lib: "mapbox", gl: $mapbox };
 
-  // fallback na global window.* ako plugin ne expose-uje
   if ((window as any).maplibregl)
     return { lib: "maplibre", gl: (window as any).maplibregl };
   if ((window as any).mapboxgl)
@@ -39,30 +44,27 @@ function getMapFactories() {
   return { lib: null, gl: null };
 }
 
-function ensureMap() {
-  if (!mapEl.value || map)
-    return;
-
-  const { lib, gl } = getMapFactories();
-  if (!lib || !gl) {
-    // nema map GL dostupnog – karta će prikazati empty state
-    return;
+function teardownMap() {
+  try {
+    clearMarkers();
+    map?.remove?.();
   }
+  catch {}
+  map = null;
+}
 
-  // style: ako tvoj plugin ima default style/url, koristi ga; u suprotnom bezbedan fallback
-  const style
-    = (gl?.defaultStyle as string)
-      || (lib === "maplibre"
-        ? "https://demotiles.maplibre.org/style.json"
-        : "mapbox://styles/mapbox/streets-v11");
+function mountMap(style: string) {
+  const { lib, gl } = getMapFactories();
+  if (!lib || !gl || !mapEl.value)
+    return;
 
-  // ako plugin expose-uje createMap preferiraj ga (često podesi token/style/antialias itd.)
+  // ako plugin expose-uje createMap preferiraj ga
   if (typeof gl.createMap === "function") {
     map = gl.createMap({
       container: mapEl.value,
       style,
       center: [20.4489, 44.7866], // BG default
-      zoom: 6.8,
+      zoom: 4.8,
     });
   }
   else if (gl.Map) {
@@ -70,12 +72,15 @@ function ensureMap() {
       container: mapEl.value,
       style,
       center: [20.4489, 44.7866],
-      zoom: 6.8,
+      zoom: 4.8,
     });
   }
+}
 
-  // Mapbox GL traži accessToken; ako ga plugin već setuje – super.
-  // Ovde ne radimo ništa jer oslanjamo se na tvoj plugin config.
+function ensureMap() {
+  if (!mapEl.value || map)
+    return;
+  mountMap(styleUrl.value);
 }
 
 function clearMarkers() {
@@ -100,13 +105,14 @@ function drawMarkers() {
 
   clearMarkers();
 
-  const bounds = new (gl.LngLatBounds
-    || (gl as any).LngLatBounds
-    || function (this: any) {
-      // fallback minimalni bounds za slučaj da plugin meri drugačije — retko potrebno
-      this._sw = null;
-      this._ne = null;
-    })();
+  const BoundsCtor
+    = gl.LngLatBounds
+      || (gl as any).LngLatBounds
+      || function (this: any) {
+        this._sw = null;
+        this._ne = null;
+      };
+  const bounds = new (BoundsCtor as any)();
 
   for (const s of items.value) {
     if (s.latitude == null || s.longitude == null)
@@ -115,12 +121,11 @@ function drawMarkers() {
     const lngLat = [Number(s.longitude), Number(s.latitude)] as [number, number];
 
     // Marker
-    // U oba lib-a radi new X.Marker().setLngLat().addTo(map)
     const MarkerCtor = gl.Marker || (gl as any).Marker;
     const marker = new MarkerCtor().setLngLat(lngLat).addTo(map);
     markers.push(marker);
 
-    // Popup (opciono, ako je dostupno)
+    // Popup (opciono)
     if (gl.Popup) {
       const popup = new gl.Popup({ offset: 16 }).setHTML(
         `<div class="font-medium">${s.title ?? "Sesija"}</div>
@@ -141,7 +146,7 @@ function drawMarkers() {
       map.fitBounds(bounds, { padding: 32, maxZoom: 12 });
     }
     catch {
-      // u slučaju da plugin ima custom fitBounds – ignoriši
+      // ignoriši ako plugin ima custom fitBounds
     }
   }
 }
@@ -151,10 +156,10 @@ function whenMapReady(cb: () => void) {
   if (!map)
     return;
   if (typeof map.on === "function") {
+    // Maplibre/Mapbox emituju "load" kada je style i resources spremno
     map.on("load", cb);
   }
   else {
-    // ako lib nema events API, samo probaj posle tick-a
     nextTick(cb);
   }
 }
@@ -167,11 +172,58 @@ onMounted(async () => {
   }
 });
 
+// crtaj kad stignu novi podaci
 watch(items, () => {
   if (!map)
     return;
   drawMarkers();
 });
+
+// REAGUJ NA PROMENU TAME/STILA
+watch(
+  styleUrl,
+  async (next, _prev) => {
+    if (!mapEl.value)
+      return;
+
+    // ako mapa još nije mount-ovana, samo mount
+    if (!map) {
+      ensureMap();
+      whenMapReady(() => drawMarkers());
+      return;
+    }
+
+    // ako lib podržava setStyle → koristi to (bez remount-a)
+    const canSetStyle = typeof map.setStyle === "function";
+
+    if (canSetStyle) {
+      try {
+        // setStyle i sačekaj da style bude spreman pa vrati view/markere
+        map.setStyle(next);
+        const once = (ev: string, handler: any) => {
+          if (typeof map.once === "function")
+            map.once(ev, handler);
+          else setTimeout(handler, 0);
+        };
+        once("styledata", () => {
+          // ponovno crtanje markera i fit bounds nakon promene stila
+          drawMarkers();
+        });
+        return;
+      }
+      catch {
+        // fallback na remount ispod
+      }
+    }
+
+    // fallback: remount (uvek radi)
+    teardownMap();
+    await nextTick();
+    mountMap(next);
+    whenMapReady(() => drawMarkers());
+  },
+  { immediate: false },
+);
 </script>
 
 <template>

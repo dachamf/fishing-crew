@@ -5,15 +5,19 @@ const props = withDefaults(
   defineProps<{
     sessions?: FishingSessionLite[];
     limit?: number;
-    styleUrl?: string;
     height?: number;
   }>(),
   {
     sessions: () => [],
     limit: 10,
-    styleUrl: "https://tiles.openfreemap.org/styles/liberty",
     height: 260,
   },
+);
+
+// Dark / light stil za mapu
+const { mode } = useTheme();
+const styleUrl = computed(() =>
+  mode.value === "dark" ? "/styles/dark.json" : "https://tiles.openfreemap.org/styles/liberty",
 );
 
 const points = computed(() => props.sessions!.slice(0, props.limit));
