@@ -67,4 +67,8 @@ class Event extends Model
         return $this->hasOne(EventRsvp::class);
     }
 
+    public function photos() {
+        return $this->hasMany(EventPhoto::class, 'event_id');
+    }
+
 }

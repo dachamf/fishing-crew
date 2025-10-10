@@ -22,6 +22,7 @@ Route::middleware(['auth:sanctum', 'verified'])
         require __DIR__ . '/api/v1/sessions.php';
         require __DIR__ . '/api/v1/stats_leaderboard.php';
         require __DIR__ . '/api/v1/profile_account.php';
+        require __DIR__ . '/api/v1/events.php';
     });
 
 // Token-based potvrda sesije (bez auth, ostaje van v1 grupe)

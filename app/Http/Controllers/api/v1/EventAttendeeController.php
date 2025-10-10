@@ -31,6 +31,9 @@ class EventAttendeeController extends Controller
 
     // POST /api/events/{event}/attendees  body: { rsvp?: ?rsvp=yes|undecided|no }
     public function store(Request $request, Event $event) {
+        if (now()->greaterThanOrEqualTo(optional($event->start_at))) {
+            return response()->json(['message' => 'RSVP je zatvoren za ovaj događaj.'], 422);
+        }
         $this->authorize('rsvp', $event); // po želji policy
 
         $validated = $request->validate([
@@ -49,6 +52,9 @@ class EventAttendeeController extends Controller
 
     // PATCH /api/events/{event}/attendees  body: { status: going|maybe|declined }
     public function update(Request $request, Event $event) {
+        if (now()->greaterThanOrEqualTo(optional($event->start_at))) {
+            return response()->json(['message' => 'RSVP je zatvoren za ovaj događaj.'], 422);
+        }
         $this->authorize('rsvp', $event);
 
         $validated = $request->validate([
@@ -64,6 +70,9 @@ class EventAttendeeController extends Controller
 
     // DELETE /api/events/{event}/attendees (odjava)
     public function destroy(Request $request, Event $event) {
+        if (now()->greaterThanOrEqualTo(optional($event->start_at))) {
+            return response()->json(['message' => 'RSVP je zatvoren za ovaj događaj.'], 422);
+        }
         $this->authorize('rsvp', $event);
 
         $event->attendees()->detach($request->user()->id);

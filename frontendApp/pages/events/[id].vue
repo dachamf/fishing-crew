@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { unref } from "vue";
 
-import type { RSVP } from "~/types/api";
+import type { RSVP, UserLite } from "~/types/api";
 
 defineOptions({ name: "EventDetailPage" });
 
@@ -53,10 +53,20 @@ const coords = computed(() => {
 const hasCoords = computed(() => coords.value.lng !== null && coords.value.lat !== null);
 
 // --- Dozvole ---
+const meId = computed(() => auth.user.value?.id ?? null);
 const isOwner = computed(() => {
-  const meId = auth.user.value?.id;
-  return !!meId && (ev.value?.user_id === meId || ev.value?.owner_id === meId);
+  const me = meId.value;
+  return !!me && (ev.value?.user_id === me || ev.value?.owner_id === me);
 });
+
+// --- RSVP OPEN/CLOSED ---
+const isStarted = computed(() => {
+  const d = ev.value?.start_at ? new Date(ev.value.start_at) : null;
+  if (!d)
+    return false;
+  return d.getTime() <= Date.now();
+});
+const isRsvpOpen = computed(() => !isStarted.value);
 
 // --- RSVP state ---
 const rsvp = ref<RSVP>(null);
@@ -97,7 +107,6 @@ const counts = computed(() => {
 
 // --- Lokalno (optimističko) ažuriranje attendees + counts ---
 function applyLocalRsvp(next: RSVP) {
-  // ako nemamo store, napravi minimalni oblik
   if (!attendeesRes.value) {
     attendeesRes.value = { data: [], counts: { yes: 0, undecided: 0, no: 0, total: 0 } };
   }
@@ -105,22 +114,13 @@ function applyLocalRsvp(next: RSVP) {
   store.data = Array.isArray(store.data) ? store.data : [];
   store.counts = store.counts ?? { yes: 0, undecided: 0, no: 0, total: 0 };
 
-  const me = auth.user.value;
-  if (!me?.id) {
+  const me = auth.user.value as UserLite | undefined;
+  if (!me?.id)
     return;
-  }
+
   const arr = store.data as any[];
   const idx = arr.findIndex((x: any) => x.id === me.id);
   const prev: RSVP = idx !== -1 ? (arr[idx]?.pivot?.rsvp ?? arr[idx]?.rsvp ?? null) : null;
-
-  const inc = (key?: RSVP) => {
-    if (!key)
-      return;
-    if (key === "yes" || key === "undecided" || key === "no") {
-      store.counts[key] = (store.counts[key] ?? 0) + 1;
-      store.counts.total = (store.counts.total ?? 0) + 1;
-    }
-  };
 
   const move = (from?: RSVP, to?: RSVP) => {
     if (from === to)
@@ -134,7 +134,6 @@ function applyLocalRsvp(next: RSVP) {
   };
 
   if (next === null) {
-    // ukloni me iz liste
     if (idx !== -1) {
       arr.splice(idx, 1);
       store.counts.total = Math.max(0, (store.counts.total ?? 0) - 1);
@@ -144,27 +143,24 @@ function applyLocalRsvp(next: RSVP) {
     }
   }
   else if (idx === -1) {
-    // dodaj me
     arr.unshift({
       id: me.id,
-      // auth.user (User) nema profile/avatara po tipu → koristimo sigurna polja + fallback
       name: me.name || "",
       display_name: (me as any).display_name ?? me.name ?? "",
       avatar: (me as any).avatar_url ?? null,
       pivot: { rsvp: next },
       rsvp: next,
     });
-    inc(next);
+    store.counts.total = (store.counts.total ?? 0) + 1;
+    move(undefined, next);
   }
   else {
-    // izmeni postojeći
     if (arr[idx].pivot)
       arr[idx].pivot.rsvp = next;
     arr[idx].rsvp = next;
     move(prev, next);
   }
 
-  // rebroadcast za reaktivnost
   attendeesRes.value = { ...store, data: [...arr], counts: { ...store.counts } };
 }
 
@@ -185,17 +181,17 @@ async function apiClearRsvp() {
   await $api.delete(`/v1/events/${id.value}/attendees`, { withCredentials: true });
 }
 
-// --- UI handlers ---
+// --- UI handlers RSVP ---
 async function toggleRsvp(next: Exclude<RSVP, null>) {
-  if (rsvpLoading.value)
+  if (!isRsvpOpen.value || rsvpLoading.value)
     return;
 
   const prev = rsvp.value;
   const newVal: RSVP = next;
 
   rsvpLoading.value = true;
-  rsvp.value = newVal; // optimistički za header
-  applyLocalRsvp(newVal); // optimistički za liste + counts
+  rsvp.value = newVal;
+  applyLocalRsvp(newVal);
 
   let apiOk = true;
   try {
@@ -203,7 +199,6 @@ async function toggleRsvp(next: Exclude<RSVP, null>) {
   }
   catch (e: any) {
     apiOk = false;
-    // rollback oba state-a
     rsvp.value = prev;
     applyLocalRsvp(prev);
     console.error(e);
@@ -214,20 +209,19 @@ async function toggleRsvp(next: Exclude<RSVP, null>) {
   }
 
   if (apiOk) {
-    void refresh(); // tihi sync sa serverom
-    void refreshAttendees?.(); // tihi sync sa serverom
+    void refresh();
+    void refreshAttendees?.();
   }
 }
 
 async function clearRsvp() {
-  if (rsvpLoading.value || rsvp.value === null)
+  if (!isRsvpOpen.value || rsvpLoading.value || rsvp.value === null)
     return;
 
   const prev = rsvp.value;
-
   rsvpLoading.value = true;
-  rsvp.value = null; // optimistički
-  applyLocalRsvp(null); // optimistički
+  rsvp.value = null;
+  applyLocalRsvp(null);
 
   let apiOk = true;
   try {
@@ -255,6 +249,153 @@ watch(id, () => {
   void refresh();
   void refreshAttendees?.();
 });
+
+/* =========================
+   FOTO SEKCIJA (upload/lista)
+   ========================= */
+type EventPhoto = {
+  id: number;
+  url: string;
+  created_at?: string;
+  user?: { id: number; name?: string; display_name?: string; avatar_url?: string | null };
+};
+
+const photos = ref<EventPhoto[]>([]);
+const photosLoading = ref(false);
+const uploading = ref(false);
+const selectedFiles = ref<File[]>([]);
+
+// učitaj fotke
+async function loadPhotos() {
+  photosLoading.value = true;
+  try {
+    const res = await $api.get(`/v1/events/${id.value}/photos`);
+    photos.value = Array.isArray(res.data) ? res.data : (res.data?.items ?? []);
+  }
+  catch (e) {
+    console.error(e);
+    photos.value = [];
+  }
+  finally {
+    photosLoading.value = false;
+  }
+}
+
+onMounted(loadPhotos);
+
+// broj mojih fotki i remaining
+const myPhotosCount = computed(
+  () => photos.value.filter(p => p.user?.id && p.user.id === meId.value).length,
+);
+const remainingUploads = computed(() => Math.max(0, 5 - myPhotosCount.value));
+
+// može upload? — samo kada event traje ili je završen, i ako imam “slotova”
+const canUpload = computed(() => isStarted.value && remainingUploads.value > 0);
+
+// selekcija fajlova (klasični <input type="file" multiple>)
+function onPickFiles(ev: Event) {
+  const input = ev.target as HTMLInputElement;
+  const files = input.files ? Array.from(input.files) : [];
+  if (!files.length)
+    return;
+
+  // clamp da ne pređe limit
+  const allowed = remainingUploads.value;
+  selectedFiles.value = files.slice(0, allowed);
+  if (files.length > allowed) {
+    toast.warning(`Možeš dodati još ${allowed} fotografija (limit je 5 po učesniku).`);
+  }
+}
+
+// upload
+async function doUpload() {
+  if (!canUpload.value || !selectedFiles.value.length)
+    return;
+  uploading.value = true;
+  try {
+    const fd = new FormData();
+    // backend prihvata i 'photo' i 'photos[]' — koristimo 'photos[]'
+    for (const f of selectedFiles.value) fd.append("photos[]", f);
+
+    const res = await $api.post(`/v1/events/${id.value}/photos`, fd, {
+      withCredentials: true,
+    });
+
+    const items: EventPhoto[] = res?.data?.items ?? [];
+    if (Array.isArray(items) && items.length) {
+      // dodaj na vrh liste
+      photos.value = [...items, ...photos.value];
+      toast.success(`Dodata ${items.length} ${items.length === 1 ? "fotografija" : "fotografije"}.`);
+    }
+    selectedFiles.value = [];
+  }
+  catch (e: any) {
+    console.error(e);
+    toast.error(e?.response?.data?.message ?? "Upload nije uspeo.");
+  }
+  finally {
+    uploading.value = false;
+  }
+}
+
+// delete (dozvoljeno: vlasnik fotke ili vlasnik eventa — policy na BE)
+async function deletePhoto(p: EventPhoto) {
+  try {
+    await $api.delete(`/v1/events/${id.value}/photos/${p.id}`);
+    photos.value = photos.value.filter(x => x.id !== p.id);
+  }
+  catch (e: any) {
+    console.error(e);
+    toast.error(e?.response?.data?.message ?? "Brisanje nije uspelo.");
+  }
+}
+
+function canDelete(p: EventPhoto) {
+  return p.user?.id === meId.value || isOwner.value;
+}
+
+// --- LIGHTBOX ---
+const lbOpen = ref(false);
+const lbIndex = ref<number>(-1);
+
+function openLightbox(i: number) {
+  if (!photos.value.length)
+    return;
+  lbIndex.value = i;
+  lbOpen.value = true;
+  // zaključa scroll u pozadini
+  document?.body && (document.body.style.overflow = "hidden");
+}
+function closeLightbox() {
+  lbOpen.value = false;
+  lbIndex.value = -1;
+  document?.body && (document.body.style.overflow = "");
+}
+function prevPhoto() {
+  if (!photos.value.length)
+    return;
+  lbIndex.value = (lbIndex.value - 1 + photos.value.length) % photos.value.length;
+}
+function nextPhoto() {
+  if (!photos.value.length)
+    return;
+  lbIndex.value = (lbIndex.value + 1) % photos.value.length;
+}
+const currentPhoto = computed(() => photos.value[lbIndex.value] ?? null);
+
+// tastatura (← → Esc)
+function onKeyDown(e: KeyboardEvent) {
+  if (!lbOpen.value)
+    return;
+  if (e.key === "Escape")
+    closeLightbox();
+  else if (e.key === "ArrowLeft")
+    prevPhoto();
+  else if (e.key === "ArrowRight")
+    nextPhoto();
+}
+onMounted(() => window.addEventListener("keydown", onKeyDown));
+onUnmounted(() => window.removeEventListener("keydown", onKeyDown));
 </script>
 
 <template>
@@ -306,9 +447,19 @@ watch(id, () => {
         <!-- RSVP -->
         <div class="card bg-base-100 shadow">
           <div class="card-body">
-            <h2 class="card-title">
-              Prisustvo
-            </h2>
+            <div class="flex items-center justify-between">
+              <h2 class="card-title">
+                Prisustvo
+              </h2>
+              <span
+                v-if="!isRsvpOpen"
+                class="badge badge-warning"
+                title="RSVP je zatvoren jer je događaj počeo ili je završen"
+              >
+                RSVP zatvoren
+              </span>
+            </div>
+
             <p class="opacity-70">
               Označi svoj status dolaska:
             </p>
@@ -321,7 +472,7 @@ watch(id, () => {
                     name="rsvp"
                     class="radio"
                     :checked="rsvp === 'yes'"
-                    :disabled="rsvpLoading"
+                    :disabled="rsvpLoading || !isRsvpOpen"
                     @change="toggleRsvp('yes')"
                   >
                   <span class="label-text">Dolazim</span>
@@ -335,7 +486,7 @@ watch(id, () => {
                     name="rsvp"
                     class="radio"
                     :checked="rsvp === 'undecided'"
-                    :disabled="rsvpLoading"
+                    :disabled="rsvpLoading || !isRsvpOpen"
                     @change="toggleRsvp('undecided')"
                   >
                   <span class="label-text">Možda</span>
@@ -349,7 +500,7 @@ watch(id, () => {
                     name="rsvp"
                     class="radio"
                     :checked="rsvp === 'no'"
-                    :disabled="rsvpLoading"
+                    :disabled="rsvpLoading || !isRsvpOpen"
                     @change="toggleRsvp('no')"
                   >
                   <span class="label-text">Ne dolazim</span>
@@ -359,7 +510,7 @@ watch(id, () => {
 
             <button
               class="btn btn-ghost btn-xs mt-2"
-              :disabled="rsvpLoading || rsvp === null"
+              :disabled="rsvpLoading || rsvp === null || !isRsvpOpen"
               @click="clearRsvp"
             >
               Poništi
@@ -380,7 +531,10 @@ watch(id, () => {
                 >
                   <div class="avatar">
                     <div class="w-8 rounded-full ring ring-base-300 ring-offset-2 overflow-hidden">
-                      <img :src="a.avatar || '/icons/icon-64.png'" alt="">
+                      <img
+                        :src="a.avatar || a.profile?.avatar_url || '/icons/icon-64.png'"
+                        alt=""
+                      >
                     </div>
                   </div>
                   <span class="text-sm">{{ a.display_name || a.name }}</span>
@@ -406,7 +560,10 @@ watch(id, () => {
                 >
                   <div class="avatar">
                     <div class="w-8 rounded-full ring ring-base-300 ring-offset-2 overflow-hidden">
-                      <img :src="a.avatar || '/icons/icon-64.png'" alt="">
+                      <img
+                        :src="a.avatar || a.profile?.avatar_url || '/icons/icon-64.png'"
+                        alt=""
+                      >
                     </div>
                   </div>
                   <span class="text-sm">{{ a.display_name || a.name }}</span>
@@ -414,6 +571,109 @@ watch(id, () => {
               </div>
               <div v-else class="opacity-70">
                 Još uvek niko nije otkazao.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- FOTKE (upload/lista) -->
+        <div class="card bg-base-100 shadow">
+          <div class="card-body">
+            <div class="flex items-center justify-between gap-3">
+              <h2 class="card-title">
+                Fotke sa događaja
+              </h2>
+              <span v-if="isStarted" class="badge badge-success">Otvoreno</span>
+              <span v-else class="badge">Dostupno od početka događaja</span>
+            </div>
+
+            <!-- Upload kontrola -->
+            <div class="rounded-lg border border-dashed border-base-300 p-3">
+              <div class="flex flex-col md:flex-row md:items-center gap-3 justify-between">
+                <div class="text-sm">
+                  <div class="font-medium">
+                    Tvoje fotografije: {{ myPhotosCount }} / 5
+                  </div>
+                  <div class="opacity-70">
+                    Maks. 5MB po fajlu. Preostalo: {{ remainingUploads }}.
+                  </div>
+                </div>
+
+                <div class="flex items-center gap-2">
+                  <input
+                    type="file"
+                    class="file-input file-input-bordered file-input-sm"
+                    :disabled="!canUpload || uploading"
+                    accept="image/*"
+                    multiple
+                    @change="onPickFiles"
+                  >
+                  <button
+                    class="btn btn-primary btn-sm"
+                    :class="{ loading: uploading }"
+                    :disabled="!canUpload || uploading || selectedFiles.length === 0"
+                    @click="doUpload"
+                  >
+                    Dodaj {{ selectedFiles.length ? `(${selectedFiles.length})` : '' }}
+                  </button>
+                </div>
+              </div>
+              <div v-if="!isStarted" class="text-xs opacity-70 mt-1">
+                Upload će biti omogućen kada događaj počne.
+              </div>
+            </div>
+
+            <!-- Lista fotki -->
+            <div class="mt-3">
+              <div v-if="photosLoading" class="flex items-center gap-2">
+                <span class="loading loading-spinner loading-sm" /> Učitavanje fotki…
+              </div>
+
+              <div v-else-if="photos.length === 0" class="opacity-70 text-sm">
+                Još nema fotografija.
+              </div>
+
+              <div v-else class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <div
+                  v-for="(p, i) in photos"
+                  :key="p.id"
+                  class="group relative rounded-xl overflow-hidden border border-base-300"
+                >
+                  <button
+                    class="block w-full"
+                    :title="p.user?.display_name || p.user?.name"
+                    @click="openLightbox(i)"
+                  >
+                    <img
+                      :src="p.url"
+                      class="w-full h-40 object-cover transition-transform group-hover:scale-[1.02]"
+                      alt=""
+                    >
+                  </button>
+
+                  <div
+                    class="absolute bottom-0 left-0 right-0 bg-base-100/80 backdrop-blur p-2 text-xs flex items-center justify-between"
+                  >
+                    <div class="flex items-center gap-2 min-w-0">
+                      <div class="avatar">
+                        <div class="w-6 rounded-full border border-base-300 overflow-hidden">
+                          <img :src="p.user?.avatar_url || '/icons/icon-64.png'" alt="">
+                        </div>
+                      </div>
+                      <span class="truncate">{{
+                        p.user?.display_name || p.user?.name || `#${p.user?.id}`
+                      }}</span>
+                    </div>
+                    <button
+                      v-if="canDelete(p)"
+                      class="btn btn-ghost btn-xs opacity-70 hover:opacity-100"
+                      title="Obriši"
+                      @click="deletePhoto(p)"
+                    >
+                      <Icon name="tabler:trash" size="16" />
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -456,5 +716,86 @@ watch(id, () => {
         </div>
       </div>
     </div>
+
+    <!-- LIGHTBOX -->
+    <transition name="fade">
+      <div
+        v-if="lbOpen && currentPhoto"
+        class="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+        @click.self="closeLightbox"
+      >
+        <div class="relative max-w-[95vw] max-h-[90vh]">
+          <!-- Close -->
+          <button
+            class="btn btn-sm btn-circle absolute -top-3 -right-3"
+            aria-label="Zatvori"
+            @click="closeLightbox"
+          >
+            ✕
+          </button>
+
+          <!-- Slika -->
+          <img
+            :src="currentPhoto.url"
+            class="max-w-[95vw] max-h-[80vh] object-contain rounded-xl shadow-2xl"
+            :alt="currentPhoto.user?.display_name || currentPhoto.user?.name || ''"
+            draggable="false"
+          >
+
+          <!-- Navigacija -->
+          <div class="absolute inset-y-0 left-0 flex items-center">
+            <button
+              class="btn btn-circle btn-ghost"
+              aria-label="Prethodna"
+              @click.stop="prevPhoto"
+            >
+              <Icon name="tabler:chevron-left" size="24" />
+            </button>
+          </div>
+          <div class="absolute inset-y-0 right-0 flex items-center">
+            <button
+              class="btn btn-circle btn-ghost"
+              aria-label="Sledeća"
+              @click.stop="nextPhoto"
+            >
+              <Icon name="tabler:chevron-right" size="24" />
+            </button>
+          </div>
+
+          <!-- Caption -->
+          <div class="mt-2 text-center text-sm text-base-100">
+            <div class="inline-flex items-center gap-2 bg-base-100/20 rounded-full px-3 py-1">
+              <div class="avatar">
+                <div class="w-6 rounded-full border border-white/30 overflow-hidden">
+                  <img :src="currentPhoto.user?.avatar_url || '/icons/icon-64.png'" alt="">
+                </div>
+              </div>
+              <span class="truncate max-w-[60vw]">
+                {{
+                  currentPhoto.user?.display_name
+                    || currentPhoto.user?.name
+                    || `#${currentPhoto.user?.id}`
+                }}
+              </span>
+              <span v-if="currentPhoto.created_at" class="opacity-80">
+                • {{ new Date(currentPhoto.created_at).toLocaleString('sr-RS') }}
+              </span>
+              <span class="opacity-80"> • {{ lbIndex + 1 }} / {{ photos.length }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
+
+<style scoped>
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.15s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+</style>

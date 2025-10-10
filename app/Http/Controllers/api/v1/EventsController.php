@@ -20,6 +20,7 @@ class EventsController extends Controller
 
     /**
      * @param Request $r
+     * @param Group|null $group
      * @return JsonResponse
      */
     public function index(Request $r, ?Group $group = null)
@@ -85,17 +86,26 @@ class EventsController extends Controller
     public function show(Event $event)
     {
         $my = null;
-        if (Auth::check()) {
-            $my = $event->attendees()
-                ->where('users.id', Auth::id())
-                ->value('event_attendees.rsvp'); // tačan naziv pivot tabele/kolone
+        if (\Illuminate\Support\Facades\Auth::check()) {
+            $my = $event->attendees()->where('users.id', \Illuminate\Support\Facades\Auth::id())
+                ->value('event_attendees.rsvp');
         }
 
-        return response()->json([
-            'data' => array_merge($event->toArray(), [
-                'my_rsvp' => $my, // 'yes' | 'undecided' | 'no' | null
-            ]),
-        ]);
+        $inc = collect(explode(',', (string)request()->query('include','')))
+            ->map(fn($s)=>trim($s))->filter()->values();
+
+        if ($inc->contains('photos.user')) {
+            $event->load(['photos' => fn($q)=>$q->latest('id')->with([
+                'user:id,name','user.profile:id,user_id,display_name,avatar_path'
+            ])]);
+        } elseif ($inc->contains('photos')) {
+            $event->load(['photos' => fn($q)=>$q->latest('id')]);
+        }
+
+        $payload = $event->toArray();
+        $payload['my_rsvp'] = $my;
+
+        return response()->json(['data' => $payload]);
     }
 
     /**
