@@ -34,7 +34,14 @@ export function useMySessions() {
   }
 
   async function closeSession(id: number) {
-    await $api.post(`/v1/sessions/${id}/close`);
+    await $api.post(`/v1/sessions/${id}/close-and-nominate`, { reviewer_ids: [] });
+    await refresh();
+  }
+
+  async function closeAndNominate(id: number, reviewerIds: number[]) {
+    await $api.post(`/v1/sessions/${id}/close-and-nominate`, {
+      reviewer_ids: Array.from(new Set(reviewerIds || [])).filter(Boolean),
+    });
     await refresh();
   }
 
@@ -55,6 +62,7 @@ export function useMySessions() {
     recent,
     startNew,
     closeSession,
+    closeAndNominate,
     stackCatch,
     loading,
   };

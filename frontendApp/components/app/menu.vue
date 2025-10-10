@@ -72,9 +72,8 @@ function isActive(to: string, exact = false) {
 const links = computed(() => [
   { to: "/", label: "Početna", exact: true },
   { to: "/events", label: "Događaji", auth: true },
-  { to: "/events/new", label: "Novi događaj", auth: true },
   { to: "/catches", label: "Ulov", auth: true },
-  { to: "/leaderboard", label: "Leaderboard", auth: true },
+  { to: "/leaderboard", label: "Lista Najboljih", auth: true },
 ]);
 const visibleLinks = computed(() => links.value.filter(l => !l.auth || !!auth.user.value));
 

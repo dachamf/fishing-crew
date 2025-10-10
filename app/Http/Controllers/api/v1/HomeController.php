@@ -238,27 +238,43 @@ class HomeController extends Controller
     {
         if (!class_exists(Event::class)) return [];
 
-        $q = Event::query()
-            ->when($group, fn($qq) => $qq->where('group_id', $group))
-            ->whereDate('start_at', '>=', now()->toDateString())
+        // Uzmi buduće evente (zadrži i vreme, ne samo datum)
+        $items = Event::query()
+            ->when($group, fn($q) => $q->where('group_id', $group))
+            ->where('start_at', '>=', now())
             ->orderBy('start_at')
-            ->limit($limit);
+            ->limit($limit)
+            ->get(['id', 'title', 'start_at', 'group_id']);
 
-        // Napomena: ako imaš relaciju myRsvp → može with(['myRsvp'=>...])
-        $items = $q->get(['id', 'title', 'start_at', 'group_id']);
+        if ($items->isEmpty()) {
+            return [];
+        }
 
-        // my_rsvp iz pivot tabele (event_user ili events_rsvps)
+        // RSVP-ovi za traženog user-a (može biti going/declined/maybe/yes/no/undecided/NULL)
         $rsvps = DB::table('event_rsvps')
             ->whereIn('event_id', $items->pluck('id'))
             ->where('user_id', $uid)
-            ->pluck('status', 'event_id'); // status: yes/no/undecided
+            ->pluck('status', 'event_id');
 
-        return $items->map(function ($e) use ($rsvps) {
+        // Vraćamo: 'yes' | 'no' | 'undecided' | null
+        $normalize = static function (?string $s): ?string {
+            $s = strtolower($s ?? '');
+            return match ($s) {
+                'yes', 'going' => 'yes',
+                'no', 'declined' => 'no',
+                'maybe', 'undecided' => 'undecided',
+                '' => null,      // NULL → null
+                default => null,      // bilo šta neočekivano → null
+            };
+        };
+
+        return $items->map(function (Event $e) use ($rsvps, $normalize) {
             return [
                 'id' => (int)$e->id,
-                'title' => $e->title,
-                'start_at' => $e->start_at,
-                'my_rsvp' => $rsvps[$e->id] ?? null,
+                'title' => (string)$e->title,
+                'group_id' => (int)$e->group_id,
+                'start_at' => optional($e->start_at)->toISOString(),
+                'my_rsvp' => $normalize($rsvps[$e->id] ?? null),
             ];
         })->values()->all();
     }
@@ -274,14 +290,14 @@ class HomeController extends Controller
             ->limit($limit)
             ->get()
             ->map(fn($s) => [
-                'id'         => (int) $s->id,           // id feed stavke (može biti isto kao ref_id)
-                'type'       => 'session_opened',
-                'ref_id'     => (int) $s->id,           // sesija
-                'user_id'    => (int) $s->user_id,
+                'id' => (int)$s->id,           // id feed stavke (može biti isto kao ref_id)
+                'type' => 'session_opened',
+                'ref_id' => (int)$s->id,           // sesija
+                'user_id' => (int)$s->user_id,
                 'created_at' => $s->created_at,
-                'meta'       => [
+                'meta' => [
                     'title' => $s->title ?: 'Nova sesija',
-                    'url'   => "/sessions/{$s->id}",
+                    'url' => "/sessions/{$s->id}",
                 ],
             ]);
 
@@ -302,16 +318,16 @@ class HomeController extends Controller
             ->limit($limit)
             ->get()
             ->map(fn($c) => [
-                'id'         => (int) $c->id,
-                'type'       => 'catch_added',
-                'ref_id'     => (int) $c->id,          // ulov
-                'user_id'    => (int) $c->user_id,
+                'id' => (int)$c->id,
+                'type' => 'catch_added',
+                'ref_id' => (int)$c->id,          // ulov
+                'user_id' => (int)$c->user_id,
                 'created_at' => $c->created_at,
-                'meta'       => [
-                    'title'   => (string) $c->species_label,
-                    'session' => (int) $c->session_id,
-                    'url'     => "/catches/{$c->id}",
-                    'weight'  => (float) $c->total_weight_kg,
+                'meta' => [
+                    'title' => (string)$c->species_label,
+                    'session' => (int)$c->session_id,
+                    'url' => "/catches/{$c->id}",
+                    'weight' => (float)$c->total_weight_kg,
                 ],
             ]);
 
@@ -347,13 +363,13 @@ class HomeController extends Controller
                 ->map(function ($r) {
                     $type = $r->status === 'approved' ? 'session_approved' : 'session_rejected';
                     return [
-                        'id'         => (int) $r->session_id,   // id stavke u feed-u
-                        'type'       => $type,
-                        'ref_id'     => (int) $r->session_id,
-                        'user_id'    => (int) $r->actor_id,
+                        'id' => (int)$r->session_id,   // id stavke u feed-u
+                        'type' => $type,
+                        'ref_id' => (int)$r->session_id,
+                        'user_id' => (int)$r->actor_id,
                         'created_at' => $r->decided_at,
-                        'meta'       => [
-                            'url'    => "/sessions/{$r->session_id}",
+                        'meta' => [
+                            'url' => "/sessions/{$r->session_id}",
                             'status' => $r->status,
                         ],
                     ];
@@ -475,7 +491,7 @@ class HomeController extends Controller
 
     private function secAchievements(int $uid): array
     {
-        $catchTable   = (new FishingCatch)->getTable();
+        $catchTable = (new FishingCatch)->getTable();
         $sessionTable = (new FishingSession)->getTable();
 
         // --- Personal Best (najveći pojedinačni ulov)
@@ -487,7 +503,7 @@ class HomeController extends Controller
             ->limit(1)
             ->first();
 
-        $pb        = (float)($pbRow->kg ?? 0);
+        $pb = (float)($pbRow->kg ?? 0);
         $pbUnlockedAt = $pb > 0 ? ($pbRow->created_at ?? now()) : null;
 
         // --- Streak (bar 2 dana zaredom sa sesijom)
@@ -522,30 +538,30 @@ class HomeController extends Controller
         // Mapiraj u Home FE format
         return [
             [
-                'id'           => 1,
-                'key'          => 'pb',
-                'title'        => 'Lični rekord',
-                'unlocked_at'  => $pbUnlockedAt,
-                'meta'         => [
-                    'desc'  => 'Najveći pojedinačni ulov (kg)',
+                'id' => 1,
+                'key' => 'pb',
+                'title' => 'Lični rekord',
+                'unlocked_at' => $pbUnlockedAt,
+                'meta' => [
+                    'desc' => 'Najveći pojedinačni ulov (kg)',
                     'value' => round($pb, 2),
                 ],
             ],
             [
-                'id'           => 2,
-                'key'          => 'streak2',
-                'title'        => 'Dani u nizu',
-                'unlocked_at'  => $streakUnlockedAt, // null ako nije ostvareno
-                'meta'         => [
+                'id' => 2,
+                'key' => 'streak2',
+                'title' => 'Dani u nizu',
+                'unlocked_at' => $streakUnlockedAt, // null ako nije ostvareno
+                'meta' => [
                     'desc' => 'Dve sesije zaredom (dani)',
                 ],
             ],
             [
-                'id'           => 3,
-                'key'          => 'nightowl',
-                'title'        => 'Noćni čuvar',
-                'unlocked_at'  => $hasNight ? $nightAt : null,
-                'meta'         => [
+                'id' => 3,
+                'key' => 'nightowl',
+                'title' => 'Noćni čuvar',
+                'unlocked_at' => $hasNight ? $nightAt : null,
+                'meta' => [
                     'desc' => 'Sesija noću (22–05)',
                 ],
             ],

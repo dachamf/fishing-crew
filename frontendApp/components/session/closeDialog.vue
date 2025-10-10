@@ -2,15 +2,6 @@
 import { useHydrated } from "~/composables/useHydrated";
 import { toErrorMessage } from "~/utils/http";
 
-type ID = number;
-type GroupMember = {
-  id: ID;
-  name?: string;
-  display_name?: string;
-  avatar_url?: string;
-  profile?: { avatar_path?: string };
-};
-
 const props = defineProps<{
   modelValue: boolean;
   sessionId: ID;
@@ -21,6 +12,14 @@ const emit = defineEmits<{
   (e: "update:modelValue", v: boolean): void;
   (e: "closed"): void;
 }>();
+type ID = number;
+type GroupMember = {
+  id: ID;
+  name?: string;
+  display_name?: string;
+  avatar_url?: string;
+  profile?: { avatar_path?: string };
+};
 
 const hydrated = useHydrated();
 const { $api } = useNuxtApp() as any;
@@ -74,9 +73,11 @@ const loading = ref(false);
 async function submit() {
   loading.value = true;
   try {
-    await $api.post(`/v1/sessions/${props.sessionId}/close-and-nominate`, {
-      reviewer_ids: selected.value.filter(uid => uid !== myId),
-    });
+    const { closeAndNominate } = useMySessions();
+    await closeAndNominate(
+      props.sessionId,
+      selected.value.filter(uid => uid !== myId),
+    );
     toast.success("Sesija zatvorena i poslati zahtevi.");
     open.value = false;
     emit("closed");
@@ -98,7 +99,10 @@ async function submit() {
     size="md"
     title="Zatvori sesiju"
   >
-    <p class="opacity-80 mb-2">
+    <p v-if="!selected.length" class="text-xs opacity-70 mt-2">
+      Zatvaraš sesiju bez nominacija. Ulovi ostaju <b>nepotvrđeni</b> dok ne dodaš recenzente.
+    </p>
+    <p v-else class="opacity-80 mb-2">
       Izaberi članove grupe koji će potvrditi ulove iz ove sesije.
     </p>
 
@@ -145,11 +149,11 @@ async function submit() {
       </button>
       <button
         :class="{ loading }"
-        :disabled="!selected.length || loading"
+        :disabled="loading"
         class="btn btn-primary"
         @click="submit"
       >
-        Zatvori &amp; pošalji
+        {{ selected.length ? 'Zatvori & pošalji' : 'Zatvori bez nominacija' }}
       </button>
     </template>
   </UiDialog>

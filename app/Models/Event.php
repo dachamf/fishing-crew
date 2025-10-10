@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Event extends Model
 {
@@ -56,9 +57,14 @@ class Event extends Model
         return $this->hasMany(FishingCatch::class, 'event_id'); // FK je event_id u tabeli catches
     }
 
-    public function rsvps() { return $this->hasMany(EventRsvp::class); }
-    public function myRsvp(?int $userId): ?EventRsvp {
-        if (!$userId) return null;
-        return $this->rsvps->firstWhere('user_id', $userId);
+    public function rsvps(): HasMany
+    {
+        return $this->hasMany(EventRsvp::class);
     }
+
+    public function myRsvp(): HasOne
+    {
+        return $this->hasOne(EventRsvp::class);
+    }
+
 }

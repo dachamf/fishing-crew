@@ -100,11 +100,19 @@ const mapSessions = computed<FishingSessionLite[]>(() => {
 });
 
 const upcomingEvents = computed<EventLite[]>(() =>
-  (home.value?.events ?? []).map(e => ({
+  (home.value?.events ?? []).map((e: any) => ({
     id: e.id,
     title: e.title ?? "",
     start_at: e.start_at ?? undefined,
-    // dodaš još polja ako ih EventLite traži; po tipu je ovo dovoljno
+    // >>> NE izbacuj rsvp polja <<<
+    my_rsvp: e.my_rsvp ?? null, // API često vraća direktno ovo
+    attendees: Array.isArray(e.attendees)
+      ? e.attendees.map((a: any) => ({
+          user_id: a.user_id,
+          rsvp: a?.pivot?.rsvp ?? a?.rsvp ?? null,
+          pivot: a?.pivot ? { rsvp: a.pivot.rsvp ?? null } : undefined,
+        }))
+      : [],
   })),
 );
 

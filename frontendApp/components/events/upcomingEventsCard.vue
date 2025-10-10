@@ -5,7 +5,7 @@ type EventLite = {
   id: number;
   title: string;
   start_at?: string | null;
-  my_rsvp?: RSVP | string | null;
+  my_rsvp?: RSVP | { status?: string | null } | string | null;
   attendees?: AttendeeLite[];
 };
 
@@ -17,7 +17,8 @@ const props = defineProps<{
 }>();
 
 function norm(r?: string | null): RSVP {
-  switch ((r ?? "").toLowerCase()) {
+  const v = (r ?? "").toString().toLowerCase();
+  switch (v) {
     case "yes":
     case "going":
       return "yes";
@@ -32,25 +33,30 @@ function norm(r?: string | null): RSVP {
   }
 }
 
+function rawMyRsvp(e: EventLite): string | null {
+  const v = (e as any)?.my_rsvp;
+  if (v && typeof v === "object")
+    return (v as any).status ?? null;
+  if (typeof v === "string")
+    return v;
+  return null;
+}
+
 function myRsvpOf(e: EventLite): RSVP {
-  if (e.my_rsvp !== undefined)
-    return norm(e.my_rsvp as any);
+  const direct = rawMyRsvp(e);
+  if (direct !== null) {
+    return norm(direct);
+  }
   const mine = e.attendees?.find(a => a.user_id === props.meId);
   return norm(mine?.pivot?.rsvp ?? mine?.rsvp ?? null);
 }
 
-function rsvpBadge(r: RSVP) {
-  switch (r) {
-    case "yes":
-      return { text: "idem", cls: "badge-success" };
-    case "no":
-      return { text: "ne idem", cls: "badge-ghost" };
-    case "undecided":
-      return { text: "neodlučan", cls: "badge-warning" };
-    default:
-      return { text: "—", cls: "badge-ghost" };
-  }
-}
+const rows = computed(() =>
+  (props.items || []).map(e => ({
+    ...e,
+    rsvp: myRsvpOf(e) as RSVP,
+  })),
+);
 
 function fmt(dt?: string | null) {
   if (!dt)
@@ -83,7 +89,7 @@ function fmt(dt?: string | null) {
       <template v-if="(items?.length || 0) > 0">
         <ul class="mt-1 space-y-3">
           <li
-            v-for="e in items"
+            v-for="e in rows"
             :key="e.id"
             class="flex items-start justify-between gap-3"
           >
@@ -95,9 +101,7 @@ function fmt(dt?: string | null) {
                 {{ fmt(e.start_at) }}
               </div>
             </div>
-            <span class="badge" :class="rsvpBadge(myRsvpOf(e)).cls">
-              {{ rsvpBadge(myRsvpOf(e)).text }}
-            </span>
+            <EventsRsvpBadge :rsvp="e.rsvp" />
           </li>
         </ul>
       </template>

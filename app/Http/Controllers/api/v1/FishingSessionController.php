@@ -4,7 +4,6 @@ namespace App\Http\Controllers\api\v1;
 use App\Http\Controllers\Controller;
 use App\Models\FishingCatch;
 use App\Models\FishingSession;
-use App\Models\SessionReview;
 use App\Models\User;
 use App\Notifications\SessionConfirmationsRequested;
 use Illuminate\Http\JsonResponse;
@@ -17,7 +16,8 @@ class FishingSessionController extends Controller
      * @param Request $r
      * @return JsonResponse
      */
-    public function index(Request $r) {
+    public function index(Request $r)
+    {
         $q = FishingSession::query()
             ->withCount('catches')
             ->with([
@@ -25,7 +25,7 @@ class FishingSessionController extends Controller
                 'user.profile:id,user_id,display_name,avatar_path',
             ]);
 
-        if ((string)$r->query('whereHasCatches','') === '1') {
+        if ((string)$r->query('whereHasCatches', '') === '1') {
             $q->whereHas('catches');
         }
 
@@ -33,31 +33,31 @@ class FishingSessionController extends Controller
         if ($r->filled('user_id')) {
             $uid = $r->user_id === 'me' || $r->user_id === 'self'
                 ? $r->user()->id
-                : (int) $r->user_id;
+                : (int)$r->user_id;
             $q->where('user_id', $uid);
         }
 
-        if ($r->filled('group_id'))    $q->where('group_id', (int)$r->group_id);
-        if ($r->filled('status'))      $q->where('status', $r->status);
+        if ($r->filled('group_id')) $q->where('group_id', (int)$r->group_id);
+        if ($r->filled('status')) $q->where('status', $r->status);
         if ($r->filled('season_year')) $q->where('season_year', (int)$r->season_year);
 
         if ($r->filled('from') || $r->filled('to')) {
             $from = $r->filled('from') ? \Carbon\Carbon::parse($r->from) : null;
-            $to   = $r->filled('to')   ? \Carbon\Carbon::parse($r->to)   : null;
-            $q->between($from,$to);
+            $to = $r->filled('to') ? \Carbon\Carbon::parse($r->to) : null;
+            $q->between($from, $to);
         }
 
-        if ($s = trim((string) $r->query('search',''))) {
+        if ($s = trim((string)$r->query('search', ''))) {
             $q->where(function ($w) use ($s) {
-                $w->where('title','like',"%{$s}%");
+                $w->where('title', 'like', "%{$s}%");
             });
         }
 
         // include=photos,catches,catches.user,event,confirmations,confirmations.nominee
-        $include = collect(explode(',', (string)$r->query('include','')))
-            ->map(fn($i)=>trim($i))->filter()->values();
+        $include = collect(explode(',', (string)$r->query('include', '')))
+            ->map(fn($i) => trim($i))->filter()->values();
 
-        $allowed = ['catches','catches.user','event','photos','confirmations','confirmations.nominee'];
+        $allowed = ['catches', 'catches.user', 'event', 'photos', 'confirmations', 'confirmations.nominee'];
         $include = $include->filter(fn($rel) => in_array($rel, $allowed))->values();
 
         $with = [];
@@ -69,7 +69,7 @@ class FishingSessionController extends Controller
 
         if ($include->contains('catches.user')) {
             $with['catches'] = fn($qq) => $qq->orderByDesc('caught_at')->orderByDesc('id')
-                ->with(['user:id,name','user.profile:id,user_id,display_name,avatar_path']);
+                ->with(['user:id,name', 'user.profile:id,user_id,display_name,avatar_path']);
         } elseif ($include->contains('catches')) {
             $with['catches'] = fn($qq) => $qq->orderByDesc('caught_at')->orderByDesc('id');
         }
@@ -81,30 +81,40 @@ class FishingSessionController extends Controller
         // confirmations (BEZ token kolone u payloadu)
         if ($include->contains('confirmations.nominee')) {
             $with['confirmations'] = function ($qq) {
-                $qq->select('id','session_id','nominee_user_id','status','decided_at','created_at','updated_at')
-                    ->with(['nominee:id,name','nominee.profile:id,user_id,display_name,avatar_path']);
+                $qq->select('id', 'session_id', 'nominee_user_id', 'status', 'decided_at', 'created_at', 'updated_at')
+                    ->with(['nominee:id,name', 'nominee.profile:id,user_id,display_name,avatar_path']);
             };
         } elseif ($include->contains('confirmations')) {
             $with['confirmations'] = function ($qq) {
-                $qq->select('id','session_id','nominee_user_id','status','decided_at','created_at','updated_at');
+                $qq->select('id', 'session_id', 'nominee_user_id', 'status', 'decided_at', 'created_at', 'updated_at');
             };
         }
 
-        $only = collect(explode(',', (string)$r->query('only','')))
-            ->map(fn($i)=>trim($i))->filter()->values();
+        $only = collect(explode(',', (string)$r->query('only', '')))
+            ->map(fn($i) => trim($i))->filter()->values();
 
         if ($only->isNotEmpty()) {
             $select = ['id'];
-            if ($only->contains('coords')) { $select[] = 'latitude'; $select[] = 'longitude'; }
-            if ($only->contains('title'))  { $select[] = 'title'; $select[] = 'started_at'; }
-            if ($only->contains('status')) { $select[] = 'status'; }
-            if ($only->contains('group_id')) { $select[] = 'group_id'; }
+            if ($only->contains('coords')) {
+                $select[] = 'latitude';
+                $select[] = 'longitude';
+            }
+            if ($only->contains('title')) {
+                $select[] = 'title';
+                $select[] = 'started_at';
+            }
+            if ($only->contains('status')) {
+                $select[] = 'status';
+            }
+            if ($only->contains('group_id')) {
+                $select[] = 'group_id';
+            }
             $q->select(array_values(array_unique($select)));
         }
 
         $q->latest('started_at')->latest('id');
 
-        $perPage = min(100, (int) ($r->query('limit', $r->query('per_page', 20))));
+        $perPage = min(100, (int)($r->query('limit', $r->query('per_page', 20))));
 
         return response()->json($q->with($with)->paginate($perPage));
     }
@@ -127,10 +137,10 @@ class FishingSessionController extends Controller
         ];
 
         // 2) Parsiraj ?include=...
-        $include = collect(explode(',', (string) $r->query('include', '')))
-            ->map(fn ($s) => trim($s))
+        $include = collect(explode(',', (string)$r->query('include', '')))
+            ->map(fn($s) => trim($s))
             ->filter()
-            ->filter(fn ($rel) => in_array($rel, $allowed, true))
+            ->filter(fn($rel) => in_array($rel, $allowed, true))
             ->unique()
             ->values();
 
@@ -144,24 +154,24 @@ class FishingSessionController extends Controller
         $with = [];
 
         if ($include->contains('catches.user')) {
-            $with['catches'] = fn ($qq) => $qq
+            $with['catches'] = fn($qq) => $qq
                 ->orderByDesc('caught_at')->orderByDesc('id')
                 ->with([
                     'user:id,name',
                     'user.profile:id,user_id,display_name,avatar_path',
                 ]);
         } elseif ($include->contains('catches')) {
-            $with['catches'] = fn ($qq) => $qq
+            $with['catches'] = fn($qq) => $qq
                 ->orderByDesc('caught_at')->orderByDesc('id');
         }
 
         if ($include->contains('event')) {
             // ograniči kolone
-            $with['event'] = fn ($qq) => $qq->select('id', 'title', 'start_at');
+            $with['event'] = fn($qq) => $qq->select('id', 'title', 'start_at');
         }
 
         if ($include->contains('reviews.reviewer')) {
-            $with['reviews'] = fn ($qq) => $qq->with([
+            $with['reviews'] = fn($qq) => $qq->with([
                 'reviewer:id,name',
                 'reviewer.profile:id,user_id,display_name,avatar_path',
             ]);
@@ -172,7 +182,7 @@ class FishingSessionController extends Controller
         // confirmations (bez tokena)
         if ($include->contains('confirmations.nominee')) {
             $with['confirmations'] = function ($qq) {
-                $qq->select('id','session_id','nominee_user_id','status','decided_at','created_at','updated_at')
+                $qq->select('id', 'session_id', 'nominee_user_id', 'status', 'decided_at', 'created_at', 'updated_at')
                     ->with([
                         'nominee:id,name',
                         'nominee.profile:id,user_id,display_name,avatar_path',
@@ -180,13 +190,13 @@ class FishingSessionController extends Controller
             };
         } elseif ($include->contains('confirmations')) {
             $with['confirmations'] = function ($qq) {
-                $qq->select('id','session_id','nominee_user_id','status','decided_at','created_at','updated_at');
+                $qq->select('id', 'session_id', 'nominee_user_id', 'status', 'decided_at', 'created_at', 'updated_at');
             };
         }
 
         // alias "photos" → relacija catchPhotos; možeš ograničiti broj
         if ($include->contains('photos')) {
-            $with['catchPhotos'] = fn ($qq) => $qq->orderByDesc('id')->limit(12);
+            $with['catchPhotos'] = fn($qq) => $qq->orderByDesc('id')->limit(12);
         }
 
         // 5) Eager-load + count
@@ -199,7 +209,8 @@ class FishingSessionController extends Controller
     /**
      * Handles the creation of a new fishing session for a user.
      */
-    public function store(Request $r) {
+    public function store(Request $r)
+    {
         // 1) zabrani više od jedne OPEN sesije
         $hasOpen = \App\Models\FishingSession::query()
             ->where('user_id', $r->user()->id)
@@ -213,18 +224,18 @@ class FishingSessionController extends Controller
         }
 
         $data = $r->validate([
-            'group_id'   => ['nullable','integer','exists:groups,id'],
-            'event_id'   => ['nullable','integer','exists:events,id'],
-            'title'      => ['nullable','string','max:100'],
-            'latitude'   => ['nullable','numeric','between:-90,90'],
-            'longitude'  => ['nullable','numeric','between:-180,180'],
-            'started_at' => ['nullable','date'],
-            'season_year'=> ['nullable','integer','min:2000','max:2100'],
+            'group_id' => ['nullable', 'integer', 'exists:groups,id'],
+            'event_id' => ['nullable', 'integer', 'exists:events,id'],
+            'title' => ['nullable', 'string', 'max:100'],
+            'latitude' => ['nullable', 'numeric', 'between:-90,90'],
+            'longitude' => ['nullable', 'numeric', 'between:-180,180'],
+            'started_at' => ['nullable', 'date'],
+            'season_year' => ['nullable', 'integer', 'min:2000', 'max:2100'],
         ]);
 
         $session = new FishingSession($data);
         $session->user_id = $r->user()->id;
-        $session->status  = 'open';
+        $session->status = 'open';
         $session->started_at = $data['started_at'] ?? now();
         $session->season_year = $data['season_year'] ?? (int)($session->started_at?->format('Y'));
 
@@ -244,17 +255,18 @@ class FishingSessionController extends Controller
         return response()->json($session, 201);
     }
 
-    public function update(Request $r, FishingSession $session) {
+    public function update(Request $r, FishingSession $session)
+    {
         $this->authorize('update', $session);
 
         $data = $r->validate([
-            'title'      => ['nullable','string','max:100'],
-            'latitude'   => ['nullable','numeric','between:-90,90'],
-            'longitude'  => ['nullable','numeric','between:-180,180'],
-            'location_name' => ['nullable','string','max:160'],
-            'started_at' => ['nullable','date'],
-            'ended_at'   => ['nullable','date'],
-            'status'     => ['nullable', Rule::in(['open','closed'])],
+            'title' => ['nullable', 'string', 'max:100'],
+            'latitude' => ['nullable', 'numeric', 'between:-90,90'],
+            'longitude' => ['nullable', 'numeric', 'between:-180,180'],
+            'location_name' => ['nullable', 'string', 'max:160'],
+            'started_at' => ['nullable', 'date'],
+            'ended_at' => ['nullable', 'date'],
+            'status' => ['nullable', Rule::in(['open', 'closed'])],
         ]);
 
         // 2) Ako se status menja u OPEN, opet proveri jedinstvenost
@@ -278,14 +290,24 @@ class FishingSessionController extends Controller
 
     /**
      * Closes an open fishing session for a user.
+     * @throws \Throwable
      */
-    public function close(Request $r, FishingSession $session) {
+    public function close(Request $r, FishingSession $session)
+    {
         $this->authorize('update', $session);
-        $session->update([
-            'status'   => 'closed',
-            'ended_at' => $session->ended_at ?? now(),
+        \DB::transaction(function () use ($session) {
+            $session->update([
+                'status' => 'closed',
+                'ended_at' => $session->ended_at ?? now(),
+            ]);
+            // uskladiti sa poslovnim pravilom: catches → pending
+            FishingCatch::where('session_id', $session->id)
+                ->update(['status' => 'pending']);
+        });
+        return response()->json([
+            'message' => 'Session closed',
+            'session' => $session->fresh(),
         ]);
-        return response()->json(['message'=>'Session closed','session'=>$session->fresh()]);
     }
 
     /**
@@ -294,24 +316,31 @@ class FishingSessionController extends Controller
      * @return JsonResponse
      * @throws \Throwable
      */
-    public function closeAndNominate(Request $r, FishingSession $session) {
-        $this->authorize('update', $session); // owner/mod prema tvojoj policy
+    public function closeAndNominate(Request $r, FishingSession $session): JsonResponse
+    {
+        $this->authorize('update', $session);
 
-        $created = 0;
-        $createdByReviewer = []; // [uid => array<array minimalnih podataka o catchu>
-
+        // 1) Validacija – reviewer_ids je opcioni niz
         $data = $r->validate([
-            'reviewer_ids'   => ['required','array','min:1'],
-            'reviewer_ids.*' => ['integer','exists:users,id'],
+            'reviewer_ids' => ['array'], // više NIJE required
+            'reviewer_ids.*' => ['integer', 'exists:users,id'],
         ]);
 
-        // (opciono) osiguraj da su svi u istoj grupi:
-        if ($session->group_id) {
+        // Normalizacija: uniq, int, bez null, bez vlasnika (ako želiš)
+        $reviewerIds = collect($data['reviewer_ids'] ?? [])
+            ->filter(fn($id) => $id !== null)
+            ->map(fn($id) => (int)$id)
+            ->unique()
+            ->values();
+
+        // 2) (Opcionalno) osiguraj da su svi članovi grupe – samo ako ima nominacija
+        if ($session->group_id && $reviewerIds->isNotEmpty()) {
             $memberIds = \DB::table('group_user')
                 ->where('group_id', $session->group_id)
-                ->pluck('user_id')->all();
+                ->pluck('user_id')
+                ->all();
 
-            $invalid = array_diff($data['reviewer_ids'], $memberIds);
+            $invalid = $reviewerIds->diff($memberIds)->all();
             if (!empty($invalid)) {
                 return response()->json([
                     'message' => 'Neki izabrani korisnici nisu članovi grupe.'
@@ -319,66 +348,73 @@ class FishingSessionController extends Controller
             }
         }
 
-        \DB::transaction(function() use ($session, $data, &$created, &$createdByReviewer) {
-            // 1) zatvori sesiju
+        $created = 0;
+        $createdByReviewer = []; // uid => lista minimalnih podataka o ulovima
+
+        \DB::transaction(function () use ($session, $reviewerIds, &$created, &$createdByReviewer) {
+            // 3) Zatvori sesiju bez obzira na nominacije
             $session->update([
-                'status'   => 'closed',
+                'status' => 'closed',
                 'ended_at' => $session->ended_at ?? now(),
             ]);
 
-            // 2) svi ulovi iz sesije
-            FishingCatch::where('session_id', $session->id)->update(['status' => 'pending']);
-            // nominacije na nivou sesije
-            $createdByReviewer = [];
-            foreach ($data['reviewer_ids'] as $uid) {
-                $rev = SessionReview::firstOrCreate(
-                    ['session_id' => $session->id, 'reviewer_id' => $uid],
-                    ['status' => 'pending']
-                );
-                if ($rev->wasRecentlyCreated) {
-                    // pripremi listu ulova za email preview
-                    $createdByReviewer[$uid] = FishingCatch::where('session_id',$session->id)
-                        ->get(['id','species','species_name','count','total_weight_kg','caught_at'])
-                        ->map(fn($c)=>[
-                            'id'=>$c->id,
-                            'species'=>$c->species_label ?? $c->species ?? $c->species_name ?? '-',
-                            'count'=>$c->count,
-                            'total_weight_kg'=>$c->total_weight_kg,
-                            'caught_at'=>$c->caught_at,
-                        ])->all();
-                }
-            }
-            // nakon transakcije: jedan mail po reviewer-u
-            foreach ($createdByReviewer as $uid => $items) {
-                if ($user = User::find($uid)) {
-                    $user->notify(new SessionConfirmationsRequested($session, $items));
+            // 4) Svi ulovi iz sesije prelaze u pending (ako već nisu)
+            FishingCatch::where('session_id', $session->id)
+                ->update(['status' => 'pending']);
+
+            // 5) Nominacije – ako postoji lista
+            if ($reviewerIds->isNotEmpty()) {
+                foreach ($reviewerIds as $uid) {
+                    $rev = \App\Models\SessionReview::firstOrCreate(
+                        ['session_id' => $session->id, 'reviewer_id' => $uid],
+                        ['status' => 'pending']
+                    );
+
+                    if ($rev->wasRecentlyCreated) {
+                        $created++;
+
+                        // pripremi listu ulova za email preview
+                        $createdByReviewer[$uid] = \App\Models\FishingCatch::where('session_id', $session->id)
+                            ->get(['id', 'species', 'species_name', 'count', 'total_weight_kg', 'caught_at'])
+                            ->map(fn($c) => [
+                                'id' => $c->id,
+                                'species' => $c->species_label ?: '-',
+                                'count' => $c->count,
+                                'total_weight_kg' => $c->total_weight_kg,
+                                'caught_at' => $c->caught_at,
+                            ])->all();
+                    }
                 }
             }
         });
 
-        // 3) posle transakcije — jedan mejl po reviewer-u
-        foreach ($createdByReviewer as $uid => $list) {
-            $reviewer = \App\Models\User::find($uid);
-            if ($reviewer && !empty($list)) {
-                $reviewer->notify(new SessionConfirmationsRequested($session, $list));
+        // 6) Notifikacije van transakcije (po reviewer-u, samo ako je kreiran zapis)
+        if (!empty($createdByReviewer)) {
+            foreach ($createdByReviewer as $uid => $items) {
+                if (!empty($items) && ($user = User::find($uid))) {
+                    $user->notify(new SessionConfirmationsRequested($session, $items));
+                }
             }
         }
 
         return response()->json([
-            'message' => 'Sesija zatvorena. Poslati zahtevi za potvrdu.',
+            'message' => $reviewerIds->isNotEmpty()
+                ? 'Sesija zatvorena. Poslati zahtevi za potvrdu.'
+                : 'Sesija zatvorena bez nominacija.',
             'created' => $created,
+            'n_reviewers' => $reviewerIds->count(),
             'session' => $session->fresh(),
         ]);
-
     }
 
     /**
      * @param FishingSession $session
      * @return JsonResponse
      */
-    public function destroy(FishingSession $session) {
+    public function destroy(FishingSession $session)
+    {
         $this->authorize('delete', $session);
         $session->delete();
-        return response()->json(['message'=>'Session deleted']);
+        return response()->json(['message' => 'Session deleted']);
     }
 }

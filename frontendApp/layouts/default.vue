@@ -8,6 +8,7 @@ import Toaster from "~/components/ui/toaster.vue";
     <main class="min-h-[calc(100vh-4rem)]">
       <slot />
     </main>
+    <AppFooter />
     <Toaster />
   </div>
 </template>
