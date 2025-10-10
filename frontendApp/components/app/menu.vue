@@ -8,6 +8,8 @@ const { success, error } = useToast();
 
 const { unread } = useNotifications();
 
+const { startPolling: startAssignedPolling, fetchOnce: fetchAssignedOnce } = useAssignedPreview();
+
 // +++ Assigned to me bell + preview + counter +++
 const { assignedToMe } = useSessionReview();
 
@@ -44,8 +46,11 @@ function onScroll() {
 }
 
 onMounted(async () => {
-  if (auth.user.value && !profile.value)
+  if (auth.user.value && !profile.value) {
     await loadMe();
+  }
+  await fetchAssignedOnce();
+  startAssignedPolling(60_000);
   if (import.meta.client) {
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });

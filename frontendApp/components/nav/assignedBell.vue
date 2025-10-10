@@ -1,70 +1,25 @@
 <script lang="ts" setup>
-import type { FishingSession } from "~/types/api";
-
-import { useRelativeTime } from "~/composables/useRelativeTime";
-
 defineOptions({ name: "NavAssignedBell" });
+
+const { items, loading, fetchOnce, startPolling } = useAssignedPreview();
 
 const auth = useAuth();
 const route = useRoute();
 
-const { assignedToMe } = useSessionReview();
 const { total: assignedCount, refresh: refreshCount } = useAssignedCount();
 
-// Proširenje tipa: sessions iz preview-a dolaze sa catches_count
-type AssignedSession = FishingSession & { catches_count?: number };
-
-const assignedPreview = ref<{ items: AssignedSession[]; meta: any } | null>(null);
-const loading = ref(false);
 const timeago = useRelativeTime();
-
-async function loadAssignedPreview() {
-  if (!auth.user.value) {
-    // FIX: bez nedeklarisanih items/meta
-    assignedPreview.value = { items: [], meta: null };
-    return;
-  }
-  loading.value = true;
-  let attempt = 0;
-  const wait = 500;
-
-  while (attempt < 3) {
-    try {
-      const { items, meta } = await assignedToMe(1, 5);
-      assignedPreview.value = {
-        items: (Array.isArray(items) ? items : []) as AssignedSession[],
-        meta,
-      };
-    }
-    catch {
-      assignedPreview.value = { items: [], meta: null };
-      attempt++;
-      if (attempt < 3) {
-        await new Promise(r => setTimeout(r, wait));
-      }
-    }
-    finally {
-      loading.value = false;
-    }
-  }
-}
 
 // init + lagani polling
 onMounted(() => {
-  loadAssignedPreview();
+  fetchOnce();
+  startPolling(60_000);
   refreshCount();
-  if (import.meta.client) {
-    const iv = setInterval(() => {
-      loadAssignedPreview();
-      refreshCount();
-    }, 60_000);
-    onUnmounted(() => clearInterval(iv));
-  }
 });
 
 // refresh na promenu rute / usera
 watch([() => route.fullPath, () => auth.user.value?.id], () => {
-  loadAssignedPreview();
+  fetchOnce();
   refreshCount();
 });
 </script>
@@ -105,9 +60,9 @@ watch([() => route.fullPath, () => auth.user.value?.id], () => {
           />
         </div>
 
-        <ul v-else-if="(assignedPreview?.items?.length || 0) > 0" class="mt-1 space-y-2">
+        <ul v-else-if="(items?.length || 0) > 0" class="mt-1 space-y-2">
           <li
-            v-for="s in assignedPreview?.items || []"
+            v-for="s in items || []"
             :key="s.id"
             class="flex items-start justify-between gap-3"
           >
