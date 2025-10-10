@@ -4,6 +4,7 @@ namespace App\Http\Controllers\api\v1;
 use App\Http\Controllers\Controller;
 use App\Models\FishingCatch;
 use App\Models\FishingSession;
+use App\Models\SessionReview;
 use App\Models\User;
 use App\Notifications\SessionConfirmationsRequested;
 use Illuminate\Http\JsonResponse;
@@ -365,7 +366,7 @@ class FishingSessionController extends Controller
             // 5) Nominacije – ako postoji lista
             if ($reviewerIds->isNotEmpty()) {
                 foreach ($reviewerIds as $uid) {
-                    $rev = \App\Models\SessionReview::firstOrCreate(
+                    $rev = SessionReview::firstOrCreate(
                         ['session_id' => $session->id, 'reviewer_id' => $uid],
                         ['status' => 'pending']
                     );
@@ -374,7 +375,7 @@ class FishingSessionController extends Controller
                         $created++;
 
                         // pripremi listu ulova za email preview
-                        $createdByReviewer[$uid] = \App\Models\FishingCatch::where('session_id', $session->id)
+                        $createdByReviewer[$uid] = FishingCatch::where('session_id', $session->id)
                             ->get(['id', 'species', 'species_name', 'count', 'total_weight_kg', 'caught_at'])
                             ->map(fn($c) => [
                                 'id' => $c->id,

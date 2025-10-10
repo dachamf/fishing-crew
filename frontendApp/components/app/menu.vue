@@ -36,12 +36,6 @@ async function loadAssignedPreview() {
 onMounted(loadAssignedPreview);
 watch([() => route.fullPath, () => auth.user.value?.id], () => loadAssignedPreview());
 
-// (opciono) lagani auto-refresh dok je tab aktivan
-if (import.meta.client) {
-  const interval = setInterval(loadAssignedPreview, 60_000);
-  onUnmounted(() => clearInterval(interval));
-}
-
 // Sticky shadow on scroll
 const scrolled = ref(false);
 

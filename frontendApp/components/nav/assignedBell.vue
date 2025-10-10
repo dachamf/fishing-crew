@@ -25,19 +25,27 @@ async function loadAssignedPreview() {
     return;
   }
   loading.value = true;
-  try {
-    const { items, meta } = await assignedToMe(1, 5);
-    // FIX: kast na AssignedSession[]
-    assignedPreview.value = {
-      items: (Array.isArray(items) ? items : []) as AssignedSession[],
-      meta,
-    };
-  }
-  catch {
-    assignedPreview.value = { items: [], meta: null };
-  }
-  finally {
-    loading.value = false;
+  let attempt = 0;
+  const wait = 500;
+
+  while (attempt < 3) {
+    try {
+      const { items, meta } = await assignedToMe(1, 5);
+      assignedPreview.value = {
+        items: (Array.isArray(items) ? items : []) as AssignedSession[],
+        meta,
+      };
+    }
+    catch {
+      assignedPreview.value = { items: [], meta: null };
+      attempt++;
+      if (attempt < 3) {
+        await new Promise(r => setTimeout(r, wait));
+      }
+    }
+    finally {
+      loading.value = false;
+    }
   }
 }
 

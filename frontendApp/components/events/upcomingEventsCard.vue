@@ -17,13 +17,17 @@ const props = defineProps<{
 }>();
 
 function norm(r?: string | null): RSVP {
-  const v = (r ?? "").toString().toLowerCase();
+  const v = (r ?? "").toString().trim().toLowerCase();
   switch (v) {
     case "yes":
     case "going":
+    case "true":
+    case "1":
       return "yes";
     case "no":
     case "declined":
+    case "false":
+    case "0":
       return "no";
     case "maybe":
     case "undecided":
@@ -39,6 +43,10 @@ function rawMyRsvp(e: EventLite): string | null {
     return (v as any).status ?? null;
   if (typeof v === "string")
     return v;
+  if (typeof v === "boolean")
+    return v ? "yes" : "no";
+  if (typeof v === "number")
+    return v === 1 ? "yes" : v === 0 ? "no" : null;
   return null;
 }
 

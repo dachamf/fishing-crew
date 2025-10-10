@@ -426,6 +426,30 @@ const canEditLocation = computed(() => {
                 </div>
               </div>
 
+              <!-- NOMINUJ KASNIJE (samo vlasnik, status=closed, nije finalno) -->
+              <ClientOnly>
+                <div
+                  v-if="data?.status === 'closed' && !isFinal && data?.user?.id === myId"
+                  class="card bg-base-100 shadow mt-3"
+                >
+                  <div class="card-body space-y-3">
+                    <div class="flex items-center justify-between">
+                      <h2 class="text-lg font-semibold">
+                        Nominuj kasnije
+                      </h2>
+                      <StatusBadge status="pending" />
+                    </div>
+
+                    <!-- lazy fetch članova grupe -->
+                    <SessionNominateLaterPanel
+                      :group-id="data?.group?.id || null"
+                      :session-id="data?.id!"
+                      @done="refresh"
+                    />
+                  </div>
+                </div>
+              </ClientOnly>
+
               <div class="opacity-75 flex flex-wrap mt-1">
                 <FishingCatchesTimeBadge :iso="data?.started_at" :with-time="true" />
                 <span v-if="data?.location_name" class="badge badge-ghost">{{

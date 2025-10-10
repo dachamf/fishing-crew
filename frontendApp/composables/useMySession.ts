@@ -54,6 +54,14 @@ export function useMySessions() {
       (s.catches ||= []).unshift(c);
   }
 
+  // nominuj posle zatvaranja (endpoint: POST /v1/sessions/{id}/nominate)
+  async function nominateLater(id: number, nominees: number[]) {
+    await $api.post(`/v1/sessions/${id}/nominate`, {
+      nominees: Array.from(new Set(nominees || [])).filter(Boolean),
+    });
+    await refresh();
+  }
+
   const loading = computed(() => mePending.value || pending.value);
 
   return {
@@ -63,6 +71,7 @@ export function useMySessions() {
     startNew,
     closeSession,
     closeAndNominate,
+    nominateLater,
     stackCatch,
     loading,
   };

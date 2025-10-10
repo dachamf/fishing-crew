@@ -21,7 +21,7 @@ const props = withDefaults(
     zoom: 9,
     bounds: null,
     fitBoundsPadding: 24,
-    fitBoundsMaxZoom: 11, // 👈 sensible cap
+    fitBoundsMaxZoom: 12, // 👈 sensible cap
     height: 320,
     interactive: true,
     doubleClickZoom: true,

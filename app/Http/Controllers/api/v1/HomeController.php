@@ -238,43 +238,69 @@ class HomeController extends Controller
     {
         if (!class_exists(Event::class)) return [];
 
-        // Uzmi buduće evente (zadrži i vreme, ne samo datum)
+        // Budući događaji
         $items = Event::query()
             ->when($group, fn($q) => $q->where('group_id', $group))
             ->where('start_at', '>=', now())
             ->orderBy('start_at')
             ->limit($limit)
-            ->get(['id', 'title', 'start_at', 'group_id']);
+            ->get(['id','title','start_at','group_id']);
 
-        if ($items->isEmpty()) {
-            return [];
+        if ($items->isEmpty()) return [];
+
+        $eventIds = $items->pluck('id')->values();
+
+        // 1) Primarni izvor: event_rsvps (event_id,user_id,status)
+        $rsvps = collect();
+        if (Schema::hasTable('event_rsvps')) {
+            $rsvps = \DB::table('event_rsvps')
+                ->whereIn('event_id', $eventIds)
+                ->where('user_id', $uid)
+                ->pluck('status', 'event_id');
         }
 
-        // RSVP-ovi za traženog user-a (može biti going/declined/maybe/yes/no/undecided/NULL)
-        $rsvps = DB::table('event_rsvps')
-            ->whereIn('event_id', $items->pluck('id'))
-            ->where('user_id', $uid)
-            ->pluck('status', 'event_id');
+        // 2) Fallback izvor: pivot tabela sa RSVP (npr. event_user ili event_attendees)
+        $pivotTable = null;
+        if (Schema::hasTable('event_user')) {
+            $pivotTable = 'event_user';
+        } elseif (Schema::hasTable('event_attendees')) {
+            $pivotTable = 'event_attendees';
+        }
 
-        // Vraćamo: 'yes' | 'no' | 'undecided' | null
-        $normalize = static function (?string $s): ?string {
-            $s = strtolower($s ?? '');
-            return match ($s) {
-                'yes', 'going' => 'yes',
-                'no', 'declined' => 'no',
-                'maybe', 'undecided' => 'undecided',
-                '' => null,      // NULL → null
-                default => null,      // bilo šta neočekivano → null
+        if ($pivotTable && Schema::hasColumn($pivotTable, 'rsvp')) {
+            $missingIds = $eventIds->reject(fn($id) => $rsvps->has($id))->values();
+            if ($missingIds->isNotEmpty()) {
+                $pivot = \DB::table($pivotTable)
+                    ->whereIn('event_id', $missingIds)
+                    ->where('user_id', $uid)
+                    ->pluck('rsvp', 'event_id');
+                // upiši samo gde nemamo vrednost iz primarnog izvora
+                foreach ($pivot as $eid => $val) {
+                    if (!$rsvps->has($eid)) {
+                        $rsvps[$eid] = $val;
+                    }
+                }
+            }
+        }
+
+        // Normalizacija: yes|no|undecided|null
+        $normalize = static function ($s): ?string {
+            $v = is_null($s) ? '' : strtolower((string)$s);
+            return match ($v) {
+                'yes','going','true','1' => 'yes',
+                'no','declined','false','0' => 'no',
+                'maybe','undecided' => 'undecided',
+                default => null, // ← NEMA default "undecided"
             };
         };
 
-        return $items->map(function (Event $e) use ($rsvps, $normalize) {
+        return $items->map(function (\App\Models\Event $e) use ($rsvps, $normalize) {
             return [
-                'id' => (int)$e->id,
-                'title' => (string)$e->title,
-                'group_id' => (int)$e->group_id,
+                'id'       => (int) $e->id,
+                'title'    => (string) $e->title,
+                'group_id' => (int) $e->group_id,
                 'start_at' => optional($e->start_at)->toISOString(),
-                'my_rsvp' => $normalize($rsvps[$e->id] ?? null),
+                'my_rsvp'  => $normalize($rsvps[$e->id] ?? null),
             ];
         })->values()->all();
     }
