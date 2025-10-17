@@ -14,7 +14,7 @@ function kg(n?: number | null) {
 
 const { $api } = useNuxtApp() as any;
 
-// ✅ Single-tenant: nema group_id u query-ju
+// ✅ Single-tenant: bez group_id
 const query = reactive({
   season_year: new Date().getFullYear(),
 });
@@ -25,7 +25,7 @@ const { data, pending, error, refresh } = await useAsyncData<{ items: Leaderboar
   key,
   async () => {
     const r = await $api.get("/v1/leaderboard", {
-      params: { season_year: query.season_year }, // ⬅️ bez group_id
+      params: { season_year: query.season_year },
     });
     const raw = r.data;
     const items = Array.isArray(raw?.items) ? raw.items : Array.isArray(raw) ? raw : [];
@@ -66,10 +66,24 @@ function rankRingClass(idx: number) {
   return [
     "ring-2",
     idx === 0 ? "ring-amber-400" : idx === 1 ? "ring-zinc-300" : "ring-amber-700",
+    // blagi sjaj samo za #1
+    idx === 0 ? "shadow-lg shadow-amber-200/50" : "shadow",
   ].join(" ");
 }
 function rankIconClass(idx: number) {
-  return idx === 0 ? "text-amber-400" : idx === 1 ? "text-zinc-300" : "text-amber-700";
+  return [
+    idx === 0 ? "text-amber-400" : idx === 1 ? "text-zinc-300" : "text-amber-700",
+    // animacije pehara
+    "trophy-shimmer",
+    idx === 0 ? "trophy-breathe" : "trophy-float",
+  ].join(" ");
+}
+function cardAnimClass(idx: number) {
+  return [
+    "rounded-box transition-transform duration-200",
+    "hover:scale-[1.015]",
+    idx === 0 ? "gold-glow" : idx === 1 ? "silver-float" : "bronze-float",
+  ].join(" ");
 }
 function rankLabel(idx: number) {
   return idx === 0 ? "Zlato" : idx === 1 ? "Srebro" : "Bronza";
@@ -87,7 +101,7 @@ function rankLabel(idx: number) {
       </NuxtLink>
     </div>
 
-    <!-- Filteri (bez grupe) -->
+    <!-- Filteri -->
     <div class="card bg-base-100 shadow">
       <div class="card-body grid gap-3 md:grid-cols-3">
         <div class="md:col-span-2">
@@ -150,10 +164,7 @@ function rankLabel(idx: number) {
               :key="r.user?.id ?? idx"
               class="card bg-base-100 shadow"
             >
-              <div
-                class="card-body items-center text-center rounded-box"
-                :class="rankRingClass(idx)"
-              >
+              <div class="card-body items-center text-center" :class="cardAnimClass(idx)">
                 <div class="avatar">
                   <div
                     class="w-16 rounded-full border border-base-300 overflow-hidden"
@@ -163,7 +174,6 @@ function rankLabel(idx: number) {
                   </div>
                 </div>
 
-                <!-- Pehar + pozicija -->
                 <div class="mt-2 flex items-center justify-center gap-2">
                   <Icon
                     name="tabler:trophy"
@@ -179,6 +189,9 @@ function rankLabel(idx: number) {
                 <div class="font-medium truncate mt-1">
                   {{ displayName(r.user) }}
                 </div>
+                <div class="opacity-80">
+                  Sesije: <b>{{ r.sessions_total ?? 0 }}</b>
+                </div>
               </div>
             </div>
           </div>
@@ -191,9 +204,6 @@ function rankLabel(idx: number) {
                   <th>Korisnik</th>
                   <th class="text-right">
                     Sesije
-                  </th>
-                  <th class="text-right">
-                    Ulov(a)
                   </th>
                   <th class="text-right">
                     Komada
@@ -219,9 +229,6 @@ function rankLabel(idx: number) {
                     {{ r.sessions_total ?? 0 }}
                   </td>
                   <td class="text-right">
-                    {{ r.catches_count ?? 0 }}
-                  </td>
-                  <td class="text-right">
                     {{ r.pieces_total ?? 0 }}
                   </td>
                 </tr>
@@ -238,10 +245,7 @@ function rankLabel(idx: number) {
               :key="r.user?.id ?? idx"
               class="card bg-base-100 shadow"
             >
-              <div
-                class="card-body items-center text-center rounded-box"
-                :class="rankRingClass(idx)"
-              >
+              <div class="card-body items-center text-center" :class="cardAnimClass(idx)">
                 <div class="avatar">
                   <div
                     class="w-16 rounded-full border border-base-300 overflow-hidden"
@@ -251,7 +255,6 @@ function rankLabel(idx: number) {
                   </div>
                 </div>
 
-                <!-- Pehar + pozicija -->
                 <div class="mt-2 flex items-center justify-center gap-2">
                   <Icon
                     name="tabler:trophy"
@@ -267,6 +270,9 @@ function rankLabel(idx: number) {
                 <div class="font-medium truncate mt-1">
                   {{ displayName(r.user) }}
                 </div>
+                <div class="opacity-80">
+                  Ukupno: <b>{{ kg(r.weight_total) }}</b>
+                </div>
               </div>
             </div>
           </div>
@@ -279,9 +285,6 @@ function rankLabel(idx: number) {
                   <th>Korisnik</th>
                   <th class="text-right">
                     Uk. težina
-                  </th>
-                  <th class="text-right">
-                    Ulov(a)
                   </th>
                   <th class="text-right">
                     Najveća
@@ -307,9 +310,6 @@ function rankLabel(idx: number) {
                     {{ kg(r.weight_total) }}
                   </td>
                   <td class="text-right">
-                    {{ r.catches_count ?? 0 }}
-                  </td>
-                  <td class="text-right">
                     {{ kg(r.biggest) }}
                   </td>
                 </tr>
@@ -326,10 +326,7 @@ function rankLabel(idx: number) {
               :key="r.user?.id ?? idx"
               class="card bg-base-100 shadow"
             >
-              <div
-                class="card-body items-center text-center rounded-box"
-                :class="rankRingClass(idx)"
-              >
+              <div class="card-body items-center text-center" :class="cardAnimClass(idx)">
                 <div class="avatar">
                   <div
                     class="w-16 rounded-full border border-base-300 overflow-hidden"
@@ -339,7 +336,6 @@ function rankLabel(idx: number) {
                   </div>
                 </div>
 
-                <!-- Pehar + pozicija -->
                 <div class="mt-2 flex items-center justify-center gap-2">
                   <Icon
                     name="tabler:trophy"
@@ -354,6 +350,9 @@ function rankLabel(idx: number) {
 
                 <div class="font-medium truncate mt-1">
                   {{ displayName(r.user) }}
+                </div>
+                <div class="opacity-80">
+                  Najveća: <b>{{ kg(r.biggest) }}</b>
                 </div>
               </div>
             </div>
@@ -370,9 +369,6 @@ function rankLabel(idx: number) {
                   </th>
                   <th class="text-right">
                     Uk. težina
-                  </th>
-                  <th class="text-right">
-                    Ulov(a)
                   </th>
                 </tr>
               </thead>
@@ -397,9 +393,6 @@ function rankLabel(idx: number) {
                   <td class="text-right">
                     {{ kg(r.weight_total) }}
                   </td>
-                  <td class="text-right">
-                    {{ r.catches_count ?? 0 }}
-                  </td>
                 </tr>
               </tbody>
             </table>
@@ -413,3 +406,80 @@ function rankLabel(idx: number) {
     </div>
   </div>
 </template>
+
+<style scoped>
+/* --- suptilne animacije za trofeje i top kartice --- */
+
+/* zlatni “glow” puls oko kartice #1 */
+@keyframes goldGlow {
+  0% {
+    box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.28);
+  }
+  70% {
+    box-shadow: 0 0 24px 6px rgba(251, 191, 36, 0.25);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.2);
+  }
+}
+.gold-glow {
+  animation: goldGlow 2.2s ease-in-out infinite;
+}
+
+/* blag “float” za #2 i #3 */
+@keyframes floatY {
+  0% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+.silver-float {
+  animation: floatY 3.2s ease-in-out infinite;
+}
+.bronze-float {
+  animation: floatY 3.6s ease-in-out infinite;
+}
+
+/* shine/shimmer preko ikone pehara */
+@keyframes shimmer {
+  0% {
+    filter: drop-shadow(0 0 0 rgba(255, 255, 255, 0));
+    transform: scale(1);
+  }
+  50% {
+    filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.35));
+    transform: scale(1.04);
+  }
+  100% {
+    filter: drop-shadow(0 0 0 rgba(255, 255, 255, 0));
+    transform: scale(1);
+  }
+}
+.trophy-shimmer {
+  animation: shimmer 2.8s ease-in-out infinite;
+}
+
+/* #1 neka “diše”, #2/#3 plivaju */
+@keyframes breathe {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.06);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.trophy-breathe {
+  animation: breathe 2.6s ease-in-out infinite;
+}
+.trophy-float {
+  animation: floatY 3.4s ease-in-out infinite;
+}
+</style>
