@@ -7,7 +7,7 @@ defineOptions({ name: "CatchListPage" });
 
 const { $api } = useNuxtApp() as any;
 
-// 1) Učitaj /v1/me da bismo znali user_id i default group_id
+// 1) Učitaj /v1/me (više nam ne trebaju groups, ali ostavljamo zbog user_id)
 const { data: me } = useAsyncData(
   "me",
   async () => {
@@ -17,42 +17,31 @@ const { data: me } = useAsyncData(
   { server: false, immediate: true },
 );
 
+// 2) Lokalni query state (bez group_id)
 const query = reactive<SessionListParams & { page: number; per_page: number }>({
   search: "",
-  group_id: undefined,
   season_year: undefined,
+  status: undefined, // ⬅️ promenjeno
   page: 1,
   per_page: 10,
 });
 
-// default group iz /v1/me (ako postoji)
-watch(
-  () => me.value,
-  (v) => {
-    if (!v)
-      return;
-    if (!query.group_id && Array.isArray(v.groups) && v.groups.length) {
-      query.group_id = v.groups[0].id;
-    }
-  },
-  { immediate: true },
-);
-
-// 3) Parametri za sessions API (uvek tražimo catches.user + photos)
+// 3) Parametri za sessions API (bez group_id; BE je u single-tenant modu)
 const paramsRef = computed<SessionListParams>(() => ({
   search: query.search || undefined,
-  group_id: query.group_id,
   season_year: query.season_year,
   user_id: me.value?.id, // moje sesije
   has_catches: "any",
   page: query.page,
   per_page: query.per_page,
   include: "catches.user,photos",
+  // Ako backend podržava filter po statusu ulova na nivou sesije, ovde ga pošalji:
+  // status: query.status || undefined,
 }));
 
 const myId = computed(() => me.value?.id);
 
-// 4) Poziv ka useSessions (koji internо radi GET /v1/sessions)
+// 4) Poziv ka useSessions (GET /v1/sessions)
 const { data, pending, error, refresh, list: sessions } = useSessions(paramsRef);
 const meta = computed(() => data.value?.meta);
 
@@ -66,7 +55,7 @@ watchDebounced(
   { debounce: 350 },
 );
 watch(
-  () => [query.group_id, query.season_year],
+  () => [query.season_year, query.status],
   () => {
     query.page = 1;
     refresh();
@@ -75,7 +64,6 @@ watch(
 
 const closeOpen = ref(false);
 function onClosed() {
-  // refresh liste/stranice
   refresh();
 }
 
@@ -97,9 +85,8 @@ const routeQueryStatus = computed(() => {
 
 function getAgg(s: FishingSession): Agg {
   const rowsAll = (s.catches || []) as FishingCatch[];
-  const rows = routeQueryStatus.value
-    ? rowsAll.filter(r => r.status === routeQueryStatus.value)
-    : rowsAll;
+  const statusFilter = routeQueryStatus.value || query.status || undefined;
+  const rows = statusFilter ? rowsAll.filter(r => r.status === statusFilter) : rowsAll;
 
   const totalCount = rows.reduce((a, r) => a + (Number(r.count) || 0), 0);
   const totalWeight = rows.reduce((a, r) => a + (Number(r.total_weight_kg) || 0), 0);
@@ -107,7 +94,19 @@ function getAgg(s: FishingSession): Agg {
   return { rows, totalCount, totalWeight, biggest };
 }
 
-// (opciono) ako želiš da status ulova ide preko URL-a kao i ostali filteri:
+const displayedSessions = computed<FishingSession[]>(() => {
+  const raw = unref(sessions);
+  const list = Array.isArray(raw) ? raw : [];
+
+  const statusFilter = routeQueryStatus.value || query.status || undefined;
+  if (!statusFilter)
+    return list;
+
+  // Prikaži samo sesije koje imaju bar jedan ulov sa zadatim statusom
+  return list.filter(s => getAgg(s).rows.length > 0);
+});
+
+// (opciono) pratimo i route query status kao i do sada
 watch(
   () => routeQueryStatus.value,
   () => refresh(),
@@ -135,7 +134,7 @@ watch(
             type="search"
           >
           <select v-model="query.status" class="select select-bordered w-full">
-            <option value="">
+            <option :value="undefined">
               Status ulova (svi)
             </option>
             <option value="pending">
@@ -154,10 +153,6 @@ watch(
             placeholder="Sezona (npr 2025)"
             type="number"
           >
-          <!--          <input -->
-          <!--            v-model.number="query.group_id" type="number" placeholder="ID grupe (opciono)" -->
-          <!--            class="input input-bordered w-full"/> -->
-          <!-- (Opc.) zameni ovo dropdown-om "Moje grupe" -->
         </div>
       </div>
     </div>
@@ -168,13 +163,13 @@ watch(
     <div v-else-if="error" class="alert alert-error">
       Došlo je do greške pri učitavanju.
     </div>
-    <div v-else-if="!sessions.length" class="opacity-70">
+    <div v-else-if="!displayedSessions.length" class="opacity-70">
       Nema sesija za zadate filtere.
     </div>
 
     <div v-else class="grid gap-4">
       <div
-        v-for="s in sessions"
+        v-for="s in displayedSessions"
         :key="s.id"
         class="card bg-base-100 shadow"
       >
@@ -194,9 +189,9 @@ watch(
                   Zatvori sesiju
                 </button>
                 <ClientOnly>
+                  <!-- Uklonjen :group-id -->
                   <SessionCloseDialog
                     v-model="closeOpen"
-                    :group-id="s.id"
                     :session-id="s.id"
                     @closed="onClosed"
                   />
@@ -207,6 +202,7 @@ watch(
                 <span v-if="s.location_name" class="badge badge-ghost">
                   {{ s.location_name }}
                 </span>
+                <!-- Dekorativno: može ostati ili obrisati kompletno -->
                 <span v-if="s.group?.name" class="badge badge-ghost">
                   {{ s.group.name }}
                 </span>

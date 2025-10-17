@@ -187,7 +187,7 @@ watch(
 
           <li class="mt-2">
             <ClientOnly>
-              <ThemeSwitch />
+              <UiThemeSwitch />
               <template #fallback>
                 <!-- Stub iste visine/širine da nema skakanja layout-a -->
                 <span class="btn btn-ghost btn-circle opacity-0" aria-hidden="true" />

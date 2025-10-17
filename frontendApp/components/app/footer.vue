@@ -169,7 +169,9 @@ const year = new Date().getFullYear();
           </NuxtLink>
           <!-- mini theme toggle (ikonice sun/moon) -->
           <button class="btn btn-ghost btn-xs" aria-label="Promeni temu">
-            <UiThemeSwitch />
+            <ClientOnly>
+              <UiThemeSwitch />
+            </ClientOnly>
           </button>
         </div>
       </div>
