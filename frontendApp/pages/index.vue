@@ -344,7 +344,7 @@ useSWR(() => refreshHome(), {
       />
     </div>
 
-    <div class="grid gap-6 md:grid-cols-2">
+    <div class="grid gap-6 md:grid-cols-1">
       <LazyHomeLastSessionsMapCard :sessions="mapSessions" />
     </div>
   </div>

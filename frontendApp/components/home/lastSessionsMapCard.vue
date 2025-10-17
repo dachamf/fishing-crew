@@ -68,5 +68,6 @@ const pointMarkers = computed(() =>
     :height="height"
     :bounds="bounds"
     :points="pointMarkers"
+    :fit-bounds-max-zoom="8"
   />
 </template>

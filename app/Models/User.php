@@ -52,29 +52,37 @@ class User extends Authenticatable
         ];
     }
 
-    public function groups()
+    /** Profil (avatar/display_name) */
+    public function profile(): HasOne
+    {
+        return $this->hasOne(Profile::class, 'user_id');
+    }
+
+    /** Sve sesije korisnika */
+    public function sessions(): HasMany
+    {
+        // tabela je `fishing_sessions`, FK je user_id
+        return $this->hasMany(FishingSession::class, 'user_id');
+    }
+
+    /** Svi ulovi korisnika */
+    public function catches(): HasMany
+    {
+        // tabela je `catches`, FK je user_id
+        return $this->hasMany(FishingCatch::class, 'user_id');
+    }
+
+    public function groups(): BelongsToMany
     {
         return $this->belongsToMany(Group::class)
             ->withPivot('role')
             ->withTimestamps();
     }
 
-    public function catches(): HasMany
-    {
-        // Model se zove FishingCatch, tabela je 'catches' (definisano u modelu)
-        // Foreign key je 'user_id' (default), pa ne moramo da ga navodimo eksplicitno.
-        return $this->hasMany(FishingCatch::class, 'user_id');
-    }
-
     // (opciono) samo odobreni ulovi
     public function approvedCatches(): HasMany
     {
         return $this->hasMany(FishingCatch::class, 'user_id')->where('status', 'approved');
-    }
-
-    public function profile(): HasOne
-    {
-        return $this->hasOne(Profile::class);
     }
 
     public function attendingEvents(): BelongsToMany
@@ -84,7 +92,8 @@ class User extends Authenticatable
             ->withTimestamps();
     }
 
-    public function events() {
+    public function events(): BelongsToMany
+    {
         return $this->belongsToMany(Event::class, 'event_attendees', 'user_id', 'event_id')
             ->withPivot(['rsvp','reason','checked_in_at','rating'])
             ->withTimestamps();

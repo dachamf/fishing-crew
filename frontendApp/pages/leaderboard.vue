@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import type { ID, LeaderboardItem, Me } from "~/types/api";
+import type { LeaderboardItem } from "~/types/api";
 
 function displayName(u?: { display_name?: string; name?: string } | null) {
   return u?.display_name || u?.name || "—";
@@ -7,7 +7,6 @@ function displayName(u?: { display_name?: string; name?: string } | null) {
 function avatarOf(u?: { avatar_url?: string | null } | null) {
   return u?.avatar_url || "/icons/icon-64.png";
 }
-// lepše formatiranje brojeva u sr-RS:
 const nf = new Intl.NumberFormat("sr-RS", { minimumFractionDigits: 3, maximumFractionDigits: 3 });
 function kg(n?: number | null) {
   return `${nf.format(Number(n || 0))} kg`;
@@ -15,55 +14,28 @@ function kg(n?: number | null) {
 
 const { $api } = useNuxtApp() as any;
 
-// me -> grupe za dropdown
-const { data: me } = await useAsyncData<Me>(
-  "me:leaderboard",
-  async () => (await $api.get("/v1/me")).data,
-  { server: false },
-);
-
-// query (default: prva grupa + tekuća sezona); ako me još nije tu, postavi posle preko watch-a
+// ✅ Single-tenant: nema group_id u query-ju
 const query = reactive({
-  group_id: (me.value?.groups?.[0]?.id ?? null) as ID | null,
   season_year: new Date().getFullYear(),
 });
 
-// ako me stigne posle, postavi default group_id jednom
-watch(
-  () => me.value?.groups,
-  (gs) => {
-    if (!query.group_id && Array.isArray(gs) && gs.length > 0) {
-      const first = gs[0]!;
-      query.group_id = first.id as ID;
-    }
-  },
-  { immediate: true },
-);
+const key = computed(() => `leaderboard:season=${query.season_year}`);
 
-// fetch leaderboard (jedan endpoint, FE sortira u tri liste)
-const key = computed(() => `leaderboard:${query.group_id ?? "none"}:${query.season_year}`);
 const { data, pending, error, refresh } = await useAsyncData<{ items: LeaderboardItem[] }>(
   key,
   async () => {
-    if (!query.group_id)
-      return { items: [] };
-
     const r = await $api.get("/v1/leaderboard", {
-      params: { group_id: query.group_id, season_year: query.season_year },
+      params: { season_year: query.season_year }, // ⬅️ bez group_id
     });
-
     const raw = r.data;
     const items = Array.isArray(raw?.items) ? raw.items : Array.isArray(raw) ? raw : [];
-
     return { items: items as LeaderboardItem[] };
   },
-  { watch: [() => query.group_id, () => query.season_year], server: false },
+  { watch: [() => query.season_year], server: false },
 );
 
 const hydrated = ref(false);
-onMounted(() => {
-  hydrated.value = true;
-});
+onMounted(() => (hydrated.value = true));
 
 const refreshing = ref(false);
 async function doRefresh() {
@@ -79,7 +51,6 @@ async function doRefresh() {
 const rows = computed<LeaderboardItem[]>(() =>
   Array.isArray(data.value?.items) ? data.value!.items : [],
 );
-// tri “pogleda”
 const activityRows = computed(() =>
   [...rows.value].sort((a, b) => (b.sessions_total ?? 0) - (a.sessions_total ?? 0)),
 );
@@ -89,35 +60,37 @@ const weightRows = computed(() =>
 const biggestRows = computed(() =>
   [...rows.value].sort((a, b) => (b.biggest ?? 0) - (a.biggest ?? 0)),
 );
+
+// Trophy helpers (gold/silver/bronze) za TOP 3
+function rankRingClass(idx: number) {
+  return [
+    "ring-2",
+    idx === 0 ? "ring-amber-400" : idx === 1 ? "ring-zinc-300" : "ring-amber-700",
+  ].join(" ");
+}
+function rankIconClass(idx: number) {
+  return idx === 0 ? "text-amber-400" : idx === 1 ? "text-zinc-300" : "text-amber-700";
+}
+function rankLabel(idx: number) {
+  return idx === 0 ? "Zlato" : idx === 1 ? "Srebro" : "Bronza";
+}
 </script>
 
 <template>
   <div class="container mx-auto p-4 space-y-4">
     <div class="flex items-center justify-between gap-3">
       <h1 class="text-2xl font-semibold">
-        Leaderboard
+        Rang lista
       </h1>
       <NuxtLink class="btn btn-ghost btn-sm" to="/catches">
         ← Ulov
       </NuxtLink>
     </div>
 
-    <!-- Filteri -->
+    <!-- Filteri (bez grupe) -->
     <div class="card bg-base-100 shadow">
       <div class="card-body grid gap-3 md:grid-cols-3">
-        <div>
-          <label class="label">Grupa</label>
-          <select v-model.number="query.group_id" class="select select-bordered w-full">
-            <option
-              v-for="g in me?.groups || []"
-              :key="g.id"
-              :value="g.id"
-            >
-              {{ g.name }} ({{ g.season_year || '—' }})
-            </option>
-          </select>
-        </div>
-        <div>
+        <div class="md:col-span-2">
           <label class="label">Sezona</label>
           <input
             v-model.number="query.season_year"
@@ -174,23 +147,37 @@ const biggestRows = computed(() =>
           <div class="grid md:grid-cols-3 gap-3">
             <div
               v-for="(r, idx) in rowsActivity.slice(0, 3)"
-              :key="r.user?.id"
+              :key="r.user?.id ?? idx"
               class="card bg-base-100 shadow"
             >
-              <div class="card-body items-center text-center">
+              <div
+                class="card-body items-center text-center rounded-box"
+                :class="rankRingClass(idx)"
+              >
                 <div class="avatar">
-                  <div class="w-16 rounded-full border border-base-300 overflow-hidden">
+                  <div
+                    class="w-16 rounded-full border border-base-300 overflow-hidden"
+                    :class="rankRingClass(idx)"
+                  >
                     <img :src="avatarOf(r.user)" alt="">
                   </div>
                 </div>
-                <div class="text-sm opacity-70 mt-1">
-                  #{{ idx + 1 }}
+
+                <!-- Pehar + pozicija -->
+                <div class="mt-2 flex items-center justify-center gap-2">
+                  <Icon
+                    name="tabler:trophy"
+                    size="32"
+                    :class="rankIconClass(idx)"
+                    :title="rankLabel(idx)"
+                  />
+                  <div class="text-sm opacity-70">
+                    #{{ idx + 1 }}
+                  </div>
                 </div>
-                <div class="font-medium truncate">
+
+                <div class="font-medium truncate mt-1">
                   {{ displayName(r.user) }}
-                </div>
-                <div class="opacity-80">
-                  Sesije: <b>{{ r.sessions_total ?? 0 }}</b>
                 </div>
               </div>
             </div>
@@ -248,23 +235,37 @@ const biggestRows = computed(() =>
           <div class="grid md:grid-cols-3 gap-3">
             <div
               v-for="(r, idx) in rowsWeight.slice(0, 3)"
-              :key="r.user?.id"
+              :key="r.user?.id ?? idx"
               class="card bg-base-100 shadow"
             >
-              <div class="card-body items-center text-center">
+              <div
+                class="card-body items-center text-center rounded-box"
+                :class="rankRingClass(idx)"
+              >
                 <div class="avatar">
-                  <div class="w-16 rounded-full border border-base-300 overflow-hidden">
+                  <div
+                    class="w-16 rounded-full border border-base-300 overflow-hidden"
+                    :class="rankRingClass(idx)"
+                  >
                     <img :src="avatarOf(r.user)" alt="">
                   </div>
                 </div>
-                <div class="text-sm opacity-70 mt-1">
-                  #{{ idx + 1 }}
+
+                <!-- Pehar + pozicija -->
+                <div class="mt-2 flex items-center justify-center gap-2">
+                  <Icon
+                    name="tabler:trophy"
+                    size="32"
+                    :class="rankIconClass(idx)"
+                    :title="rankLabel(idx)"
+                  />
+                  <div class="text-sm opacity-70">
+                    #{{ idx + 1 }}
+                  </div>
                 </div>
-                <div class="font-medium truncate">
+
+                <div class="font-medium truncate mt-1">
                   {{ displayName(r.user) }}
-                </div>
-                <div class="opacity-80">
-                  Ukupno: <b>{{ kg(r.weight_total) }}</b>
                 </div>
               </div>
             </div>
@@ -322,23 +323,37 @@ const biggestRows = computed(() =>
           <div class="grid md:grid-cols-3 gap-3">
             <div
               v-for="(r, idx) in rowsBiggest.slice(0, 3)"
-              :key="r.user?.id"
+              :key="r.user?.id ?? idx"
               class="card bg-base-100 shadow"
             >
-              <div class="card-body items-center text-center">
+              <div
+                class="card-body items-center text-center rounded-box"
+                :class="rankRingClass(idx)"
+              >
                 <div class="avatar">
-                  <div class="w-16 rounded-full border border-base-300 overflow-hidden">
+                  <div
+                    class="w-16 rounded-full border border-base-300 overflow-hidden"
+                    :class="rankRingClass(idx)"
+                  >
                     <img :src="avatarOf(r.user)" alt="">
                   </div>
                 </div>
-                <div class="text-sm opacity-70 mt-1">
-                  #{{ idx + 1 }}
+
+                <!-- Pehar + pozicija -->
+                <div class="mt-2 flex items-center justify-center gap-2">
+                  <Icon
+                    name="tabler:trophy"
+                    size="32"
+                    :class="rankIconClass(idx)"
+                    :title="rankLabel(idx)"
+                  />
+                  <div class="text-sm opacity-70">
+                    #{{ idx + 1 }}
+                  </div>
                 </div>
-                <div class="font-medium truncate">
+
+                <div class="font-medium truncate mt-1">
                   {{ displayName(r.user) }}
-                </div>
-                <div class="opacity-80">
-                  Najveća: <b>{{ kg(r.biggest) }}</b>
                 </div>
               </div>
             </div>
@@ -392,9 +407,8 @@ const biggestRows = computed(() =>
         </template>
       </LeaderboardTabs>
 
-      <!-- prazno stanje -->
       <div v-if="!rows.length" class="opacity-70">
-        Nema podataka za odabranu grupu/sezonu.
+        Nema podataka za odabranu sezonu.
       </div>
     </div>
   </div>
