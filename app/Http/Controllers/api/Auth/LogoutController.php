@@ -15,6 +15,7 @@ class LogoutController extends Controller
     {
         $request->user()->token()->delete();
 
-        return response()->noContent();
+        return response()->noContent()
+            ->withoutCookie('auth_token', '/', null);
     }
 }

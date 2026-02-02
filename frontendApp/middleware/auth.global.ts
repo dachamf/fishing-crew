@@ -9,14 +9,9 @@ export default defineNuxtRouteMiddleware(async (to) => {
     return;
   }
 
-  const { token, user, me, logout, isVerified } = useAuth();
+  const { user, me, logout, isVerified } = useAuth();
 
-  // nema token -> na login sa "next" parametrom
-  if (!token.value) {
-    return navigateTo(`/login?next=${encodeURIComponent(to.fullPath)}`);
-  }
-
-  // imamo token ali nemamo usera u memoriji -> probaj /auth/me
+  // nemamo usera u memoriji -> probaj /v1/user (cookie se šalje automatski)
   if (!user.value) {
     try {
       await me();

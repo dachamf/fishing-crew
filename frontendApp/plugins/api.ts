@@ -5,14 +5,13 @@ import { toErrorMessage } from "~/utils/http";
 
 export default defineNuxtPlugin((nuxtApp) => {
   const config = useRuntimeConfig();
-  const token = useCookie<string | undefined>("token");
 
-  const api = axios.create({ baseURL: config.public.apiBase });
+  const api = axios.create({
+    baseURL: config.public.apiBase,
+    withCredentials: true,
+  });
 
   api.interceptors.request.use((cfg) => {
-    // dodaj Bearer kad postoji
-    if (token.value)
-      cfg.headers.Authorization = `Bearer ${token.value}`;
     cfg.headers.Accept = "application/json";
     cfg.headers["X-Requested-With"] = "XMLHttpRequest";
     return cfg;

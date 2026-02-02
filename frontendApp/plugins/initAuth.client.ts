@@ -1,10 +1,11 @@
 export default defineNuxtPlugin(async () => {
-  const { token, user, me } = useAuth();
-  if (token.value && !user.value) {
+  const { user, me } = useAuth();
+  if (!user.value) {
     try {
       await me();
     }
     catch {
+      // not logged in or cookie expired
     }
   }
 });

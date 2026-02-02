@@ -7,8 +7,8 @@ use App\Http\Controllers\api\Auth\LogoutController;
 use App\Http\Controllers\api\Auth\RegisterController;
 
 Route::prefix('auth')->group(function () {
-    Route::post('/login', LoginController::class);
-    Route::post('/register', RegisterController::class);
+    Route::post('/login', LoginController::class)->middleware('throttle:auth');
+    Route::post('/register', RegisterController::class)->middleware('throttle:auth');
     Route::post('/logout', LogoutController::class)->middleware('auth:sanctum');
 
     // Email verification

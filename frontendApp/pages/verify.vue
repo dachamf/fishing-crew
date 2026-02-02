@@ -7,14 +7,14 @@ definePageMeta({
 const route = useRoute();
 const status = computed(() => (route.query.status as string) || "");
 
-const { token } = useAuth();
+const { isLoggedIn } = useAuth();
 const { $api } = useNuxtApp() as any;
 const sent = ref(false);
 const err = ref<string | null>(null);
 const pending = ref(false);
 
 async function resend() {
-  if (!token.value) {
+  if (!isLoggedIn.value) {
     err.value = "Uloguj se da pošalješ novi link.";
     return;
   }

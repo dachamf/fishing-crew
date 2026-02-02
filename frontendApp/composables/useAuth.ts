@@ -6,18 +6,8 @@ export function useAuth() {
     email_verified_at?: string | null;
   };
   const { $api } = useNuxtApp() as any;
-  const token = useCookie<string | null>("token", {
-    path: "/",
-    sameSite: "lax",
-    secure: true,
-  });
   const user = useState<User | null>("user", () => null);
-
-  function applyAuthHeader(t?: string | null) {
-    if (t)
-      $api.defaults.headers.common.Authorization = `Bearer ${t}`;
-    else delete $api.defaults.headers.common.Authorization;
-  }
+  const isLoggedIn = computed(() => !!user.value);
 
   async function register(
     name: string,
@@ -31,47 +21,29 @@ export function useAuth() {
       password,
       password_confirmation,
     });
-    if (data?.token) {
-      setToken(data.token, true);
-      await me(true);
-    }
-    await me(true);
+    user.value = data.user;
+    await me();
   }
 
-  function setToken(value: string | null, remember = false) {
-    // (Re)zapiši cookie sa odgovarajućim maxAge, ali i sinhronizuj naš ref
-    const t = useCookie<string | null>("token", {
-      path: "/",
-      sameSite: "lax",
-      secure: true,
-      maxAge: remember ? 60 * 60 * 24 * 30 : undefined, // 30 dana
-    });
-    t.value = value;
-    token.value = value;
-    applyAuthHeader(value);
-  }
-
-  async function login(email: string, password: string, remember = false) {
+  async function login(email: string, password: string, _remember = false) {
     const { data } = await $api.post("/auth/login", { email, password });
-    setToken(data.token, remember);
-    await me(true);
+    user.value = data.user;
+    await me();
   }
 
-  async function me(forceHeader = false) {
-    const cfg
-      = forceHeader && token.value
-        ? { headers: { Authorization: `Bearer ${token.value}` } }
-        : undefined;
-
-    // BITNO: koristi endpoint koji stvarno imaš. Ako imaš /auth/me – koristi njega.
-    // Ako koristiš /user (kao u kodu koji si poslao), ostavi ovako:
-    const { data } = await $api.get("/v1/user", cfg);
+  async function me() {
+    const { data } = await $api.get("/v1/user");
     user.value = data;
     return data;
   }
 
-  function logout() {
-    setToken(null);
+  async function logout() {
+    try {
+      await $api.post("/auth/logout");
+    }
+    catch {
+      // ignore - cookie will be cleared by backend
+    }
     user.value = null;
     navigateTo("/login");
   }
@@ -97,8 +69,8 @@ export function useAuth() {
   }
 
   return {
-    token,
     user,
+    isLoggedIn,
     isVerified,
     register,
     login,

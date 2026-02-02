@@ -36,8 +36,8 @@ class LoginController extends Controller
         $token = $user->createToken('fishing_crew_api_token')->plainTextToken;
 
         return response()->json([
-            'token' => $token,
             'user' => $user,
-        ], Response::HTTP_OK);
+        ], Response::HTTP_OK)
+            ->cookie('auth_token', $token, 60 * 24 * 30, '/', null, true, true, false, 'Lax');
     }
 }
