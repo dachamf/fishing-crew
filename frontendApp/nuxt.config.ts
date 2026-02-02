@@ -36,8 +36,7 @@ export default defineNuxtConfig({
   },
   runtimeConfig: {
     public: {
-      // eslint-disable-next-line node/no-process-env
-      apiBase: process.env.NUXT_PUBLIC_API_BASE || "https://api.fishermen-crew.ddev.site/api",
+      apiBase: "",
     },
   },
   nitro: {
@@ -52,7 +51,7 @@ export default defineNuxtConfig({
     build: { sourcemap: false, minify: "esbuild" },
     server: {
       allowedHosts: true,
-      hmr: { host: "app.fishermen-crew.ddev.site", protocol: "wss", clientPort: 443 },
+      hmr: true,
     },
   },
 });

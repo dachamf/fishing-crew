@@ -42,7 +42,7 @@ class EmailVerificationController extends Controller
 
     protected function redirectToApp(string $status)
     {
-        $app = config('app.frontend_url') ?? env('FRONTEND_URL', 'https://app.fishermen-crew.ddev.site');
+        $app = config('app.frontend_url');
         return redirect()->away($app.'/verify?status='.$status);
     }
 }
