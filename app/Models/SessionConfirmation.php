@@ -20,10 +20,17 @@ class SessionConfirmation extends Model
     {
         static::creating(function (self $m) {
             if (!$m->token) {
-                $m->token = self::generateUniqueToken();
+                $plain = self::generateUniqueToken();
+                $m->plain_token = $plain;
+                $m->token = hash('sha256', $plain);
             }
         });
     }
+
+    /**
+     * Transient plain token (available only right after creation).
+     */
+    public ?string $plain_token = null;
 
     public function session(): BelongsTo
     {
@@ -54,10 +61,16 @@ class SessionConfirmation extends Model
 
     public static function generateUniqueToken(): string
     {
-        do {
-            $token = bin2hex(random_bytes(32)); // 64 hex chars
-            $exists = DB::table('session_confirmations')->where('token', $token)->exists();
-        } while ($exists);
-        return $token;
+        return bin2hex(random_bytes(32)); // 64 hex chars
+    }
+
+    /**
+     * Find a confirmation by plain (unhashed) token.
+     */
+    public static function findByPlainToken(int $sessionId, string $plainToken): ?self
+    {
+        return static::where('session_id', $sessionId)
+            ->where('token', hash('sha256', $plainToken))
+            ->first();
     }
 }

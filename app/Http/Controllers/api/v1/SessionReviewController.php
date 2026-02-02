@@ -45,7 +45,7 @@ class SessionReviewController extends Controller
         $this->svc->nominate(
             $session,
             $data['nominees'],
-            fn($s, $c) => rtrim(config('app.frontend_url'), '/')."/sessions/{$s->id}?token={$c->token}"
+            fn($s, $c) => rtrim(config('app.frontend_url'), '/')."/sessions/{$s->id}?token={$c->plain_token}"
         );
 
         return response()->json(['ok' => true]);
@@ -154,9 +154,10 @@ class SessionReviewController extends Controller
             'decision' => ['required', Rule::in(['approved','rejected'])],
         ]);
 
-        $conf = SessionConfirmation::where('session_id', $session->id)
-            ->where('token', $token)
-            ->firstOrFail();
+        $conf = SessionConfirmation::findByPlainToken($session->id, $token);
+        if (!$conf) {
+            abort(404);
+        }
 
         $this->svc->confirm($session, $conf, $data['decision'], $conf->nominee, silent: false);
         return response()->json(['status' => $conf->fresh()->status]);

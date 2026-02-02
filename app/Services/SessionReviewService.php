@@ -22,19 +22,21 @@ class SessionReviewService
     public function nominate(FishingSession $session, array $nomineeUserIds, ?callable $reviewUrlBuilder = null): void
     {
         foreach ($nomineeUserIds as $uid) {
+            $plainToken = bin2hex(random_bytes(32));
             $conf = SessionConfirmation::firstOrCreate(
                 ['session_id' => $session->id, 'nominee_user_id' => $uid],
-                ['status' => 'pending', 'token' => Str::random(48)],
+                ['status' => 'pending', 'token' => hash('sha256', $plainToken)],
             );
 
             if (!$conf->wasRecentlyCreated) {
                 continue;
             }
 
-            // Token URL ka FE (approve/reject bez login-a)
+            // Token URL ka FE (approve/reject bez login-a) - koristi plain token
+            $conf->plain_token = $plainToken;
             $url = $reviewUrlBuilder
                 ? $reviewUrlBuilder($session, $conf)
-                : rtrim(config('app.frontend_url'), '/')."/sessions/{$session->id}?token={$conf->token}";
+                : rtrim(config('app.frontend_url'), '/')."/sessions/{$session->id}?token={$plainToken}";
 
             // Light lista ulova (za email preview)
             $items = $session->catches()
