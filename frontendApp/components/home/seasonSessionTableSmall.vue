@@ -17,6 +17,9 @@ const props = withDefaults(
 type Row = FishingSession & { catches_count?: number };
 
 const { $api } = useNuxtApp() as any;
+const serverHeaders = import.meta.server
+  ? useRequestHeaders(["cookie", "origin", "referer"])
+  : undefined;
 
 const page = ref(1);
 const key = computed(() => `home:season-sessions:${props.groupId || 0}:${props.year}:${page.value}`);
@@ -33,6 +36,7 @@ const { data, pending, error } = await useAsyncData(
         per_page: props.perPage,
         page: page.value,
       },
+      headers: serverHeaders,
     });
     return res.data as LaravelPagination<Row>;
   },

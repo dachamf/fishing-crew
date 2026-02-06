@@ -5,7 +5,6 @@ namespace App\Models;
 use App\Enums\ConfirmationStatus;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Support\Facades\DB;
 
 class SessionConfirmation extends Model
 {

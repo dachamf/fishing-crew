@@ -6,13 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreEventRequest;
 use App\Http\Resources\EventResource;
 use App\Models\Event;
-use App\Models\EventRsvp;
 use App\Models\Group;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
 
 class EventsController extends Controller

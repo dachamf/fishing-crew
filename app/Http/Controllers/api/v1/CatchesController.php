@@ -5,7 +5,7 @@ namespace App\Http\Controllers\api\v1;
 use App\Http\Controllers\Controller;
 use Carbon\Carbon;
 use App\Http\Requests\{CatchStoreRequest, CatchUpdateRequest};
-use App\Models\{FishingCatch, Event};
+use App\Models\FishingCatch;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -136,54 +136,4 @@ class CatchesController extends Controller
         return response()->json(['message' => 'Deleted']);
     }
 
-    /**
-     * Retrieves a paginated list of fishing catches associated with a specific event.
-     *
-     * This method fetches catches linked to the given event, including their related user data,
-     * and returns the results ordered by the most recent catches.
-     *
-     * @param Request $req The incoming HTTP request instance.
-     * @param Event $event The event model instance for which catches are being retrieved.
-     * @return JsonResponse The JSON response containing the paginated list of catches.
-     */
-    public function byEvent(Request $req, Event $event)
-    {
-        $year = $req->integer('season_year');
-        $from = $req->query('from'); // ISO
-        $to = $req->query('to');
-
-        $q = $event->catches()->with('user')
-            ->season($year)
-            ->between($from, $to)
-            ->latest('caught_at');
-
-        return response()->json(['data' => $q->paginate(20)]);
-    }
-
-    /**
-     * Retrieves a paginated list of fishing catches for the authenticated user.
-     *
-     * This method queries the `FishingCatch` model to fetch records associated
-     * with the authenticated user's ID. It also includes relationships such as
-     * `event` and `group` and orders the results based on the latest entries.
-     * The results are paginated by 20 entries per page.
-     *
-     * @param Request $req The incoming request instance, used to identify the authenticated user.
-     * @return JsonResponse The JSON response containing the paginated fishing catch data.
-     */
-    public function mine(Request $req)
-    {
-        $year = $req->integer('season_year');
-        $from = $req->query('from');
-        $to = $req->query('to');
-
-        $q = FishingCatch::query()
-            ->where('user_id', $req->user()->id)
-            ->with('event', 'group')
-            ->season($year)
-            ->between($from, $to)
-            ->latest('caught_at');
-
-        return response()->json(['data' => $q->paginate(20)]);
-    }
 }

@@ -11,7 +11,6 @@ use App\Notifications\SessionConfirmationsRequested; // postoji u tvom repo-u
 use App\Notifications\SessionReviewTokenLink;        // NOVO (vidi ispod)
 use App\Enums\ConfirmationStatus;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 
 class SessionReviewService
 {

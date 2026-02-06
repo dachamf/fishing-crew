@@ -3,7 +3,6 @@ namespace App\Http\Controllers\Auth;
 
 
 use App\Http\Controllers\Controller;
-use App\Models\Group;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;

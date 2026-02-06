@@ -54,6 +54,7 @@ export default defineNuxtConfig({
     build: { sourcemap: false, minify: "esbuild" },
     server: {
       allowedHosts: true,
+      // TODO: Remove hardcoded DDEV HMR config before production deploy
       hmr: {
         protocol: "wss",
         host: "app.fishermen-crew.ddev.site",

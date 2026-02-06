@@ -7,6 +7,7 @@ export function useAuth() {
   };
   const { $api } = useNuxtApp() as any;
   const user = useState<User | null>("user", () => null);
+  const ready = useState<boolean>("auth_ready", () => false);
   const isLoggedIn = computed(() => !!user.value);
 
   async function register(
@@ -32,13 +33,19 @@ export function useAuth() {
   }
 
   async function me() {
-    const { data } = await $api.get("/v1/user");
-    user.value = data;
-    return data;
+    try {
+      const { data } = await $api.get("/v1/user");
+      user.value = data;
+      return data;
+    }
+    finally {
+      ready.value = true;
+    }
   }
 
   function logout() {
     user.value = null;
+    ready.value = true;
   }
 
   async function logoutAndRedirect() {
@@ -49,6 +56,7 @@ export function useAuth() {
       // ignore - cookie will be cleared by backend
     }
     user.value = null;
+    ready.value = true;
     return navigateTo("/login");
   }
 
@@ -74,6 +82,7 @@ export function useAuth() {
 
   return {
     user,
+    ready,
     isLoggedIn,
     isVerified,
     register,

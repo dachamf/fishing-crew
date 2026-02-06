@@ -17,6 +17,11 @@ const route = useRoute();
 
 // Mobile dropdown toggle
 const open = ref(false);
+const profileMenuOpen = ref(false);
+const profileMenuRef = ref<HTMLElement | null>(null);
+onClickOutside(profileMenuRef, () => {
+  profileMenuOpen.value = false;
+});
 
 const assignedPreview = ref<{ items: any[]; meta: any } | null>(null);
 computed(() => assignedPreview.value?.meta?.total ?? assignedPreview.value?.items?.length ?? 0);
@@ -108,13 +113,17 @@ async function resendVerification() {
 // Logout + redirect
 async function doLogout() {
   open.value = false;
+  profileMenuOpen.value = false;
   await auth.logoutAndRedirect();
 }
 
 // Zatvori dropdown na promenu rute
 watch(
   () => route.fullPath,
-  () => (open.value = false),
+  () => {
+    open.value = false;
+    profileMenuOpen.value = false;
+  },
 );
 </script>
 
@@ -316,8 +325,18 @@ watch(
           </div>
         </div>
         <!-- Logged in -->
-        <div class="dropdown dropdown-end">
-          <button aria-label="Profile menu" class="btn btn-ghost btn-circle">
+        <div
+          ref="profileMenuRef"
+          class="dropdown dropdown-end"
+          :class="{ 'dropdown-open': profileMenuOpen }"
+          @keydown.escape="profileMenuOpen = false"
+        >
+          <button
+            type="button"
+            aria-label="Profile menu"
+            class="btn btn-ghost btn-circle"
+            @click="profileMenuOpen = !profileMenuOpen"
+          >
             <div class="indicator">
               <!-- mala tačkica kad nije verifikovan -->
               <span v-if="!isVerified" class="indicator-item badge badge-warning badge-xs">!</span>
@@ -338,14 +357,15 @@ watch(
 
           <ul
             class="menu menu-sm dropdown-content bg-base-100 rounded-box z-50 mt-3 w-56 p-2 shadow"
+            @click="profileMenuOpen = false"
           >
             <li class="px-3 py-2">
               <div class="text-sm opacity-70">
                 Ulogovan
               </div>
-              <div class="font-medium truncate">
+              <NuxtLink to="/profile" class="font-medium truncate hover:underline">
                 {{ profile?.display_name || auth.user.value?.name }}
-              </div>
+              </NuxtLink>
               <div v-if="!isVerified" class="mt-2">
                 <button
                   :disabled="sendingVerify"
@@ -355,11 +375,6 @@ watch(
                   {{ sendingVerify ? 'Slanje…' : 'Verifikuj email' }}
                 </button>
               </div>
-            </li>
-            <li>
-              <NuxtLink to="/profile">
-                Profil
-              </NuxtLink>
             </li>
             <li>
               <NuxtLink to="/catches">

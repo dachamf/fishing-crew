@@ -4,8 +4,6 @@ namespace App\Http\Controllers\api\v1;
 use App\Http\Controllers\Controller;
 use App\Models\FishingCatch;
 use App\Models\FishingSession;
-use App\Models\User;
-use App\Notifications\SessionConfirmationsRequested;
 use App\Services\SessionReviewService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;

@@ -2,24 +2,23 @@
 import { useHead } from "#imports";
 import { ref } from "vue";
 
+definePageMeta({ public: true });
+
 useHead({
-  title: "Prijava — Fishing Crew",
-  meta: [
-    {
-      name: "description",
-      content: "Prijavite se u Fishing Crew da planirate događaje i pratite ulove sa ekipom.",
-    },
-  ],
+  title: "Reset lozinke — Fishing Crew",
+  meta: [{ name: "description", content: "Postavite novu lozinku za Fishing Crew nalog." }],
 });
 
-const auth = useAuth();
+const { $api } = useNuxtApp() as any;
+const { success, error } = useToast();
 const router = useRouter();
+const route = useRoute();
 
-const email = ref("");
+const token = ref((route.query.token as string) || "");
+const email = ref((route.query.email as string) || "");
 const password = ref("");
-const showPass = ref(false);
-const remember = ref(true); // ✅ Remember me
-const busy = ref(false); // ✅ busy-state
+const passwordConfirmation = ref("");
+const busy = ref(false);
 const formErr = ref<string | null>(null);
 
 async function submit() {
@@ -28,11 +27,18 @@ async function submit() {
   busy.value = true;
   formErr.value = null;
   try {
-    await auth.login(email.value.trim(), password.value, remember.value);
-    await router.push("/");
+    await $api.post("/auth/reset-password", {
+      token: token.value,
+      email: email.value.trim(),
+      password: password.value,
+      password_confirmation: passwordConfirmation.value,
+    });
+    success("Lozinka je uspešno resetovana.");
+    await router.push("/login");
   }
   catch (e: any) {
-    formErr.value = e?.response?.data?.message || "Greška pri prijavi.";
+    formErr.value = e?.response?.data?.message || "Greška pri resetovanju lozinke.";
+    error(formErr.value);
   }
   finally {
     busy.value = false;
@@ -42,7 +48,6 @@ async function submit() {
 
 <template>
   <div class="min-h-screen bg-base-200 relative overflow-hidden">
-    <!-- blagi gradient/mesh za bolji kontrast u dark temi -->
     <div
       class="pointer-events-none absolute inset-0 opacity-50"
       aria-hidden="true"
@@ -59,10 +64,10 @@ async function submit() {
       >
         <div class="card-body">
           <h1 class="text-2xl font-bold text-base-content/90">
-            Prijava
+            Reset lozinke
           </h1>
           <p class="text-base-content/60 text-sm">
-            Dobrodošao nazad 👋
+            Unesi novu lozinku.
           </p>
 
           <form
@@ -96,36 +101,32 @@ async function submit() {
 
             <label class="form-control w-full">
               <div class="label">
-                <span class="label-text text-base-content/80">Lozinka</span>
-                <button
-                  type="button"
-                  class="link link-hover text-sm text-base-content/60"
-                  @click="showPass = !showPass"
-                >
-                  {{ showPass ? 'Sakrij' : 'Prikaži' }}
-                </button>
+                <span class="label-text text-base-content/80">Nova lozinka</span>
               </div>
               <input
                 v-model="password"
-                :type="showPass ? 'text' : 'password'"
-                autocomplete="current-password"
+                type="password"
+                autocomplete="new-password"
                 placeholder="••••••••"
                 class="input input-bordered w-full placeholder:text-base-content/60"
                 required
-                aria-label="Lozinka"
-                @keyup.enter="submit"
+                aria-label="Nova lozinka"
               >
             </label>
 
-            <!-- ✅ Remember me -->
-            <label class="label cursor-pointer mt-3 gap-3">
+            <label class="form-control w-full">
+              <div class="label">
+                <span class="label-text text-base-content/80">Potvrdi lozinku</span>
+              </div>
               <input
-                v-model="remember"
-                type="checkbox"
-                class="checkbox checkbox-primary"
-                aria-label="Zapamti me na ovom uređaju"
+                v-model="passwordConfirmation"
+                type="password"
+                autocomplete="new-password"
+                placeholder="••••••••"
+                class="input input-bordered w-full placeholder:text-base-content/60"
+                required
+                aria-label="Potvrdi lozinku"
               >
-              <span class="label-text">Zapamti me</span>
             </label>
 
             <button
@@ -133,23 +134,18 @@ async function submit() {
               class="btn btn-primary w-full mt-2"
               :class="{ 'btn-disabled loading': busy }"
               :disabled="busy"
-              aria-label="Prijavi se"
-              :aria-busy="busy"
             >
               <span
                 v-if="busy"
                 class="loading loading-spinner loading-sm mr-2"
                 aria-hidden="true"
               />
-              <span>Prijavi se</span>
+              Resetuj lozinku
             </button>
 
-            <div class="flex items-center justify-between text-sm mt-2">
-              <NuxtLink to="/register" class="link link-primary">
-                Nemaš nalog? Registruj se
-              </NuxtLink>
-              <NuxtLink to="/forgot-password" class="link link-hover text-base-content/60">
-                Zaboravljena lozinka
+            <div class="text-sm mt-2">
+              <NuxtLink to="/login" class="link link-primary">
+                Nazad na prijavu
               </NuxtLink>
             </div>
           </form>

@@ -2,8 +2,6 @@
   "$schema": "https://unpkg.com/knip@^5/schema.json",
   "ignore": [".nuxt/**", ".output/**", "dist/**", "node_modules/**"],
   "entry": [
-    "app.vue",
-    "error.vue",
     "nuxt.config.{ts,js,mjs,cjs}",
     "plugins/**/*.{ts,js,mjs,cjs}",
     "components/**/*.{vue,ts,js}",
