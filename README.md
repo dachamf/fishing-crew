@@ -2,25 +2,36 @@
 
 A Laravel-based backend with a companion frontend for managing fishing crews, profiles, and groups. This repository contains the API (Laravel) and a frontend app directory.
 
-Current date: 2025-08-20
+Current date: 2026-02-06
 
 ## Features
-- User registration, login, logout (Laravel Sanctum)
+- User registration, login, logout (Laravel Sanctum token auth)
 - Email verification flow with deep-link redirect to frontend
-- Profile management (v1 API)
-- Groups management (v1 API)
+- Profile management with avatars (S3 upload)
+- Groups management with roles (owner/moderator/member) and admin visibility
+- Events with RSVP, check-in, photos
+- Fishing Sessions (open/close/finalize)
+- Catches with photos (EXIF extraction, image variants)
+- Session & Catch confirmations (nominate, approve/reject, withdraw decision)
+- Leaderboard (seasonal rankings)
+- Achievements (3 badges)
+- Activity feed & notifications
+- Weather integration (OpenMeteo API)
+- Dashboard with aggregated data
 
 ## Tech Stack
-- PHP 8.x, Laravel 11.x
-- MySQL or PostgreSQL
-- Node.js 18+ with Vite for frontend assets
-- Laravel Sanctum for SPA/API authentication
+- PHP 8.2+, Laravel 12
+- MySQL (prod), SQLite (dev)
+- Nuxt 3 (4.0.3), Vue 3.5, TypeScript, Tailwind v4, DaisyUI v5
+- Laravel Sanctum for token-based API authentication
+- AWS S3 for media storage
+- MapLibre GL for maps, Chart.js for charts
 
 ## Prerequisites
 - PHP 8.2+
 - Composer 2+
-- Node.js 18+ and PNPM or NPM
-- A running database (MySQL/PostgreSQL/SQLite)
+- Node.js 18+ and PNPM
+- A running database (MySQL/SQLite)
 
 ## Getting Started (Backend)
 1. Clone and install dependencies
@@ -129,10 +140,15 @@ ddev fe type-check # TypeScript check
 
 ## Project Structure Highlights
 - app/Http/Controllers/api/Auth/*: Auth controllers (Register, Login, Logout, Email Verification)
-- app/Http/Controllers/api/v1/*: Domain APIs (Profile, Groups)
-- routes/api.php: API routes
+- app/Http/Controllers/api/v1/*: Domain controllers (23 total)
+- routes/api/v1/*: Route files by domain (core, sessions, catches, groups_events, stats_leaderboard, profile_account, species)
+- app/Models/*: 14 Eloquent models
+- app/Services/*: Business logic (PhotoProcessor, SessionReviewService, Weather)
 - config/app.php: frontend_url configuration
-- frontendApp/: Frontend SPA (if used)
+- frontendApp/: Nuxt 3 SPA
+  - pages/: 27 routes
+  - components/: 42 components
+  - composables/: 32 composables (data fetching, auth, UI)
 
 ## Tasks and Roadmap
 See TASKS.md for a prioritized, actionable task list across backend, auth/security, domain features, testing/QA, DX, and docs.
