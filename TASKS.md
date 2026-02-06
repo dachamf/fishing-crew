@@ -4,6 +4,28 @@ This document outlines a prioritized, actionable task list based on the current 
 
 Note: The list aims for pragmatic increments. Items are grouped by priority: P0 (critical/bugs), P1 (high value), P2 (nice-to-have/roadmap).
 
+## Updates (2026-02-06)
+
+- Fixed API base config for frontend dev and guarded notifications polling to only run when logged in.
+- Auth/logout: fixed token deletion (Sanctum currentAccessToken) to avoid 500s on logout.
+- Catch confirmations:
+  - Added missing routes, fixed authorization, and added nomination notification.
+  - Added assigned catch list UI and wiring for “assigned to me”.
+  - Added “withdraw decision” flow (API + UI) and status lock after decision.
+- Session confirmations:
+  - Fixed close-and-nominate to use session confirmations (new flow) + notifications.
+  - Added withdraw decision for session confirmations.
+  - Fixed assigned list/notification bell to show pending catches (not sessions).
+- Routing fixes:
+  - Added redirect `/sessions/assigned-to-me` → `/sessions/assigned`.
+  - Fixed NaN route errors from invalid nested route match.
+- Groups:
+  - Admins can list all groups; non-admins see only their groups.
+  - Group members endpoint returns profile + role; UI pages for group list, detail, and members.
+  - Members list styled + search, with current user subtly highlighted.
+- Misc:
+  - Switched Vite CSS transformer to `postcss` to suppress `@property` warning.
+
 
 ## P0 — Critical fixes and correctness
 

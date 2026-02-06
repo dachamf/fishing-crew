@@ -8,6 +8,7 @@ use App\Http\Requests\GroupUpdateRequest;
 use App\Models\Group;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Models\User;
 
 class GroupsController extends Controller
 {
@@ -19,10 +20,18 @@ class GroupsController extends Controller
     public function index(Request $req)
     {
         $user = $req->user();
-        $groups = $user->groups()
-            ->withCount(['users as members_count', 'events'])
-            ->latest('groups.created_at')
-            ->paginate(20);
+        if ($this->isAdmin($user)) {
+            $groups = Group::query()
+                ->withCount(['users as members_count', 'events'])
+                ->latest('groups.created_at')
+                ->paginate(20);
+        }
+        else {
+            $groups = $user->groups()
+                ->withCount(['users as members_count', 'events'])
+                ->latest('groups.created_at')
+                ->paginate(20);
+        }
 
         return $groups;
     }
@@ -50,11 +59,13 @@ class GroupsController extends Controller
      */
     public function show(Request $req, Group $group)
     {
-        abort_unless($group->isMember($req->user()->id), 403, 'Not a member of this group');
+        abort_unless($this->canViewGroup($req->user(), $group), 403, 'Not a member of this group');
 
         return $group->loadCount(['users as members_count', 'events'])
             ->load(['users' => function ($q) {
-                $q->select('users.id', 'users.name', 'users.email');
+                $q->select('users.id', 'users.name', 'users.email')
+                    ->with('profile:id,user_id,display_name,avatar_path')
+                    ->withPivot('role');
             }]);
     }
 
@@ -92,16 +103,30 @@ class GroupsController extends Controller
      */
     public function members(Request $req, Group $group)
     {
-        abort_unless($group->isMember($req->user()->id), 403);
+        abort_unless($this->canViewGroup($req->user(), $group), 403);
 
         $members = $group->users()
             ->select('users.id', 'users.name', 'users.email')
+            ->with('profile:id,user_id,display_name,avatar_path')
             ->withPivot('role')
             ->orderByRaw("FIELD(group_user.role, 'owner','moderator','member') asc")
             ->orderBy('users.name')
             ->get();
 
         return response()->json($members);
+    }
+
+    private function isAdmin(User $user): bool
+    {
+        return DB::table('group_user')
+            ->where('user_id', $user->id)
+            ->whereIn('role', ['admin', 'moderator', 'mod', 'owner'])
+            ->exists();
+    }
+
+    private function canViewGroup(User $user, Group $group): bool
+    {
+        return $this->isAdmin($user) || $group->isMember($user->id);
     }
 
     /**

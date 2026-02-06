@@ -15,7 +15,6 @@ const EMOJI_BY_ROUTE: Record<string, string> = {
   "/groups": "👥",
   "/events": "📅",
   "/sessions/assigned": "✅",
-  "/sessions/assigned-to-me": "✅",
 };
 
 // 2) Helper: ako label već počinje emoji-jem – ne dupliraj; u suprotnom, prefiksuj prema href
@@ -40,7 +39,7 @@ const _shortcuts = computed(() => {
     : [
         { label: "Članovi", href: gid.value ? `/groups/${gid.value}/members` : "/groups" },
         { label: "Događaji", href: "/events" },
-        { label: "Odobrenja", href: "/sessions/assigned-to-me" },
+        { label: "Odobrenja", href: "/sessions/assigned" },
       ];
   return base.map(s => ({ ...s, label: withEmoji(s.label, s.href) }));
 });

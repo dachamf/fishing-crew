@@ -113,6 +113,8 @@ export type GroupLite = {
   name: string;
   season_year?: number;
   role?: string; // pivot role
+  members_count?: number;
+  events_count?: number;
 };
 
 /** Species */
@@ -253,8 +255,10 @@ export type Me = {
 export type GroupMember = {
   id: number;
   name?: string;
+  email?: string;
   display_name?: string;
   avatar_url?: string;
+  role?: string;
   profile?: {
     avatar_url?: string;
     display_name?: string;

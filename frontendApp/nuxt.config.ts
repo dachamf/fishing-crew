@@ -48,6 +48,9 @@ export default defineNuxtConfig({
     },
   },
   vite: {
+    css: {
+      transformer: "postcss",
+    },
     build: { sourcemap: false, minify: "esbuild" },
     server: {
       allowedHosts: true,
