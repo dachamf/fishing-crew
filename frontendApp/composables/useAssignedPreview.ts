@@ -24,7 +24,7 @@ export function useAssignedPreview() {
 
     loading.value = true;
     _inflight.value = $api
-      .get("/v1/sessions/assigned-to-me", { params: { page: 1, per_page: 5 } })
+      .get("/v1/review/assigned", { params: { page: 1, per_page: 5 } })
       .then((r: any) => {
         const payload = r.data ?? {};
         items.value = (payload.data ?? payload.items ?? []) as AssignedItem[];

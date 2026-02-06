@@ -1,0 +1,15 @@
+#!/bin/bash
+
+## Description: Run Nuxt dev server
+## Usage: nuxt [command]
+## Example: ddev nuxt dev\nddev nuxt build\nddev nuxt generate
+## ProjectTypes: php,laravel
+
+cd /var/www/html/frontendApp
+
+if [ -z "$1" ]; then
+    echo "Starting Nuxt dev server..."
+    pnpm dev
+else
+    pnpm "$@"
+fi

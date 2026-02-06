@@ -18,6 +18,17 @@ web_environment:
 corepack_enable: true
 nodejs_version: "20"
 
+web_extra_exposed_ports:
+  - name: nuxt
+    container_port: 3000
+    http_port: 3080
+    https_port: 3000
+
+web_extra_daemons:
+  - name: nuxt-dev
+    command: "pnpm dev"
+    directory: /var/www/html/frontendApp
+
 # Key features of DDEV's config.yaml:
 
 # name: <projectname> # Name of the project, automatically provides

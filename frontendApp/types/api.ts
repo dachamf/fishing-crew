@@ -194,6 +194,7 @@ export type FishingSessionLite = {
   longitude?: number | null;
   status: SessionStatus;
   season_year?: number;
+  group_id?: ID | null;
   water_body?: string;
 
   finalized_at?: ISODate | null;

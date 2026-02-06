@@ -78,8 +78,61 @@ class SessionReviewController extends Controller
             ->where('nominee_user_id', $request->user()->id)
             ->firstOrFail();
 
-        $this->svc->confirm($session, $conf, $data['decision'], $request->user());
-        return response()->json(['status' => $conf->fresh()->status]);
+        if ($conf->status instanceof \App\Enums\ConfirmationStatus
+            ? $conf->status === \App\Enums\ConfirmationStatus::PENDING
+            : $conf->status === 'pending') {
+            $conf->update([
+                'status' => $data['decision'],
+                'decided_at' => now(),
+            ]);
+
+            // owner notify (per-action)
+            if ($session->user) {
+                $url = rtrim(config('app.frontend_url'), '/')."/sessions/{$session->id}";
+                $session->user->notify(new \App\Notifications\OwnerSessionConfirmationUpdated(
+                    $session,
+                    $request->user(),
+                    $data['decision'],
+                    $url
+                ));
+            }
+
+            $this->svc->maybeFinalize($session);
+        }
+
+        $fresh = $conf->fresh();
+        $status = $fresh->status instanceof \App\Enums\ConfirmationStatus
+            ? $fresh->status->value
+            : $fresh->status;
+
+        return response()->json(['status' => $status]);
+    }
+
+    /**
+     * Withdraw a previously submitted session confirmation decision.
+     */
+    public function withdraw(Request $request, FishingSession $session): JsonResponse
+    {
+        $this->authorize('confirm', $session);
+
+        $conf = SessionConfirmation::where('session_id', $session->id)
+            ->where('nominee_user_id', $request->user()->id)
+            ->firstOrFail();
+
+        if ($conf->status === \App\Enums\ConfirmationStatus::PENDING || $conf->status === 'pending') {
+            return response()->json(['status' => 'pending']);
+        }
+
+        $conf->update([
+            'status' => 'pending',
+            'decided_at' => null,
+        ]);
+
+        $fresh = $conf->fresh();
+        $status = $fresh->status instanceof \App\Enums\ConfirmationStatus
+            ? $fresh->status->value
+            : $fresh->status;
+        return response()->json(['status' => $status]);
     }
 
     /**

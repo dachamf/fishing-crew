@@ -37,7 +37,11 @@ export function useAuth() {
     return data;
   }
 
-  async function logout() {
+  function logout() {
+    user.value = null;
+  }
+
+  async function logoutAndRedirect() {
     try {
       await $api.post("/auth/logout");
     }
@@ -45,7 +49,7 @@ export function useAuth() {
       // ignore - cookie will be cleared by backend
     }
     user.value = null;
-    navigateTo("/login");
+    return navigateTo("/login");
   }
 
   const isVerified = computed(() => !!user.value?.email_verified_at);
@@ -76,6 +80,7 @@ export function useAuth() {
     login,
     me,
     logout,
+    logoutAndRedirect,
     changePassword,
     deleteAccount,
   };

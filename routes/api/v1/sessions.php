@@ -21,4 +21,5 @@ Route::post('/sessions/{session}/close-and-nominate', [FishingSessionController:
 Route::post('/sessions/{session}/review', [SessionReviewController::class, 'review']);       // legacy UI još uvek koristi
 Route::post('/sessions/{session}/nominate', [SessionReviewController::class, 'nominate']);
 Route::post('/sessions/{session}/confirm', [SessionReviewController::class, 'confirm']);
+Route::post('/sessions/{session}/confirmations/withdraw', [SessionReviewController::class, 'withdraw']);
 Route::post('/sessions/{session}/finalize', [SessionReviewController::class, 'finalize']);

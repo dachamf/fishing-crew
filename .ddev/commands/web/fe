@@ -1,0 +1,46 @@
+#!/bin/bash
+
+## Description: Frontend (Nuxt) helper commands
+## Usage: fe [command]
+## Example: ddev fe install\nddev fe dev\nddev fe build\nddev fe lint
+## ProjectTypes: php,laravel
+
+cd /var/www/html/frontendApp
+
+case "$1" in
+    install|i)
+        echo "Installing frontend dependencies..."
+        pnpm install
+        ;;
+    dev|d)
+        echo "Starting Nuxt dev server..."
+        pnpm dev
+        ;;
+    build|b)
+        echo "Building for production..."
+        pnpm build
+        ;;
+    lint|l)
+        echo "Running linter..."
+        pnpm lint
+        ;;
+    lint:fix|lf)
+        echo "Running linter with --fix..."
+        pnpm lint:fix
+        ;;
+    type-check|tc)
+        echo "Running type check..."
+        pnpm type-check
+        ;;
+    *)
+        echo "Usage: ddev fe [command]"
+        echo ""
+        echo "Commands:"
+        echo "  install, i     Install pnpm dependencies"
+        echo "  dev, d         Start Nuxt dev server"
+        echo "  build, b       Build for production"
+        echo "  lint, l        Run ESLint"
+        echo "  lint:fix, lf   Run ESLint with --fix"
+        echo "  type-check, tc Run TypeScript type check"
+        ;;
+esac

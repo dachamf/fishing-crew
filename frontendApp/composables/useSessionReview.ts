@@ -19,6 +19,9 @@ export function useSessionReview() {
   const confirmAuth = (sessionId: number, decision: "approved" | "rejected") =>
     $api.post(`/v1/sessions/${sessionId}/confirm`, { decision });
 
+  const withdrawAuth = (sessionId: number) =>
+    $api.post(`/v1/sessions/${sessionId}/confirmations/withdraw`);
+
   // Već dodato ranije (token-flow)
   const confirmByToken = (sessionId: number, token: string, decision: "approved" | "rejected") =>
     $api.post(`/v1/sessions/${sessionId}/confirm/${token}`, { decision });
@@ -27,6 +30,7 @@ export function useSessionReview() {
     review,
     assignedToMe,
     confirmAuth, // ⬅️ NEW
+    withdrawAuth,
     confirmByToken,
   };
 }

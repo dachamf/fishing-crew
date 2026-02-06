@@ -16,7 +16,7 @@ const router = useRouter(); // ⬅️ NEW
 const id = computed(() => Number(route.params.id));
 const { $api } = useNuxtApp() as any;
 const toast = useToast();
-const { review, confirmByToken, confirmAuth } = useSessionReview(); // ⬅️ UPDATED (dodali confirmByToken)
+const { review, confirmByToken, confirmAuth, withdrawAuth } = useSessionReview(); // ⬅️ UPDATED
 
 const coords = ref<{ lng: number | null; lat: number | null }>({ lng: null, lat: null });
 
@@ -40,7 +40,7 @@ const { data, pending, error, refresh } = await useAsyncData<FishingSession>(
   async () => {
     const res = await $api.get(`/v1/sessions/${id.value}`, {
       params: {
-        include: "catches.user,photos,reviews.reviewer,user,confirmations.nominee",
+        include: "catches.user,photos,reviews.reviewer,user,confirmations.nominee,group",
       },
     });
     return res.data as FishingSession;
@@ -113,6 +113,8 @@ const note = ref("");
 const rejecting = ref(false);
 const approveLoading = ref(false);
 const rejectOpen = ref(false);
+const confirmSessionLoading = ref(false);
+const withdrawSessionLoading = ref(false);
 
 // Akcije
 async function approveSession() {
@@ -152,6 +154,51 @@ async function confirmReject() {
   finally {
     rejecting.value = false;
     rejectOpen.value = false;
+  }
+}
+
+async function confirmSessionDecision(decision: "approved" | "rejected") {
+  if (!data.value?.id)
+    return;
+  confirmSessionLoading.value = true;
+  try {
+    await confirmAuth(id.value, decision);
+    // optimistic update
+    const conf = (data.value.confirmations || []).find(c => c.nominee_user_id === myId.value);
+    if (conf) {
+      conf.status = decision;
+      conf.decided_at = new Date().toISOString();
+    }
+    toast.success(decision === "approved" ? "Odobreno." : "Odbijeno.");
+    await refresh();
+  }
+  catch (e: any) {
+    toast.error(e?.response?.data?.message || "Greška");
+  }
+  finally {
+    confirmSessionLoading.value = false;
+  }
+}
+
+async function withdrawSessionDecision() {
+  if (!data.value?.id)
+    return;
+  withdrawSessionLoading.value = true;
+  try {
+    await withdrawAuth(id.value);
+    const conf = (data.value.confirmations || []).find(c => c.nominee_user_id === myId.value);
+    if (conf) {
+      conf.status = "pending";
+      conf.decided_at = null;
+    }
+    toast.success("Odluka povučena.");
+    await refresh();
+  }
+  catch (e: any) {
+    toast.error(e?.response?.data?.message || "Greška");
+  }
+  finally {
+    withdrawSessionLoading.value = false;
   }
 }
 
@@ -243,26 +290,42 @@ const canEditLocation = computed(() => {
                 <StatusBadge :status="sessionOverall" />
               </h1>
 
-              <div
-                v-if="myConfirmation && myConfirmation.status === 'pending'"
-                class="card bg-base-100 shadow mb-3"
-              >
+              <div v-if="myConfirmation" class="card bg-base-100 shadow mb-3">
                 <div class="card-body space-y-2">
                   <h2 class="text-lg font-semibold">
                     Moja odluka (session-level)
                   </h2>
-                  <div class="join">
+                  <div v-if="myConfirmation.status === 'pending'" class="join">
                     <button
                       class="btn btn-success join-item"
-                      @click="confirmAuth(id, 'approved').then(refresh)"
+                      :class="{ loading: confirmSessionLoading }"
+                      :disabled="confirmSessionLoading"
+                      @click="confirmSessionDecision('approved')"
                     >
                       Odobri
                     </button>
                     <button
                       class="btn btn-error join-item"
-                      @click="confirmAuth(id, 'rejected').then(refresh)"
+                      :class="{ loading: confirmSessionLoading }"
+                      :disabled="confirmSessionLoading"
+                      @click="confirmSessionDecision('rejected')"
                     >
                       Odbij
+                    </button>
+                  </div>
+                  <div v-else class="flex items-center gap-3 text-sm opacity-80">
+                    <div>
+                      Odluka je već poslata:
+                      <StatusBadge :status="myConfirmation.status as any" class="capitalize" />
+                    </div>
+                    <button
+                      v-if="!isFinal"
+                      class="btn btn-ghost btn-xs"
+                      :class="{ loading: withdrawSessionLoading }"
+                      :disabled="withdrawSessionLoading"
+                      @click="withdrawSessionDecision"
+                    >
+                      Povuci odluku
                     </button>
                   </div>
                 </div>
@@ -442,7 +505,7 @@ const canEditLocation = computed(() => {
 
                     <!-- lazy fetch članova grupe -->
                     <SessionNominateLaterPanel
-                      :group-id="data?.group?.id || null"
+                      :group-id="data?.group?.id ?? data?.group_id ?? null"
                       :session-id="data?.id!"
                       @done="refresh"
                     />

@@ -4,15 +4,16 @@ namespace App\Http\Controllers\api\v1;
 use App\Http\Controllers\Controller;
 use App\Models\FishingCatch;
 use App\Models\FishingSession;
-use App\Models\SessionReview;
 use App\Models\User;
 use App\Notifications\SessionConfirmationsRequested;
+use App\Services\SessionReviewService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 class FishingSessionController extends Controller
 {
+    public function __construct(private SessionReviewService $reviewSvc) {}
     /**
      * @param Request $r
      * @return JsonResponse
@@ -132,6 +133,7 @@ class FishingSessionController extends Controller
         $allowed = [
             'catches', 'catches.user',
             'event',
+            'group',
             'photos', // alias → catchPhotos
             'reviews', 'reviews.reviewer',
             'confirmations', 'confirmations.nominee',
@@ -169,6 +171,10 @@ class FishingSessionController extends Controller
         if ($include->contains('event')) {
             // ograniči kolone
             $with['event'] = fn($qq) => $qq->select('id', 'title', 'start_at');
+        }
+
+        if ($include->contains('group')) {
+            $with['group'] = fn($qq) => $qq->select('id', 'name', 'season_year');
         }
 
         if ($include->contains('reviews.reviewer')) {
@@ -349,10 +355,7 @@ class FishingSessionController extends Controller
             }
         }
 
-        $created = 0;
-        $createdByReviewer = []; // uid => lista minimalnih podataka o ulovima
-
-        \DB::transaction(function () use ($session, $reviewerIds, &$created, &$createdByReviewer) {
+        \DB::transaction(function () use ($session) {
             // 3) Zatvori sesiju bez obzira na nominacije
             $session->update([
                 'status' => 'closed',
@@ -362,47 +365,21 @@ class FishingSessionController extends Controller
             // 4) Svi ulovi iz sesije prelaze u pending (ako već nisu)
             FishingCatch::where('session_id', $session->id)
                 ->update(['status' => 'pending']);
-
-            // 5) Nominacije – ako postoji lista
-            if ($reviewerIds->isNotEmpty()) {
-                foreach ($reviewerIds as $uid) {
-                    $rev = SessionReview::firstOrCreate(
-                        ['session_id' => $session->id, 'reviewer_id' => $uid],
-                        ['status' => 'pending']
-                    );
-
-                    if ($rev->wasRecentlyCreated) {
-                        $created++;
-
-                        // pripremi listu ulova za email preview
-                        $createdByReviewer[$uid] = FishingCatch::where('session_id', $session->id)
-                            ->get(['id', 'species', 'species_name', 'count', 'total_weight_kg', 'caught_at'])
-                            ->map(fn($c) => [
-                                'id' => $c->id,
-                                'species' => $c->species_label ?: '-',
-                                'count' => $c->count,
-                                'total_weight_kg' => $c->total_weight_kg,
-                                'caught_at' => $c->caught_at,
-                            ])->all();
-                    }
-                }
-            }
         });
 
-        // 6) Notifikacije van transakcije (po reviewer-u, samo ako je kreiran zapis)
-        if (!empty($createdByReviewer)) {
-            foreach ($createdByReviewer as $uid => $items) {
-                if (!empty($items) && ($user = User::find($uid))) {
-                    $user->notify(new SessionConfirmationsRequested($session, $items));
-                }
-            }
+        // 5) Nominacije (novi flow: session confirmations + token link)
+        if ($reviewerIds->isNotEmpty()) {
+            $this->reviewSvc->nominate(
+                $session,
+                $reviewerIds->all(),
+                fn($s, $c) => rtrim(config('app.frontend_url'), '/')."/sessions/{$s->id}?token={$c->plain_token}"
+            );
         }
 
         return response()->json([
             'message' => $reviewerIds->isNotEmpty()
                 ? 'Sesija zatvorena. Poslati zahtevi za potvrdu.'
                 : 'Sesija zatvorena bez nominacija.',
-            'created' => $created,
             'n_reviewers' => $reviewerIds->count(),
             'session' => $session->fresh(),
         ]);

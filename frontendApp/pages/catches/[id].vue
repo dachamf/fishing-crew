@@ -6,7 +6,9 @@ defineOptions({ name: "CatchDetailPage" });
 const route = useRoute();
 const id = Number(route.params.id);
 const { $api } = useNuxtApp() as any;
+const { withdraw } = useCatchReview();
 const toast = useToast();
+const { user } = useAuth();
 const { data, pending, error, refresh } = await useAsyncData<FishingCatch>(
   () => `catch:${id}`,
   async () => {
@@ -74,7 +76,10 @@ const { data: members, pending: membersLoading } = await useAsyncData<GroupMembe
   { watch: [groupId], server: false },
 );
 
-const myId = computed(() => data.value?.user?.id); // ili iz /v1/me
+const myId = computed(() => user.value?.id ?? null);
+const myConfirmation = computed(
+  () => (data.value?.confirmations || []).find(c => c.confirmed_by === myId.value) || null,
+);
 const filteredMembers = computed(() => (members.value || []).filter(m => m.id !== myId.value));
 
 const isOwner = computed(() => data.value?.user?.id === myId.value);
@@ -124,6 +129,17 @@ async function requestConfirmations() {
   }
   catch (e: any) {
     toast.error(toErrorMessage(e?.response?.data?.message) || "Greška pri slanju zahteva");
+  }
+}
+
+async function withdrawDecision() {
+  try {
+    await withdraw(id);
+    toast.success("Odluka povučena");
+    await refresh();
+  }
+  catch (e: any) {
+    toast.error(e?.response?.data?.message || "Greška pri povlačenju odluke");
   }
 }
 </script>
@@ -343,6 +359,15 @@ async function requestConfirmations() {
               <!-- Odbij otvara dijalog -->
               <button class="btn btn-error join-item" @click="openReject">
                 Odbij
+              </button>
+            </div>
+            <div v-else-if="myConfirmation" class="mt-2 flex items-center gap-3 text-sm opacity-80">
+              <div>
+                Odluka je već poslata:
+                <span class="badge capitalize">{{ myConfirmation.status }}</span>
+              </div>
+              <button class="btn btn-ghost btn-xs" @click="withdrawDecision">
+                Povuci odluku
               </button>
             </div>
 

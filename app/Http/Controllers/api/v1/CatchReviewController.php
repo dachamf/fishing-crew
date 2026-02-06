@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\FishingCatch;
 use App\Models\CatchConfirmation;
 use App\Models\User;
+use App\Notifications\CatchConfirmationRequested;
 use App\Notifications\CatchChangeRequested;
 use App\Notifications\CatchConfirmationUpdated;
 use App\Notifications\OwnerCatchFinalized;
@@ -22,14 +23,17 @@ class CatchReviewController extends Controller
         $this->authorize('update', $catch);
 
         $data = $r->validate([
-            'reviewer_ids' => ['required','array','min:1'],
+            'reviewer_ids' => ['required_without:user_ids','array','min:1'],
             'reviewer_ids.*' => ['integer','exists:users,id'],
+            'user_ids' => ['required_without:reviewer_ids','array','min:1'],
+            'user_ids.*' => ['integer','exists:users,id'],
         ]);
 
+        $idsInput = $data['reviewer_ids'] ?? $data['user_ids'] ?? [];
         $existing = $catch->confirmations()->pluck('confirmed_by')->all();
 
         // filtriraj: unique, bez vlasnika
-        $ids = collect($data['reviewer_ids'])
+        $ids = collect($idsInput)
             ->map(fn($i)=>(int)$i)->unique()
             ->reject(fn($uid) => $uid === (int)$catch->user_id);
 
@@ -49,9 +53,16 @@ class CatchReviewController extends Controller
                     'confirmed_by' => $uid,
                     'status' => 'pending',
                 ]);
-                // TODO: optional notifikacija
             }
         });
+
+        if (count($toCreate)) {
+            $catch->loadMissing('session');
+            $recipients = User::whereIn('id', $toCreate)->get();
+            foreach ($recipients as $recipient) {
+                $recipient->notify(new CatchConfirmationRequested($catch, $catch->session));
+            }
+        }
 
         return response()->json($catch->fresh()->load('confirmations'));
     }
@@ -137,7 +148,12 @@ class CatchReviewController extends Controller
     public function assignedToMe(Request $r) {
         $q = FishingCatch::query()
             ->whereHas('confirmations', fn($x)=>$x->where('confirmed_by',$r->user()->id)->where('status','pending'))
-            ->with(['user:id,name,avatar_url','photos','confirmations']);
+            ->with([
+                'user:id,name',
+                'user.profile:id,user_id,display_name,avatar_path',
+                'photos',
+                'confirmations',
+            ]);
 
         return response()->json($q->orderByDesc('caught_at')->paginate(20));
     }

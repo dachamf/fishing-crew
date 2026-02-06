@@ -16,13 +16,13 @@ watch(page, (p) => {
   <div class="container mx-auto p-4 space-y-4">
     <div class="flex items-center justify-between">
       <h1 class="text-2xl font-semibold">
-        Sesije koje čekaju mene
+        Ulovi koji čekaju mene
       </h1>
       <NuxtLink class="btn btn-ghost btn-sm" to="/sessions">
         ← Sve sesije
       </NuxtLink>
     </div>
 
-    <SessionAssignedList :page="page" @page="(p) => (page = p)" />
+    <CatchAssignedList :page="page" @page="(p) => (page = p)" />
   </div>
 </template>

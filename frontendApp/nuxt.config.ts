@@ -51,7 +51,11 @@ export default defineNuxtConfig({
     build: { sourcemap: false, minify: "esbuild" },
     server: {
       allowedHosts: true,
-      hmr: true,
+      hmr: {
+        protocol: "wss",
+        host: "app.fishermen-crew.ddev.site",
+        port: 3000,
+      },
     },
   },
 });

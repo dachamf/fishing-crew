@@ -13,7 +13,10 @@ class LogoutController extends Controller
      */
     public function __invoke(Request $request): Response
     {
-        $request->user()->token()->delete();
+        $user = $request->user();
+        if ($user && $user->currentAccessToken()) {
+            $user->currentAccessToken()->delete();
+        }
 
         return response()->noContent()
             ->withoutCookie('auth_token', '/', null);

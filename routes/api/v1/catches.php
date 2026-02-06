@@ -16,6 +16,7 @@ Route::delete('catches/{id}', [CatchesController::class, 'destroy']);
 // Legacy review flow (catch-level)
 Route::get('catches/to-review', [CatchReviewController::class, 'assignedToMe']);
 Route::post('catches/{id}/reviewers', [CatchReviewController::class, 'nominate']);
+Route::post('catches/{id}/request-confirmation', [CatchReviewController::class, 'nominate']);
 Route::post('catches/{id}/review', [CatchReviewController::class, 'confirm']);
 Route::post('catches/{id}/review/request-change', [CatchReviewController::class, 'requestChange']);
 Route::get('review/assigned', [CatchReviewController::class, 'assignedToMe']);
@@ -26,3 +27,5 @@ Route::delete('catches/{id}/photos/{photoId}', [CatchPhotoController::class, 'de
 
 // Catch confirmations (ako ih koristiš)
 Route::post('/catches/{catch}/confirm', [CatchesConfirmationController::class, 'store']);
+Route::post('/catches/{catch}/confirmations', [CatchesConfirmationController::class, 'store']);
+Route::post('/catches/{catch}/confirmations/withdraw', [CatchesConfirmationController::class, 'withdraw']);

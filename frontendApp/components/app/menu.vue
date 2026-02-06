@@ -14,7 +14,6 @@ const { startPolling: startAssignedPolling, fetchOnce: fetchAssignedOnce } = use
 const { assignedToMe } = useSessionReview();
 
 const route = useRoute();
-const router = useRouter();
 
 // Mobile dropdown toggle
 const open = ref(false);
@@ -108,13 +107,8 @@ async function resendVerification() {
 
 // Logout + redirect
 async function doLogout() {
-  try {
-    await auth.logout();
-  }
-  finally {
-    open.value = false;
-    router.push("/login");
-  }
+  open.value = false;
+  await auth.logoutAndRedirect();
 }
 
 // Zatvori dropdown na promenu rute

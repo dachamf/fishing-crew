@@ -29,14 +29,14 @@ watch([() => route.fullPath, () => auth.user.value?.id], () => {
     <div
       class="btn btn-ghost btn-circle"
       role="button"
-      aria-label="Sesije dodeljene meni"
+      aria-label="Ulovi dodeljeni meni"
     >
       <div class="indicator">
         <Icon name="tabler:clipboard-check" size="20" />
         <span
           v-if="assignedCount > 0"
           class="badge badge-secondary badge-sm absolute -right-1 -top-1"
-          title="Sesije koje čekaju tvoju odluku"
+          title="Ulovi koji čekaju tvoju odluku"
         >{{ assignedCount }}</span>
       </div>
     </div>
@@ -62,32 +62,32 @@ watch([() => route.fullPath, () => auth.user.value?.id], () => {
 
         <ul v-else-if="(items?.length || 0) > 0" class="mt-1 space-y-2">
           <li
-            v-for="s in items || []"
-            :key="s.id"
+            v-for="c in items || []"
+            :key="c.id"
             class="flex items-start justify-between gap-3"
           >
             <div class="min-w-0">
               <NuxtLink
-                :title="s.title || `Sesija #${s.id}`"
-                :to="`/sessions/${s.id}`"
+                :title="`Ulov #${c.id}`"
+                :to="`/catches/${c.id}`"
                 class="font-medium text-sm hover:underline truncate block"
               >
-                {{ s.title || `Sesija #${s.id}` }}
+                Ulov #{{ c.id }}
               </NuxtLink>
               <div class="text-xs opacity-70">
-                Počela:
-                {{ s.started_at ? timeago(s.started_at) : '—' }} • Ulova:
-                {{ s.catches_count ?? s.catches?.length ?? '—' }}
+                Datum:
+                {{ c.caught_at ? timeago(c.caught_at) : '—' }} • Kom:
+                {{ c.count ?? '—' }}
               </div>
             </div>
-            <NuxtLink :to="`/sessions/${s.id}`" class="btn btn-ghost btn-xs">
+            <NuxtLink :to="`/catches/${c.id}`" class="btn btn-ghost btn-xs">
               Otvori
             </NuxtLink>
           </li>
         </ul>
 
         <div v-else class="opacity-70 text-sm">
-          Nema sesija koje čekaju tvoju odluku.
+          Nema ulova koji čekaju tvoju odluku.
         </div>
 
         <div class="pt-1">

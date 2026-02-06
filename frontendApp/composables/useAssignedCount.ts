@@ -6,8 +6,9 @@ export function useAssignedCount() {
   async function refresh() {
     loading.value = true;
     try {
-      const r = await $api.get("/v1/sessions/assigned-count");
-      total.value = Number(r.data?.total_pending || 0);
+      const r = await $api.get("/v1/review/assigned", { params: { page: 1, per_page: 1 } });
+      const payload = r.data ?? {};
+      total.value = Number(payload?.meta?.total ?? payload?.total ?? 0);
     }
     catch {
       // swallow

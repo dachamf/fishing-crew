@@ -28,4 +28,18 @@ class FishingCatchPolicy
     public function delete(User $u, FishingCatch $s): bool {
         return $this->update($u,$s);
     }
+
+    public function confirm(User $u, FishingCatch $s): bool {
+        return $s->confirmations()
+            ->where('confirmed_by', $u->id)
+            ->where('status', 'pending')
+            ->exists();
+    }
+
+    public function withdraw(User $u, FishingCatch $s): bool {
+        return $s->confirmations()
+            ->where('confirmed_by', $u->id)
+            ->where('status', '!=', 'pending')
+            ->exists();
+    }
 }

@@ -58,6 +58,40 @@ class CatchesConfirmationController extends Controller
     }
 
     /**
+     * Withdraw a previously submitted confirmation decision.
+     */
+    public function withdraw(Request $req, FishingCatch $catch)
+    {
+        $this->authorize('withdraw', $catch);
+
+        $conf = CatchConfirmation::where('catch_id', $catch->id)
+            ->where('confirmed_by', $req->user()->id)
+            ->firstOrFail();
+
+        if ($conf->status === 'pending') {
+            return response()->json(['status' => $conf->status]);
+        }
+
+        DB::transaction(function () use ($catch, $conf) {
+            $conf->update([
+                'status' => 'pending',
+                'note' => null,
+            ]);
+
+            // recompute catch status
+            $hasRejected = $catch->confirmations()->where('status', 'rejected')->exists();
+            $hasApproved = $catch->confirmations()->where('status', 'approved')->exists();
+
+            $catch->status = $hasRejected ? 'rejected' : ($hasApproved ? 'approved' : 'pending');
+            $catch->save();
+
+            $this->recalcScoresAggregate($catch);
+        });
+
+        return response()->json(['status' => $conf->fresh()->status]);
+    }
+
+    /**
      * Recalculates the scores for a specific fishing catch by updating or creating
      * the corresponding score record in the database. This function determines the
      * current season, calculates points based on activity and weight, and updates
@@ -87,6 +121,48 @@ class CatchesConfirmationController extends Controller
             $row->biggest_single_kg = max((float)($row->biggest_single_kg ?? 0), (float)$catch->biggest_single_kg);
         }
 
+        $row->save();
+    }
+
+    /**
+     * Recalculate scores from scratch for a user's approved catches in the season.
+     */
+    protected function recalcScoresAggregate(FishingCatch $catch): void
+    {
+        $season = $catch->season_year ?? optional($catch->group)->season_year ?? now()->year;
+
+        $approved = FishingCatch::query()
+            ->where('group_id', $catch->group_id)
+            ->where('user_id', $catch->user_id)
+            ->where('season_year', $season)
+            ->where('status', 'approved')
+            ->get(['total_weight_kg', 'biggest_single_kg']);
+
+        $count = $approved->count();
+        $row = Score::where([
+            'group_id' => $catch->group_id,
+            'user_id' => $catch->user_id,
+            'season_year' => $season,
+        ])->first();
+
+        if (!$row) {
+            if ($count === 0) {
+                return;
+            }
+            $row = Score::firstOrCreate(
+                ['group_id' => $catch->group_id, 'user_id' => $catch->user_id, 'season_year' => $season],
+                []
+            );
+        }
+
+        $activity = $count;
+        $weight = $approved->sum(fn($c) => (int) round(($c->total_weight_kg ?? 0) * 10));
+        $biggest = $approved->max('biggest_single_kg');
+
+        $row->activity_points = $activity;
+        $row->weight_points = $weight;
+        $row->total_points = $activity + $weight;
+        $row->biggest_single_kg = $count ? $biggest : null;
         $row->save();
     }
 }

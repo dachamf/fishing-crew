@@ -9,6 +9,7 @@ use App\Notifications\OwnerSessionConfirmationUpdated;
 use App\Notifications\OwnerSessionFinalized;
 use App\Notifications\SessionConfirmationsRequested; // postoji u tvom repo-u
 use App\Notifications\SessionReviewTokenLink;        // NOVO (vidi ispod)
+use App\Enums\ConfirmationStatus;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -40,10 +41,10 @@ class SessionReviewService
 
             // Light lista ulova (za email preview)
             $items = $session->catches()
-                ->get(['id','species','species_name','count','total_weight_kg','caught_at'])
+                ->get(['id','species_id','species_name','count','total_weight_kg','caught_at'])
                 ->map(fn($c) => [
                     'id'               => $c->id,
-                    'species'          => $c->species_label ?? $c->species ?? $c->species_name ?? '-',
+                    'species'          => $c->species_label ?? $c->species_name ?? '-',
                     'count'            => $c->count,
                     'total_weight_kg'  => $c->total_weight_kg,
                     'caught_at'        => $c->caught_at,
@@ -72,7 +73,9 @@ class SessionReviewService
         bool $silent = false
     ): void
     {
-        if ($conf->status !== 'pending') {
+        if (($conf->status instanceof ConfirmationStatus
+            ? $conf->status !== ConfirmationStatus::PENDING
+            : $conf->status !== 'pending')) {
             return;
         }
 
@@ -117,9 +120,9 @@ class SessionReviewService
         if ($session->confirmations()->count() === 0) return;
 
         // čekamo dok ne nestane pending
-        if ($session->confirmations->where('status', 'pending')->count() > 0) return;
+        if ($session->confirmations->where('status', ConfirmationStatus::PENDING)->count() > 0) return;
 
-        $final = $session->confirmations->contains(fn($c) => $c->status === 'rejected')
+        $final = $session->confirmations->contains(fn($c) => $c->status === ConfirmationStatus::REJECTED)
             ? 'rejected'
             : 'approved';
 
