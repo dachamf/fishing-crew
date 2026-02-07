@@ -1,4 +1,4 @@
-@import 'tailwindcss';
+@import "tailwindcss";
 @plugin "daisyui" {
   themes:
     light --default,
@@ -21,13 +21,13 @@
 }
 
 /* Light tema → primary */
-:root[data-theme='light'] .nuxt-progress {
+:root[data-theme="light"] .nuxt-progress {
   background: oklch(var(--p));
   box-shadow: 0 0 10px oklch(var(--p));
 }
 
 /* Dark tema → secondary (možeš promeniti u --p ako želiš) */
-:root[data-theme='dark'] .nuxt-progress {
+:root[data-theme="dark"] .nuxt-progress {
   background: oklch(var(--s));
   box-shadow: 0 0 10px oklch(var(--s));
 }
@@ -40,11 +40,11 @@
   height: 3px;
   z-index: 9999;
 }
-:root[data-theme='light'] .nuxt-progress {
+:root[data-theme="light"] .nuxt-progress {
   background: oklch(var(--p));
   box-shadow: 0 0 10px oklch(var(--p));
 }
-:root[data-theme='dark'] .nuxt-progress {
+:root[data-theme="dark"] .nuxt-progress {
   background: oklch(var(--s));
   box-shadow: 0 0 10px oklch(var(--s));
 }
@@ -61,7 +61,7 @@
   @apply p-4 min-h-72;
 }
 
-html[data-theme='dark'] {
+html[data-theme="dark"] {
   body {
     @apply bg-base-200 text-base-content;
   }
@@ -132,26 +132,23 @@ html[data-theme='dark'] {
   }
 }
 
-html[data-theme='dark'] .app-logo {
-  filter: invert(1) brightness(1.6) contrast(1.4) saturate(0)
-    drop-shadow(0 1px 8px rgba(255, 255, 255, 0.35)) !important;
+html[data-theme="dark"] .app-logo {
+  filter: invert(1) brightness(1.6) contrast(1.4) saturate(0) drop-shadow(0 1px 8px rgba(255, 255, 255, 0.35)) !important;
 }
-html[data-theme='dark'] img[src*='/logo.png'],
-html[data-theme='dark'] img[src$='/logo.png'],
-html[data-theme='dark'] img[alt='logo'] {
-  filter: invert(1) brightness(1.6) contrast(1.4) saturate(0)
-    drop-shadow(0 1px 8px rgba(255, 255, 255, 0.35)) !important;
+html[data-theme="dark"] img[src*="/logo.png"],
+html[data-theme="dark"] img[src$="/logo.png"],
+html[data-theme="dark"] img[alt="logo"] {
+  filter: invert(1) brightness(1.6) contrast(1.4) saturate(0) drop-shadow(0 1px 8px rgba(255, 255, 255, 0.35)) !important;
 }
 
-html[data-theme='dark'] img[src*='/icons/icon-32.png'],
-html[data-theme='dark'] img[src*='/icons/icon-64.png'],
-html[data-theme='dark'] img[src*='/icons/icon-128.png'],
-html[data-theme='dark'] img[src*='/icons/icon-192.png'],
-html[data-theme='dark'] img[src*='/icons/icon-256.png'] {
-  filter: invert(1) brightness(1.6) contrast(1.4) saturate(0)
-    drop-shadow(0 1px 8px rgba(255, 255, 255, 0.35));
+html[data-theme="dark"] img[src*="/icons/icon-32.png"],
+html[data-theme="dark"] img[src*="/icons/icon-64.png"],
+html[data-theme="dark"] img[src*="/icons/icon-128.png"],
+html[data-theme="dark"] img[src*="/icons/icon-192.png"],
+html[data-theme="dark"] img[src*="/icons/icon-256.png"] {
+  filter: invert(1) brightness(1.6) contrast(1.4) saturate(0) drop-shadow(0 1px 8px rgba(255, 255, 255, 0.35));
 }
 
-html[data-theme='dark'] .avatar > div {
+html[data-theme="dark"] .avatar > div {
   border-color: rgba(255, 255, 255, 0.22);
 }
