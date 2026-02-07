@@ -27,7 +27,7 @@ const year = new Date().getFullYear();
           <img
             src="/logo.png"
             alt=""
-            class="h-6 w-auto"
+            class="app-logo h-6 w-auto"
           >
           Fishing Crew
         </NuxtLink>

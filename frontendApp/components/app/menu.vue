@@ -205,7 +205,7 @@ watch(
         Fishing Crew
         <img
           alt="logo"
-          class="inline-block align-text-bottom ml-2"
+          class="app-logo inline-block align-text-bottom ml-2"
           height="32"
           src="/logo.png"
           width="128"

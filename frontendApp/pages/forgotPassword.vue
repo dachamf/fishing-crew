@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useHead } from "#imports";
+import axios from "axios";
 import { ref } from "vue";
 
 definePageMeta({ public: true });
@@ -27,9 +28,27 @@ async function submit() {
     sent.value = true;
     success("Poslali smo link za reset lozinke.");
   }
-  catch (e: any) {
-    formErr.value = e?.response?.data?.message || "Greška pri slanju zahteva.";
-    error(formErr.value);
+  catch (e: unknown) {
+    let msg = "Greška pri slanju zahteva.";
+
+    if (axios.isAxiosError(e)) {
+      const data = e.response?.data as any;
+      const serverMsg = data?.message;
+
+      if (typeof serverMsg === "string" && serverMsg.trim().length > 0) {
+        msg = serverMsg;
+      }
+      else if (e.message.trim().length > 0) {
+        // npr. Network Error, timeout...
+        msg = e.message;
+      }
+    }
+    else if (e instanceof Error && e.message.trim().length > 0) {
+      msg = e.message;
+    }
+
+    formErr.value = msg;
+    error(msg);
   }
   finally {
     busy.value = false;

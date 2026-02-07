@@ -138,20 +138,20 @@ useSWR(() => refreshHome(), {
               {{ me?.display_name || me?.name || '...' }}
             </h1>
           </div>
-          <div class="join">
-            <button class="btn join-item" @click="onNewCatch">
+          <div class="join join-vertical sm:join-horizontal w-full sm:w-auto">
+            <button class="btn join-item w-full sm:w-auto" @click="onNewCatch">
               + Novi ulov
             </button>
             <button
               :class="{ loading: hydrated && (sessLoading || isHomeLoading) }"
-              class="btn btn-primary join-item"
+              class="btn btn-primary join-item w-full sm:w-auto"
               @click="onStartOrResume"
             >
               {{ openSession?.id ? 'Nastavi sesiju' : 'Pokreni sesiju' }}
             </button>
             <button
               v-if="openSession?.id"
-              class="btn btn-warning join-item"
+              class="btn btn-warning join-item w-full sm:w-auto"
               @click="onCloseSession"
             >
               Zatvori sesiju
@@ -168,7 +168,7 @@ useSWR(() => refreshHome(), {
         <div class="card-body">
           <template v-if="isHomeLoading">
             <div class="skeleton h-6 w-48 mb-2" />
-            <div class="grid grid-cols-3 gap-2">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
               <div class="skeleton h-24" />
               <div class="skeleton h-24" />
               <div class="skeleton h-24" />
@@ -185,7 +185,10 @@ useSWR(() => refreshHome(), {
               • Ulova: {{ openSession.catches_count ?? 0 }}
             </div>
 
-            <div v-if="(openSession.photos?.length || 0) > 0" class="mt-3 grid grid-cols-3 gap-2">
+            <div
+              v-if="(openSession.photos?.length || 0) > 0"
+              class="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2"
+            >
               <div
                 v-for="(p, i) in openSession.photos!.slice(0, 3)"
                 :key="i"
@@ -199,14 +202,14 @@ useSWR(() => refreshHome(), {
               </div>
             </div>
 
-            <div class="mt-3 join">
-              <NuxtLink :to="`/sessions/${openSession.id}`" class="btn join-item">
+            <div class="mt-3 join join-vertical sm:join-horizontal w-full sm:w-auto">
+              <NuxtLink :to="`/sessions/${openSession.id}`" class="btn join-item w-full sm:w-auto">
                 Otvori sesiju
               </NuxtLink>
-              <button class="btn btn-primary join-item" @click="onNewCatch">
+              <button class="btn btn-primary join-item w-full sm:w-auto" @click="onNewCatch">
                 + Dodaj ulov
               </button>
-              <button class="btn btn-warning join-item" @click="onCloseSession">
+              <button class="btn btn-warning join-item w-full sm:w-auto" @click="onCloseSession">
                 Zatvori
               </button>
             </div>
