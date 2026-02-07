@@ -5,6 +5,10 @@ export default defineNuxtRouteMiddleware(async (to) => {
     || to.path.startsWith("/login")
     || to.path.startsWith("/register")
     || to.path.startsWith("/verify")
+    || to.path.startsWith("/forgotPassword")
+    || to.path.startsWith("/resetPassword")
+    || to.path.startsWith("/forgot-password")
+    || to.path.startsWith("/reset-password")
   ) {
     return;
   }

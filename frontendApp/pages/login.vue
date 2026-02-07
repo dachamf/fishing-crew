@@ -148,7 +148,7 @@ async function submit() {
               <NuxtLink to="/register" class="link link-primary">
                 Nemaš nalog? Registruj se
               </NuxtLink>
-              <NuxtLink to="/pages/forgotPassword" class="link link-hover text-base-content/60">
+              <NuxtLink to="/forgotPassword" class="link link-hover text-base-content/60">
                 Zaboravljena lozinka
               </NuxtLink>
             </div>
