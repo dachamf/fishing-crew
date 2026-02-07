@@ -60,6 +60,12 @@ const pointMarkers = computed(() =>
       coordinates: [s.longitude as number, s.latitude as number] as [number, number],
     })),
 );
+
+const belgradeCenter = [20.4489, 44.7866] as [number, number];
+const center = computed<[number, number] | null>(() =>
+  pointMarkers.value.length ? null : belgradeCenter,
+);
+const zoom = computed<number>(() => (pointMarkers.value.length ? 9 : 10));
 </script>
 
 <template>
@@ -67,6 +73,8 @@ const pointMarkers = computed(() =>
     :style-url="styleUrl"
     :height="height"
     :bounds="bounds"
+    :center="center"
+    :zoom="zoom"
     :points="pointMarkers"
     :fit-bounds-max-zoom="8"
   />

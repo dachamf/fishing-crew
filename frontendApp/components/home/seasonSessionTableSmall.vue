@@ -24,7 +24,7 @@ const serverHeaders = import.meta.server
 const page = ref(1);
 const key = computed(() => `home:season-sessions:${props.groupId || 0}:${props.year}:${page.value}`);
 
-const { data, pending, error } = await useAsyncData(
+const { data, pending, error, refresh } = await useAsyncData(
   key.value,
   async () => {
     const res = await $api.get("/v1/sessions", {
@@ -42,6 +42,14 @@ const { data, pending, error } = await useAsyncData(
   },
   { watch: [() => key.value] },
 );
+
+const retriedAfterMount = ref(false);
+onMounted(async () => {
+  if (error.value && !retriedAfterMount.value) {
+    retriedAfterMount.value = true;
+    await refresh();
+  }
+});
 
 const items = computed<Row[]>(() => data.value?.data ?? []);
 const meta = computed(() => ({
@@ -133,8 +141,11 @@ const groups = computed(() => {
         <div class="skeleton h-6 w-2/3" />
       </div>
 
-      <div v-else-if="error" class="alert alert-error mt-2">
-        Greška pri učitavanju sesija.
+      <div v-else-if="error" class="alert alert-error mt-2 flex items-center justify-between gap-3">
+        <span>Greška pri učitavanju sesija.</span>
+        <button class="btn btn-xs btn-outline" @click="refresh()">
+          Pokušaj ponovo
+        </button>
       </div>
 
       <div v-else>
