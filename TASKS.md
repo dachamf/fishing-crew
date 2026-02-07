@@ -1,8 +1,42 @@
-# Fishing Crew — Project Task List (2025-08-20)
+# Fishing Crew — Project Task List (2026-02-07)
 
 This document outlines a prioritized, actionable task list based on the current repository analysis. It covers backend/API, authentication & security, media/storage, domain features, testing & QA, developer experience, and documentation.
 
 Note: The list aims for pragmatic increments. Items are grouped by priority: P0 (critical/bugs), P1 (high value), P2 (nice-to-have/roadmap).
+
+## Updates (2026-02-07)
+
+- **Password Reset Flow (new)**:
+  - Added `ForgotPasswordController` and `ResetPasswordController` (backend)
+  - Routes: `POST /auth/forgot-password`, `POST /auth/reset-password` (rate-limited)
+  - Reset URL customized in `AppServiceProvider` to point to Nuxt frontend
+  - Frontend: new `forgotPassword.vue` and `resetPassword.vue` pages (public, Serbian UI)
+  - Login page now links to "Zaboravljena lozinka" via NuxtLink
+- **SSR Authentication (fixed)**:
+  - Axios plugin now forwards `cookie`, `origin`, `referer` headers during SSR
+  - Season session table components also forward SSR headers for authenticated data fetches
+  - Auth middleware differentiates SSR vs CSR error handling (avoids false login redirects during SSR)
+  - Added `ready` state in `useAuth()` to prevent race conditions with Axios 401 interceptor
+- **Cookie Domain Resolution (fixed)**:
+  - Login/Logout controllers now dynamically resolve cookie domain from config/request instead of hardcoded `null`
+  - Handles cross-subdomain cookies (e.g., `api.fishingcrew.app` ↔ `fishingcrew.app`)
+- **Dark Theme Overhaul**:
+  - Extensive dark mode CSS for cards, modals, tables, inputs, alerts, badges, buttons
+  - Logo inversion filter (`.app-logo` class) for dark backgrounds
+  - Body and main layout now apply `bg-base-200 text-base-content` for consistent theming
+- **Profile Menu UX**:
+  - Explicit open/close state with `onClickOutside` and Escape key support
+  - User display name is now a clickable link to profile (removed separate "Profil" menu item)
+- **Responsive UI**:
+  - Dashboard button groups stack vertically on mobile (`join-vertical sm:join-horizontal`)
+  - Skeleton/photo grids use responsive breakpoints (`grid-cols-1 sm:grid-cols-2 lg:grid-cols-3`)
+- **Code Cleanup**:
+  - Removed `PhotoController` (photos served from S3 directly)
+  - Removed 3 obsolete mailables (`SessionFinalizedMail`, `SessionReviewActionMail`, `SessionReviewRequestMail`)
+  - Removed `ProfilePolicy` (unused)
+  - Removed `rsvpConfirmDialog.vue` (HeadlessUI → moving to Radix Vue)
+  - Removed `CatchesController::byEvent()` and `::mine()` endpoints
+  - Cleaned unused imports across 7+ files
 
 ## Updates (2026-02-06)
 
@@ -10,8 +44,8 @@ Note: The list aims for pragmatic increments. Items are grouped by priority: P0 
 - Auth/logout: fixed token deletion (Sanctum currentAccessToken) to avoid 500s on logout.
 - Catch confirmations:
   - Added missing routes, fixed authorization, and added nomination notification.
-  - Added assigned catch list UI and wiring for “assigned to me”.
-  - Added “withdraw decision” flow (API + UI) and status lock after decision.
+  - Added assigned catch list UI and wiring for "assigned to me".
+  - Added "withdraw decision" flow (API + UI) and status lock after decision.
 - Session confirmations:
   - Fixed close-and-nominate to use session confirmations (new flow) + notifications.
   - Added withdraw decision for session confirmations.
@@ -42,7 +76,7 @@ Note: The list aims for pragmatic increments. Items are grouped by priority: P0 
 ## P1 — High-priority enhancements
 
 - Authorization and Policy coverage
-  - Review and enforce policies (ProfilePolicy exists but is not shown in controllers). Ensure profile update, avatar upload/delete, group/event operations respect authorization beyond membership checks (e.g., Gate/Policies where applicable).
+  - ~~ProfilePolicy removed (was unused)~~. Ensure profile update, avatar upload/delete, group/event operations respect authorization beyond membership checks (e.g., Gate/Policies where applicable). Consider adding targeted policy checks where needed.
 - Validation improvements and consistency
   - EventsController@store: `location_geo` validated as array but not used; either remove or persist properly.
   - Events latitude/longitude: ensure consistent source of truth (if using location_geo). Consider custom rule to keep lat/lon within range.

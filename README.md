@@ -2,10 +2,11 @@
 
 A Laravel-based backend with a companion frontend for managing fishing crews, profiles, and groups. This repository contains the API (Laravel) and a frontend app directory.
 
-Current date: 2026-02-06
+Current date: 2026-02-07
 
 ## Features
 - User registration, login, logout (Laravel Sanctum token auth)
+- Password reset flow (forgot password + reset via email link)
 - Email verification flow with deep-link redirect to frontend
 - Profile management with avatars (S3 upload)
 - Groups management with roles (owner/moderator/member) and admin visibility
@@ -18,6 +19,8 @@ Current date: 2026-02-06
 - Activity feed & notifications
 - Weather integration (OpenMeteo API)
 - Dashboard with aggregated data
+- Dark theme support (full CSS overhaul, logo inversion, responsive components)
+- SSR authentication with header forwarding
 
 ## Tech Stack
 - PHP 8.2+, Laravel 12
@@ -112,12 +115,20 @@ ddev logs -f       # All logs
 - Resend verification notification: POST /api/auth/email/verification-notification (auth:sanctum)
 
 ## Authentication
-- Uses Laravel Sanctum
-- Ensure SPA hosts are configured in sanctum.php and your .env
+- Uses Laravel Sanctum with HttpOnly cookie-based token auth
+- Cookie domain resolved dynamically (supports cross-subdomain: `api.fishingcrew.app` ↔ `fishingcrew.app`)
+- SSR-compatible: headers (cookie, origin, referer) forwarded during server-side rendering
 - Typical flow:
-  - CSRF cookie (if using session-based SPA): GET /sanctum/csrf-cookie
-  - Login: POST /login (or the configured route in routes/api.php or routes/web.php)
-  - Authenticated API calls include session or token as configured
+  - Login: POST /api/auth/login → sets HttpOnly auth cookie
+  - Authenticated API calls include the cookie automatically
+  - Logout: POST /api/auth/logout → clears cookie and revokes token
+
+## Password Reset Flow
+- Forgot password: POST /api/auth/forgot-password (email) → sends reset link email
+- Reset link points to frontend: `/reset-password?token=...&email=...`
+- Reset: POST /api/auth/reset-password (token, email, password, password_confirmation)
+- Both endpoints are rate-limited
+- Frontend pages: `/forgotPassword` and `/resetPassword`
 
 ## Useful Commands
 
