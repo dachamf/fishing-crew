@@ -20,7 +20,7 @@ export default defineNuxtConfig({
       closeOnClick: true,
       closeOnEscape: true,
       progressBar: true,
-      maxWidth: "520px",
+      maxWidth: 520,
       layout: 2,
     },
   },
