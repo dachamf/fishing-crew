@@ -1,7 +1,3 @@
-<script setup lang="ts">
-import Toaster from "~/components/ui/toaster.vue";
-</script>
-
 <template>
   <div>
     <AppMenu />
@@ -9,6 +5,5 @@ import Toaster from "~/components/ui/toaster.vue";
       <slot />
     </main>
     <AppFooter />
-    <Toaster />
   </div>
 </template>

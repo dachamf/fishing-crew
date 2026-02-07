@@ -18,26 +18,77 @@ const {
   data,
   loading,
   error,
+  geoError,
   hasData,
   supported,
-  setCoords,
+  fetchWeatherAt,
   fetchWeather,
   useBrowserLocation,
 } = useWeatherHint();
 
-onMounted(async () => {
-  // 1) Probaj hint iz aplikacije (ako imaš ga iz open/last sesije)
-  if (props.hintLat != null && props.hintLng != null) {
-    setCoords(props.hintLat, props.hintLng);
-    await fetchWeather();
+const locating = ref(false);
+
+// Default: Beograd
+const DEFAULT_LAT = 44.81;
+const DEFAULT_LNG = 20.46;
+
+const usingDefault = computed(
+  () => coords.value.lat === DEFAULT_LAT && coords.value.lng === DEFAULT_LNG,
+);
+
+async function fetchFromHint(lat?: number | null, lng?: number | null): Promise<boolean> {
+  if (lat == null || lng == null) {
+    return false;
   }
-  // 2) Ako nema backenda /v1/weather/summary, kartica će prikazati graceful fallback
+  await fetchWeatherAt(lat, lng);
+  return true;
+}
+
+onMounted(async () => {
+  // 1) Ako imamo hint koordinate, odmah učitaj prognozu
+  const usedHint = await fetchFromHint(props.hintLat, props.hintLng);
+  if (usedHint) {
+    return;
+  }
+  // 2) Pokušaj browser lokaciju
+  const geo = await useBrowserLocation();
+  if (geo) {
+    await fetchWeatherAt(geo.lat, geo.lng);
+    return;
+  }
+  // 3) Fallback na default lokaciju ako ništa nije uspelo
+  await fetchWeatherAt(DEFAULT_LAT, DEFAULT_LNG);
 });
 
+watch(
+  () => [props.hintLat, props.hintLng] as const,
+  async ([lat, lng], [prevLat, prevLng]) => {
+    if (lat == null || lng == null) {
+      return;
+    }
+    if (lat === prevLat && lng === prevLng) {
+      return;
+    }
+    await fetchFromHint(lat, lng);
+  },
+);
+
 async function onUseMyLocation() {
-  const ok = await useBrowserLocation();
-  if (ok)
-    await fetchWeather();
+  locating.value = true;
+  try {
+    const geo = await useBrowserLocation();
+    if (geo) {
+      await fetchWeatherAt(geo.lat, geo.lng);
+    }
+    else {
+      // Geolokacija nije uspela — koristi default (Beograd)
+      error.value = null;
+      await fetchWeatherAt(DEFAULT_LAT, DEFAULT_LNG);
+    }
+  }
+  finally {
+    locating.value = false;
+  }
 }
 </script>
 
@@ -48,7 +99,8 @@ async function onUseMyLocation() {
         <h2 class="card-title">
           {{ title }}
         </h2>
-        <span v-if="coords.lat != null && coords.lng != null" class="badge badge-ghost">
+        <span v-if="usingDefault" class="badge badge-ghost"> Beograd (podrazumevano) </span>
+        <span v-else-if="coords.lat != null && coords.lng != null" class="badge badge-ghost">
           {{ Number(coords.lat).toFixed(2) }}, {{ Number(coords.lng).toFixed(2) }}
         </span>
       </div>
@@ -61,6 +113,11 @@ async function onUseMyLocation() {
         <p>Prognoza će biti dostupna uskoro.</p>
         <div class="join">
           <button class="btn btn-sm join-item" @click="onUseMyLocation">
+            <span
+              v-if="locating"
+              class="loading loading-spinner loading-xs"
+              aria-hidden="true"
+            />
             📍 Koristi moju lokaciju
           </button>
           <button
@@ -78,6 +135,11 @@ async function onUseMyLocation() {
         <p>Nema podataka za izabranu lokaciju.</p>
         <div class="join">
           <button class="btn btn-sm join-item" @click="onUseMyLocation">
+            <span
+              v-if="locating"
+              class="loading loading-spinner loading-xs"
+              aria-hidden="true"
+            />
             📍 Koristi moju lokaciju
           </button>
           <button
@@ -134,8 +196,21 @@ async function onUseMyLocation() {
         </div>
       </div>
 
+      <div v-if="usingDefault && geoError" class="text-xs opacity-60">
+        {{ geoError }}
+      </div>
+
       <div class="flex items-center gap-2">
-        <button class="btn btn-xs btn-outline" @click="onUseMyLocation">
+        <button
+          class="btn btn-xs btn-outline"
+          :disabled="locating"
+          @click="onUseMyLocation"
+        >
+          <span
+            v-if="locating"
+            class="loading loading-spinner loading-xs"
+            aria-hidden="true"
+          />
           📍 Lokacija
         </button>
         <button

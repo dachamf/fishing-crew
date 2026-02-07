@@ -13,7 +13,7 @@ class OpenMeteoService
         $lngKey = round($lng, 2);
         $cacheKey = "wx:openmeteo:{$latKey},{$lngKey}";
 
-        return Cache::remember($cacheKey, now()->addMinutes(10), function () use ($lat, $lng) {
+        return Cache::remember($cacheKey, now()->addMinutes(10), function () use ($lat, $lng, $cacheKey) {
             $query = [
                 'latitude'        => $lat,
                 'longitude'       => $lng,
@@ -24,11 +24,17 @@ class OpenMeteoService
             ];
 
             $resp = Http::retry(2, 200)->timeout(6)->get('https://api.open-meteo.com/v1/forecast', $query);
-            if (!$resp->ok()) return null;
+            if (!$resp->ok()) {
+                Cache::forget($cacheKey); // ne kesiraj neuspele pozive
+                return null;
+            }
 
             $json    = $resp->json() ?? [];
             $current = $json['current_weather'] ?? null;
-            if (!$current) return null;
+            if (!$current) {
+                Cache::forget($cacheKey);
+                return null;
+            }
 
             $tempC     = $current['temperature']   ?? null;   // °C
             $windKph   = $current['windspeed']     ?? null;   // km/h

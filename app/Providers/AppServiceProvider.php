@@ -35,7 +35,7 @@ class AppServiceProvider extends ServiceProvider
 
         ResetPassword::createUrlUsing(function (User $user, string $token) {
             $base = rtrim((string) config('app.frontend_url'), '/');
-            return $base.'/reset-password?token='.urlencode($token).'&email='.urlencode($user->email);
+            return $base.'/resetPassword?token='.urlencode($token).'&email='.urlencode($user->email);
         });
 
         RateLimiter::for('auth', function (Request $request) {

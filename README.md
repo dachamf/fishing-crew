@@ -87,6 +87,10 @@ ddev fe dev        # Start Nuxt dev server
 | `ddev fe lint:fix` | `ddev fe lf` | Run ESLint with --fix |
 | `ddev fe type-check` | `ddev fe tc` | Run TypeScript type check |
 
+### Frontend Naming Rule
+- New files in `frontendApp` must use `camelCase` file names.
+- Kebab-case file names will fail lint (`unicorn/filename-case`).
+
 ### Alternative: Direct Nuxt Command
 ```bash
 ddev nuxt          # Start dev server
@@ -125,7 +129,7 @@ ddev logs -f       # All logs
 
 ## Password Reset Flow
 - Forgot password: POST /api/auth/forgot-password (email) → sends reset link email
-- Reset link points to frontend: `/reset-password?token=...&email=...`
+- Reset link points to frontend: `/resetPassword?token=...&email=...`
 - Reset: POST /api/auth/reset-password (token, email, password, password_confirmation)
 - Both endpoints are rate-limited
 - Frontend pages: `/forgotPassword` and `/resetPassword`

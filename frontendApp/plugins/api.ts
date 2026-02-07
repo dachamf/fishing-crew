@@ -32,6 +32,17 @@ export default defineNuxtPlugin((nuxtApp) => {
   api.interceptors.response.use(
     res => res,
     async (err) => {
+      const routePath = import.meta.client ? useRoute().path : "";
+      const isPublicAuthRoute = [
+        "/login",
+        "/register",
+        "/verify",
+        "/forgotPassword",
+        "/resetPassword",
+        "/forgot-password",
+        "/reset-password",
+      ].some(prefix => routePath.startsWith(prefix));
+
       if (import.meta.client) {
         const { error } = useToast();
         error(toErrorMessage(err));
@@ -44,6 +55,9 @@ export default defineNuxtPlugin((nuxtApp) => {
         }
         const { ready } = useAuth();
         if (!ready.value) {
+          return Promise.reject(err);
+        }
+        if (isPublicAuthRoute) {
           return Promise.reject(err);
         }
         const { logout } = useAuth();

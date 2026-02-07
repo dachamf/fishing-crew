@@ -10,7 +10,20 @@ export default defineNuxtConfig({
     "@vite-pwa/nuxt",
     "@vueuse/nuxt",
     "@nuxt/image",
+    "nuxt-toast",
   ],
+  toast: {
+    composableName: "useIziToast",
+    settings: {
+      position: "bottomRight",
+      timeout: 15000,
+      closeOnClick: true,
+      closeOnEscape: true,
+      progressBar: true,
+      maxWidth: "520px",
+      layout: 2,
+    },
+  },
   image: {
     format: ["webp", "avif", "png"],
   },

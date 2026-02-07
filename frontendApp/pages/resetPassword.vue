@@ -3,7 +3,10 @@ import { useHead } from "#imports";
 import axios from "axios";
 import { ref } from "vue";
 
-definePageMeta({ public: true });
+definePageMeta({
+  public: true,
+  alias: ["/reset-password"],
+});
 
 useHead({
   title: "Reset lozinke — Fishing Crew",
